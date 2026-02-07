@@ -1,0 +1,102 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+#game-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+#game-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+#hud {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  pointer-events: none;
+}
+
+#hud-score {
+  color: #fff;
+  font-size: 24px;
+  font-weight: bold;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+#hud-hp-container {
+  width: 200px;
+  height: 20px;
+  background: rgba(0,0,0,0.5);
+  border: 2px solid rgba(255,255,255,0.3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+#hud-hp-bar {
+  width: 100%;
+  height: 100%;
+  background: #4f4;
+  transition: width 0.1s ease;
+}
+
+#game-over {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.7);
+}
+
+#game-over.hidden {
+  display: none;
+}
+
+#game-over-content {
+  text-align: center;
+  color: #fff;
+}
+
+#game-over-content h1 {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+
+#game-over-content p {
+  font-size: 32px;
+  margin-bottom: 24px;
+}
+
+#restart-btn {
+  padding: 12px 32px;
+  font-size: 20px;
+  cursor: pointer;
+  background: #4f4;
+  border: none;
+  border-radius: 8px;
+  color: #000;
+  font-weight: bold;
+}
+
+#restart-btn:hover {
+  background: #6f6;
+}

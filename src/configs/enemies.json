@@ -1,0 +1,9 @@
+{
+  "rusher": {
+    "speed": 2.5,
+    "hp": 50,
+    "contactDamage": 15,
+    "radius": 0.4,
+    "scoreValue": 100
+  }
+}

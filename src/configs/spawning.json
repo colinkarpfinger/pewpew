@@ -1,0 +1,6 @@
+{
+  "initialInterval": 120,
+  "minimumInterval": 30,
+  "decayRate": 0.95,
+  "maxEnemies": 30
+}

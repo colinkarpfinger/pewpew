@@ -1,0 +1,145 @@
+// ---- Configs ----
+
+export interface PlayerConfig {
+  speed: number;
+  hp: number;
+  radius: number;
+  iframeDuration: number; // ticks
+}
+
+export interface WeaponConfig {
+  damage: number;
+  fireRate: number; // shots per second
+  projectileSpeed: number;
+  projectileLifetime: number; // ticks
+  spread: number; // radians
+}
+
+export interface WeaponsConfig {
+  rifle: WeaponConfig;
+}
+
+export interface EnemyTypeConfig {
+  speed: number;
+  hp: number;
+  contactDamage: number;
+  radius: number;
+  scoreValue: number;
+}
+
+export interface EnemiesConfig {
+  rusher: EnemyTypeConfig;
+}
+
+export interface SpawningConfig {
+  initialInterval: number; // ticks between spawns
+  minimumInterval: number;
+  decayRate: number; // multiplier per spawn
+  maxEnemies: number;
+}
+
+export interface ArenaConfig {
+  width: number;
+  height: number;
+  obstacleCount: number;
+  obstacleSize: number;
+}
+
+export interface GameConfigs {
+  player: PlayerConfig;
+  weapons: WeaponsConfig;
+  enemies: EnemiesConfig;
+  spawning: SpawningConfig;
+  arena: ArenaConfig;
+}
+
+// ---- Entities ----
+
+export interface Vec2 {
+  x: number;
+  y: number;
+}
+
+export interface Player {
+  pos: Vec2;
+  hp: number;
+  maxHp: number;
+  radius: number;
+  aimDir: Vec2; // normalized
+  iframeTimer: number; // ticks remaining, 0 = vulnerable
+  fireCooldown: number; // ticks remaining
+}
+
+export interface Enemy {
+  id: number;
+  type: 'rusher';
+  pos: Vec2;
+  hp: number;
+  radius: number;
+  speed: number;
+  contactDamage: number;
+  scoreValue: number;
+}
+
+export interface Projectile {
+  id: number;
+  pos: Vec2;
+  vel: Vec2;
+  damage: number;
+  lifetime: number; // ticks remaining
+}
+
+export interface Obstacle {
+  pos: Vec2; // center
+  width: number;
+  height: number;
+}
+
+// ---- Input ----
+
+export interface InputState {
+  moveDir: Vec2; // normalized or zero
+  aimDir: Vec2; // normalized, world-space direction from player
+  fire: boolean;
+}
+
+// ---- Events ----
+
+export type GameEventType =
+  | 'projectile_fired'
+  | 'enemy_hit'
+  | 'enemy_killed'
+  | 'player_hit'
+  | 'player_death'
+  | 'enemy_spawned'
+  | 'projectile_destroyed';
+
+export interface GameEvent {
+  tick: number;
+  type: GameEventType;
+  data?: Record<string, unknown>;
+}
+
+// ---- Game State ----
+
+export interface SpawnerState {
+  timer: number; // ticks until next spawn
+  currentInterval: number;
+}
+
+export interface GameState {
+  tick: number;
+  player: Player;
+  enemies: Enemy[];
+  projectiles: Projectile[];
+  obstacles: Obstacle[];
+  arena: ArenaConfig;
+  score: number;
+  gameOver: boolean;
+  nextEntityId: number;
+  spawner: SpawnerState;
+  events: GameEvent[];
+}
+
+export const TICK_RATE = 60;
+export const TICK_DURATION = 1 / TICK_RATE;
