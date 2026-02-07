@@ -51,6 +51,11 @@ export class Renderer {
 
   /** Set up static arena geometry (ground, walls, obstacles) */
   initArena(state: GameState): void {
+    // Clear stale refs from previous game
+    this.enemyMeshes.clear();
+    this.projectileMeshes.clear();
+    this.playerGroup = null;
+
     // Ground
     const ground = createGroundMesh(state.arena.width, state.arena.height);
     this.scene.add(ground);

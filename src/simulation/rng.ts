@@ -23,4 +23,14 @@ export class SeededRNG {
   int(min: number, max: number): number {
     return Math.floor(this.range(min, max + 1));
   }
+
+  /** Returns the internal state for serialization */
+  getState(): number {
+    return this.state;
+  }
+
+  /** Restores internal state from a previously saved value */
+  setState(state: number): void {
+    this.state = state;
+  }
 }

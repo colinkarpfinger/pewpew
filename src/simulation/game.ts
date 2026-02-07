@@ -77,6 +77,19 @@ export function tick(game: GameInstance, input: InputState, configs: GameConfigs
   updateSpawner(state, configs.spawning, configs.enemies, rng);
 }
 
+/** Deep clone a GameState via JSON round-trip */
+export function cloneState(state: GameState): GameState {
+  return JSON.parse(JSON.stringify(state));
+}
+
+/** Reconstruct a GameInstance from a serialized snapshot + RNG state */
+export function restoreGame(stateSnapshot: GameState, rngState: number): GameInstance {
+  const state = cloneState(stateSnapshot);
+  const rng = new SeededRNG(0);
+  rng.setState(rngState);
+  return { state, rng };
+}
+
 /** Get a serializable snapshot of the entire game state */
 export function getSnapshot(state: GameState): string {
   return JSON.stringify(state, null, 2);

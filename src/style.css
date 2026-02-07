@@ -100,3 +100,233 @@ html, body {
 #restart-btn:hover {
   background: #6f6;
 }
+
+/* ---- Start Screen ---- */
+
+#start-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 10;
+}
+
+#start-screen.hidden {
+  display: none;
+}
+
+#start-screen-content {
+  text-align: center;
+  color: #4f4;
+}
+
+#start-title {
+  font-family: monospace;
+  font-size: 14px;
+  line-height: 1.2;
+  margin-bottom: 32px;
+  white-space: pre;
+}
+
+#start-prompt {
+  font-size: 24px;
+  color: #fff;
+  animation: blink 1.2s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ---- Escape / Pause Menu ---- */
+
+#escape-menu {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 20;
+}
+
+#escape-menu.hidden {
+  display: none;
+}
+
+#escape-menu-content {
+  text-align: center;
+  color: #fff;
+}
+
+#escape-menu-content h1 {
+  font-size: 48px;
+  margin-bottom: 32px;
+}
+
+#escape-menu-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.menu-btn {
+  padding: 12px 32px;
+  font-size: 18px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  color: #fff;
+  font-weight: bold;
+  min-width: 280px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.menu-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: #4f4;
+}
+
+/* ---- Replay Browser ---- */
+
+#replay-browser {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 25;
+}
+
+#replay-browser.hidden {
+  display: none;
+}
+
+#replay-browser-content {
+  text-align: center;
+  color: #fff;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+#replay-browser-content h1 {
+  font-size: 36px;
+  margin-bottom: 24px;
+}
+
+#replay-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.replay-item {
+  padding: 10px 24px;
+  font-size: 16px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: #fff;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.replay-item:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.replay-item .replay-type {
+  color: #4f4;
+  font-weight: bold;
+  margin-right: 8px;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+
+/* ---- Replay Controls ---- */
+
+#replay-controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  pointer-events: none;
+}
+
+#replay-controls.hidden {
+  display: none;
+}
+
+#replay-controls-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.8);
+  pointer-events: auto;
+}
+
+#replay-play-pause {
+  width: 36px;
+  height: 36px;
+  font-size: 18px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  color: #fff;
+}
+
+#replay-scrub {
+  flex: 1;
+  cursor: pointer;
+}
+
+#replay-tick-display {
+  color: #aaa;
+  font-size: 14px;
+  font-family: monospace;
+  min-width: 120px;
+  text-align: center;
+}
+
+#replay-speed {
+  padding: 4px 8px;
+  font-size: 14px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  color: #fff;
+}
+
+#replay-exit {
+  padding: 6px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  background: rgba(255, 80, 80, 0.3);
+  border: 1px solid rgba(255, 80, 80, 0.5);
+  border-radius: 4px;
+  color: #fff;
+  font-weight: bold;
+}
+
+#replay-exit:hover {
+  background: rgba(255, 80, 80, 0.5);
+}
+
+.no-replays {
+  color: #888;
+  font-style: italic;
+  padding: 16px;
+}
