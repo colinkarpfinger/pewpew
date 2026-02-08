@@ -21,6 +21,14 @@ export interface WeaponConfig {
   penetration: number; // max enemies a bullet can hit (requires first-hit headshot)
   knockback: number; // knockback speed applied to enemies on hit
   headshotKnockbackMultiplier: number;
+  magazineSize: number;
+  reloadTime: number; // ticks
+  activeReloadStart: number; // fraction 0-1
+  activeReloadEnd: number;
+  perfectReloadStart: number;
+  perfectReloadEnd: number;
+  activeReloadDamageBonus: number; // multiplier (e.g. 1.1 = +10%)
+  perfectReloadDamageBonus: number;
 }
 
 export interface WeaponsConfig {
@@ -79,6 +87,9 @@ export interface Player {
   dodgeTimer: number; // ticks remaining in dodge, 0 = not dodging
   dodgeCooldown: number; // ticks remaining before dodge available again
   dodgeDir: Vec2; // locked movement direction during dodge
+  ammo: number;
+  reloadTimer: number; // 0 = not reloading, >0 = ticks elapsed since reload started
+  damageBonusMultiplier: number; // from active/perfect reload, resets on next reload
 }
 
 export interface Enemy {
@@ -118,6 +129,7 @@ export interface InputState {
   fire: boolean;
   headshotTargetId: number | null; // enemy ID whose head is under cursor
   dodge: boolean; // edge-detected: true only on press frame
+  reload: boolean; // edge-detected: true only on press frame
 }
 
 // ---- Events ----
@@ -130,7 +142,10 @@ export type GameEventType =
   | 'player_death'
   | 'enemy_spawned'
   | 'projectile_destroyed'
-  | 'player_dodge_start';
+  | 'player_dodge_start'
+  | 'reload_start'
+  | 'reload_complete'
+  | 'reload_fumbled';
 
 export interface GameEvent {
   tick: number;

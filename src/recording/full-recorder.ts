@@ -19,6 +19,7 @@ export class FullRecorder {
       fire: input.fire,
       headshotTargetId: input.headshotTargetId,
       dodge: input.dodge,
+      reload: input.reload,
     });
   }
 

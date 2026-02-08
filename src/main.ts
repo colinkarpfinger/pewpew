@@ -15,7 +15,7 @@ import { showStartScreen, hideStartScreen, onStartGame } from './ui/start-screen
 import { showEscapeMenu, hideEscapeMenu, setupEscapeMenu } from './ui/escape-menu.ts';
 import { showReplayBrowser } from './ui/replay-browser.ts';
 import { showReplayControls, hideReplayControls, onReplayExit } from './ui/replay-controls.ts';
-import { initCrosshair, showCrosshair, hideCrosshair, processHitEvents, updateCrosshairSpread } from './ui/crosshair.ts';
+import { initCrosshair, showCrosshair, hideCrosshair, processHitEvents, updateCrosshairSpread, updateAmmoArc } from './ui/crosshair.ts';
 
 import playerConfig from './configs/player.json';
 import weaponsConfig from './configs/weapons.json';
@@ -221,6 +221,20 @@ function gameLoop(now: number): void {
       ? rifle.spread * rifle.movingSpreadMultiplier * 3.0
       : rifle.spread * (isMoving ? rifle.movingSpreadMultiplier : 1.0);
     updateCrosshairSpread(effectiveSpread);
+
+    // Update ammo arc
+    const isReloading = state.player.reloadTimer > 0;
+    updateAmmoArc({
+      ammo: state.player.ammo,
+      maxAmmo: rifle.magazineSize,
+      reloading: isReloading,
+      reloadProgress: isReloading ? state.player.reloadTimer / rifle.reloadTime : 0,
+      activeStart: rifle.activeReloadStart,
+      activeEnd: rifle.activeReloadEnd,
+      perfectStart: rifle.perfectReloadStart,
+      perfectEnd: rifle.perfectReloadEnd,
+      damageBonusMultiplier: state.player.damageBonusMultiplier,
+    });
 
     while (accumulator >= TICK_DURATION) {
       fullRecorder.recordTick(currentInput);

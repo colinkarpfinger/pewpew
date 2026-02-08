@@ -2,6 +2,7 @@ import type { GameEvent } from '../simulation/types.ts';
 
 const crosshairEl = () => document.getElementById('crosshair')!;
 const hitmarkerEl = () => document.getElementById('hitmarker')!;
+const ammoCounterEl = () => document.getElementById('ammo-counter')!;
 
 let hitmarkerTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -19,6 +20,13 @@ let lineDown: SVGLineElement;
 let lineLeft: SVGLineElement;
 let lineRight: SVGLineElement;
 
+// Ammo arc elements
+let arcFill: SVGCircleElement;
+let arcActive: SVGCircleElement;
+let arcPerfect: SVGCircleElement;
+const ARC_RADIUS = 20;
+const ARC_CIRCUMFERENCE = 2 * Math.PI * ARC_RADIUS;
+
 export function initCrosshair(canvas: HTMLCanvasElement): void {
   const el = crosshairEl();
 
@@ -27,6 +35,16 @@ export function initCrosshair(canvas: HTMLCanvasElement): void {
   lineDown = el.querySelector('[data-dir="down"]') as SVGLineElement;
   lineLeft = el.querySelector('[data-dir="left"]') as SVGLineElement;
   lineRight = el.querySelector('[data-dir="right"]') as SVGLineElement;
+
+  // Cache ammo arc references
+  arcFill = el.querySelector('.ammo-arc-fill') as SVGCircleElement;
+  arcActive = el.querySelector('.ammo-arc-active') as SVGCircleElement;
+  arcPerfect = el.querySelector('.ammo-arc-perfect') as SVGCircleElement;
+
+  // Initialize arcs with full dash
+  const bg = el.querySelector('.ammo-arc-bg') as SVGCircleElement;
+  bg.setAttribute('stroke-dasharray', `${ARC_CIRCUMFERENCE} ${ARC_CIRCUMFERENCE}`);
+  bg.setAttribute('stroke-dashoffset', '0');
 
   canvas.addEventListener('mousemove', (e) => {
     el.style.left = `${e.clientX}px`;
@@ -40,6 +58,74 @@ export function initCrosshair(canvas: HTMLCanvasElement): void {
   canvas.addEventListener('mouseleave', () => {
     el.style.display = 'none';
   });
+}
+
+export interface AmmoArcState {
+  ammo: number;
+  maxAmmo: number;
+  reloading: boolean;
+  reloadProgress: number; // 0-1
+  activeStart: number;
+  activeEnd: number;
+  perfectStart: number;
+  perfectEnd: number;
+  damageBonusMultiplier: number;
+}
+
+export function updateAmmoArc(s: AmmoArcState): void {
+  const counter = ammoCounterEl();
+
+  if (s.reloading) {
+    // During reload: arc shows reload progress filling up
+    const fillLen = s.reloadProgress * ARC_CIRCUMFERENCE;
+    arcFill.setAttribute('stroke-dasharray', `${fillLen} ${ARC_CIRCUMFERENCE}`);
+    arcFill.setAttribute('stroke-dashoffset', '0');
+    arcFill.classList.remove('bonus-active', 'bonus-perfect');
+
+    // Show active reload window
+    const activeStartLen = s.activeStart * ARC_CIRCUMFERENCE;
+    const activeLen = (s.activeEnd - s.activeStart) * ARC_CIRCUMFERENCE;
+    arcActive.setAttribute('stroke-dasharray', `${activeLen} ${ARC_CIRCUMFERENCE}`);
+    arcActive.setAttribute('stroke-dashoffset', String(-activeStartLen));
+
+    // Show perfect reload window
+    const perfectStartLen = s.perfectStart * ARC_CIRCUMFERENCE;
+    const perfectLen = (s.perfectEnd - s.perfectStart) * ARC_CIRCUMFERENCE;
+    arcPerfect.setAttribute('stroke-dasharray', `${perfectLen} ${ARC_CIRCUMFERENCE}`);
+    arcPerfect.setAttribute('stroke-dashoffset', String(-perfectStartLen));
+
+    counter.textContent = 'RELOADING';
+    counter.classList.add('reloading');
+    counter.classList.remove('bonus-active', 'bonus-perfect');
+  } else {
+    // Normal: arc shows ammo fraction
+    const fraction = s.ammo / s.maxAmmo;
+    const fillLen = fraction * ARC_CIRCUMFERENCE;
+    arcFill.setAttribute('stroke-dasharray', `${fillLen} ${ARC_CIRCUMFERENCE}`);
+    arcFill.setAttribute('stroke-dashoffset', '0');
+
+    // Hide reload windows
+    arcActive.setAttribute('stroke-dasharray', `0 ${ARC_CIRCUMFERENCE}`);
+    arcPerfect.setAttribute('stroke-dasharray', `0 ${ARC_CIRCUMFERENCE}`);
+
+    // Show damage bonus color
+    if (s.damageBonusMultiplier > 1.2) {
+      arcFill.classList.add('bonus-perfect');
+      arcFill.classList.remove('bonus-active');
+      counter.classList.add('bonus-perfect');
+      counter.classList.remove('bonus-active', 'reloading');
+    } else if (s.damageBonusMultiplier > 1.0) {
+      arcFill.classList.add('bonus-active');
+      arcFill.classList.remove('bonus-perfect');
+      counter.classList.add('bonus-active');
+      counter.classList.remove('bonus-perfect', 'reloading');
+    } else {
+      arcFill.classList.remove('bonus-active', 'bonus-perfect');
+      counter.classList.remove('bonus-active', 'bonus-perfect', 'reloading');
+    }
+
+    counter.textContent = `${s.ammo} / ${s.maxAmmo}`;
+  }
 }
 
 /** Update the crosshair size to reflect current effective spread (radians). */
@@ -68,13 +154,45 @@ export function hideCrosshair(): void {
   crosshairEl().style.display = 'none';
 }
 
+let reloadPopupTimeout: ReturnType<typeof setTimeout> | null = null;
+
 export function processHitEvents(events: GameEvent[]): void {
   for (const event of events) {
     if (event.type === 'enemy_hit') {
       const isHeadshot = !!(event.data && event.data['headshot']);
       triggerHitmarker(isHeadshot);
+    } else if (event.type === 'reload_complete') {
+      const reloadType = event.data?.['reloadType'] as string;
+      if (reloadType === 'perfect') {
+        showReloadPopup('perfect', 'Perfect Reload', '+25% Damage');
+      } else if (reloadType === 'active') {
+        showReloadPopup('active', 'Active Reload', '+10% Damage');
+      }
+    } else if (event.type === 'reload_fumbled') {
+      showReloadPopup('fumbled', 'Fumbled', 'Reload delayed');
     }
   }
+}
+
+function showReloadPopup(type: 'perfect' | 'active' | 'fumbled', title: string, detail: string): void {
+  const popup = document.getElementById('reload-popup')!;
+  const titleEl = document.getElementById('reload-popup-title')!;
+  const detailEl = document.getElementById('reload-popup-detail')!;
+
+  // Clear previous
+  if (reloadPopupTimeout) clearTimeout(reloadPopupTimeout);
+  popup.classList.remove('visible', 'perfect', 'active', 'fumbled', 'hidden');
+  void popup.offsetWidth; // force reflow
+
+  titleEl.textContent = title;
+  detailEl.textContent = detail;
+  popup.classList.add('visible', type);
+
+  reloadPopupTimeout = setTimeout(() => {
+    popup.classList.remove('visible', type);
+    popup.classList.add('hidden');
+    reloadPopupTimeout = null;
+  }, 1500);
 }
 
 function triggerHitmarker(headshot: boolean): void {

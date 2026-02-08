@@ -7,10 +7,13 @@ export function tryFire(state: GameState, input: InputState, weapons: WeaponsCon
   if (state.player.dodgeTimer > 0) return;
   if (!input.fire) return;
   if (state.player.fireCooldown > 0) return;
+  if (state.player.reloadTimer > 0) return; // can't fire while reloading
+  if (state.player.ammo <= 0) return; // no ammo
 
   const rifle = weapons.rifle;
   const cooldownTicks = Math.ceil(TICK_RATE / rifle.fireRate);
   state.player.fireCooldown = cooldownTicks;
+  state.player.ammo--;
 
   // Apply spread (wider when moving)
   const isMoving = input.moveDir.x !== 0 || input.moveDir.y !== 0;
@@ -25,7 +28,7 @@ export function tryFire(state: GameState, input: InputState, weapons: WeaponsCon
       x: Math.cos(angle) * rifle.projectileSpeed,
       y: Math.sin(angle) * rifle.projectileSpeed,
     },
-    damage: rifle.damage,
+    damage: rifle.damage * state.player.damageBonusMultiplier,
     lifetime: rifle.projectileLifetime,
     headshotTargetId: input.headshotTargetId,
     penetrationLeft: rifle.penetration,
@@ -38,6 +41,82 @@ export function tryFire(state: GameState, input: InputState, weapons: WeaponsCon
     type: 'projectile_fired',
     data: { projectileId: projectile.id },
   });
+
+  // Auto-reload when magazine is empty
+  if (state.player.ammo <= 0) {
+    startReload(state, weapons);
+  }
+}
+
+function startReload(state: GameState, weapons: WeaponsConfig): void {
+  if (state.player.reloadTimer > 0) return; // already reloading
+  if (state.player.ammo >= weapons.rifle.magazineSize) return; // full mag
+  state.player.reloadTimer = 1;
+  state.player.damageBonusMultiplier = 1.0; // reset bonus on reload start
+  state.events.push({
+    tick: state.tick,
+    type: 'reload_start',
+    data: {},
+  });
+}
+
+function completeReload(state: GameState, weapons: WeaponsConfig, reloadType: 'normal' | 'active' | 'perfect'): void {
+  const rifle = weapons.rifle;
+  state.player.ammo = rifle.magazineSize;
+  state.player.reloadTimer = 0;
+
+  if (reloadType === 'perfect') {
+    state.player.damageBonusMultiplier = rifle.perfectReloadDamageBonus;
+  } else if (reloadType === 'active') {
+    state.player.damageBonusMultiplier = rifle.activeReloadDamageBonus;
+  }
+
+  state.events.push({
+    tick: state.tick,
+    type: 'reload_complete',
+    data: { reloadType },
+  });
+}
+
+export function updateReload(state: GameState, input: InputState, weapons: WeaponsConfig): void {
+  const rifle = weapons.rifle;
+
+  // R pressed while not reloading: start manual reload
+  if (input.reload && state.player.reloadTimer === 0) {
+    startReload(state, weapons);
+    return;
+  }
+
+  // Not reloading — nothing to do
+  if (state.player.reloadTimer === 0) return;
+
+  const progress = state.player.reloadTimer / rifle.reloadTime;
+
+  // R pressed during reload: attempt active reload
+  if (input.reload) {
+    if (progress >= rifle.perfectReloadStart && progress <= rifle.perfectReloadEnd) {
+      completeReload(state, weapons, 'perfect');
+      return;
+    } else if (progress >= rifle.activeReloadStart && progress <= rifle.activeReloadEnd) {
+      completeReload(state, weapons, 'active');
+      return;
+    }
+    // Missed the window — penalty: set progress back by 25% of total reload time
+    state.player.reloadTimer = Math.max(1, state.player.reloadTimer - Math.floor(rifle.reloadTime * 0.25));
+    state.events.push({
+      tick: state.tick,
+      type: 'reload_fumbled',
+      data: {},
+    });
+  }
+
+  // Advance reload timer
+  state.player.reloadTimer++;
+
+  // Reload finished naturally
+  if (state.player.reloadTimer > rifle.reloadTime) {
+    completeReload(state, weapons, 'normal');
+  }
 }
 
 export function updateProjectiles(state: GameState): void {
