@@ -17,12 +17,14 @@ import { showReplayBrowser } from './ui/replay-browser.ts';
 import { showReplayControls, hideReplayControls, onReplayExit } from './ui/replay-controls.ts';
 import { initCrosshair, showCrosshair, hideCrosshair, processHitEvents, updateCrosshairSpread, updateAmmoArc } from './ui/crosshair.ts';
 
+import { AudioSystem } from './audio/audio.ts';
 import playerConfig from './configs/player.json';
 import weaponsConfig from './configs/weapons.json';
 import enemiesConfig from './configs/enemies.json';
 import spawningConfig from './configs/spawning.json';
 import arenaConfig from './configs/arena.json';
 import multikillConfig from './configs/multikill.json';
+import audioConfig from './configs/audio.json';
 
 const configs: GameConfigs = {
   player: playerConfig,
@@ -42,6 +44,7 @@ let screen: Screen = 'start';
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const renderer = new Renderer(canvas);
 const input = new InputHandler(renderer.camera, canvas);
+const audioSystem = new AudioSystem(audioConfig);
 
 let game: GameInstance;
 let fullRecorder: FullRecorder;
@@ -85,6 +88,7 @@ function startGame(): void {
   rebuildScene();
   renderer.initArena(game.state);
   renderer.setDodgeDuration(configs.player.dodgeDuration);
+  audioSystem.init();
   gameOverShown = false;
   hideGameOver();
   hideStartScreen();
@@ -257,6 +261,7 @@ function gameLoop(now: number): void {
 
     renderer.syncState(state);
     renderer.updateParticles(dt, frameEvents, state);
+    audioSystem.processEvents(frameEvents, state);
     renderer.render();
     updateHUD(state);
   } else if (screen === 'paused' || screen === 'gameOver') {

@@ -1,0 +1,123 @@
+{
+  "masterVolume": 0.7,
+  "events": {
+    "rifle_fire": {
+      "files": [
+        "assets/audio/weapons/m4_rifle/shoot/sfx_weapon_M4_shot_1.wav",
+        "assets/audio/weapons/m4_rifle/shoot/sfx_weapon_M4_shot_2.wav",
+        "assets/audio/weapons/m4_rifle/shoot/sfx_weapon_M4_shot_3.wav",
+        "assets/audio/weapons/m4_rifle/shoot/sfx_weapon_M4_shot_4.wav"
+      ],
+      "volume": 0.35,
+      "pitchRange": [0.95, 1.05],
+      "maxInstances": 4,
+      "cooldown": 0.05,
+      "spatial": true
+    },
+    "enemy_hit": {
+      "files": [
+        "assets/audio/body_hit/Body Flesh 1.wav",
+        "assets/audio/body_hit/Body Flesh 2.wav",
+        "assets/audio/body_hit/Body Flesh 3.wav",
+        "assets/audio/body_hit/Body Flesh 4.wav",
+        "assets/audio/body_hit/Body Flesh 5.wav",
+        "assets/audio/body_hit/Body Flesh 6.wav",
+        "assets/audio/body_hit/Body Flesh 7.wav",
+        "assets/audio/body_hit/Body Flesh 8.wav",
+        "assets/audio/body_hit/Body Flesh 9.wav",
+        "assets/audio/body_hit/Body Flesh 10.wav"
+      ],
+      "volume": 0.25,
+      "pitchRange": [0.95, 1.05],
+      "maxInstances": 3,
+      "cooldown": 0.03,
+      "spatial": true
+    },
+    "headshot": {
+      "files": [
+        "assets/audio/headshot/Body Head (Headshot) 1.wav",
+        "assets/audio/headshot/Body Head (Headshot) 2.wav",
+        "assets/audio/headshot/Body Head (Headshot) 3.wav",
+        "assets/audio/headshot/Body Head (Headshot) 4.wav",
+        "assets/audio/headshot/Body Head (Headshot) 5.wav"
+      ],
+      "volume": 0.53,
+      "pitchRange": [0.95, 1.05],
+      "maxInstances": 3,
+      "cooldown": 0.03,
+      "spatial": true
+    },
+    "enemy_killed": {
+      "files": [
+        "assets/audio/body_hit/Body Flesh 1.wav",
+        "assets/audio/body_hit/Body Flesh 2.wav",
+        "assets/audio/body_hit/Body Flesh 3.wav",
+        "assets/audio/body_hit/Body Flesh 4.wav",
+        "assets/audio/body_hit/Body Flesh 5.wav",
+        "assets/audio/body_hit/Body Flesh 6.wav",
+        "assets/audio/body_hit/Body Flesh 7.wav",
+        "assets/audio/body_hit/Body Flesh 8.wav",
+        "assets/audio/body_hit/Body Flesh 9.wav",
+        "assets/audio/body_hit/Body Flesh 10.wav"
+      ],
+      "volume": 0.35,
+      "pitchRange": [0.8, 0.95],
+      "maxInstances": 3,
+      "cooldown": 0.05,
+      "spatial": true
+    },
+    "player_hit": {
+      "files": [
+        "assets/audio/player_hit/43397-IMPACT_BODY_STOMP_HUMAN_HEAD_HAIR_SCRAPE_01.wav",
+        "assets/audio/player_hit/43476-IMPACT_BODY_STOMP_CLOTHING_01.wav",
+        "assets/audio/player_hit/43747-IMPACT_BODY_FALL_HUMAN_HIT_DIRT_HARD_01.wav"
+      ],
+      "volume": 0.4,
+      "pitchRange": [0.95, 1.05],
+      "maxInstances": 1,
+      "cooldown": 0.2,
+      "spatial": false
+    },
+    "reload_start": {
+      "files": [
+        "assets/audio/reload/HANDLING_9mm_Ammo_Cardboard_Box_Close_mono.wav"
+      ],
+      "volume": 0.42,
+      "pitchRange": [0.95, 1.05],
+      "maxInstances": 1,
+      "cooldown": 0.3,
+      "spatial": false
+    },
+    "reload_complete": {
+      "files": [
+        "assets/audio/reload/reload_complete/UI_Click_Distinct_mono.wav"
+      ],
+      "volume": 0.49,
+      "pitchRange": [0.95, 1.05],
+      "maxInstances": 1,
+      "cooldown": 0.3,
+      "spatial": false
+    },
+    "reload_fumbled": {
+      "files": [
+        "assets/audio/failed/UI_Error_Subtle_Deep_stereo.wav"
+      ],
+      "volume": 0.3,
+      "pitchRange": [0.95, 1.05],
+      "maxInstances": 1,
+      "cooldown": 0.3,
+      "spatial": false
+    },
+    "dodge": {
+      "files": [
+        "assets/audio/weapons/m4_rifle/shoot/sfx_weapon_M4_shot_1.wav",
+        "assets/audio/weapons/m4_rifle/shoot/sfx_weapon_M4_shot_2.wav"
+      ],
+      "volume": 0.15,
+      "pitchRange": [2.2, 2.5],
+      "maxInstances": 1,
+      "cooldown": 0.3,
+      "spatial": false
+    }
+  }
+}

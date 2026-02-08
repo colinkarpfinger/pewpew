@@ -25,6 +25,7 @@ export class Renderer {
   private enemyGroups = new Map<number, EnemyMeshGroup>();
   private projectileMeshes = new Map<number, THREE.Mesh>();
   private particles: ParticleSystem | null = null;
+  private muzzleFlashes: { light: THREE.PointLight; timer: number }[] = [];
 
   constructor(canvas: HTMLCanvasElement) {
     this.scene = new THREE.Scene();
@@ -77,6 +78,13 @@ export class Renderer {
       mesh.position.set(obs.pos.x, mesh.position.y, obs.pos.y);
       this.scene.add(mesh);
     }
+
+    // Clean up muzzle flashes
+    for (const mf of this.muzzleFlashes) {
+      this.scene.remove(mf.light);
+      mf.light.dispose();
+    }
+    this.muzzleFlashes = [];
 
     // Particles
     if (this.particles) this.particles.dispose();
@@ -213,6 +221,37 @@ export class Renderer {
     if (!this.particles) return;
     this.particles.processEvents(events, state);
     this.particles.update(dt);
+    this.updateMuzzleFlashes(dt, events);
+  }
+
+  private updateMuzzleFlashes(dt: number, events: GameEvent[]): void {
+    // Spawn new flashes from projectile_fired events
+    for (const ev of events) {
+      if (ev.type !== 'projectile_fired') continue;
+      const d = ev.data;
+      if (!d || typeof d.x !== 'number' || typeof d.y !== 'number') continue;
+
+      const light = new THREE.PointLight(0xff8c20, 3, 8);
+      light.position.set(d.x as number, 0.5, d.y as number);
+      this.scene.add(light);
+      // Random duration between 60-80ms
+      this.muzzleFlashes.push({ light, timer: 0.06 + Math.random() * 0.02 });
+    }
+
+    // Update existing flashes
+    for (let i = this.muzzleFlashes.length - 1; i >= 0; i--) {
+      const mf = this.muzzleFlashes[i];
+      mf.timer -= dt;
+      if (mf.timer <= 0) {
+        this.scene.remove(mf.light);
+        mf.light.dispose();
+        this.muzzleFlashes.splice(i, 1);
+      } else {
+        // Fade intensity linearly
+        const maxTimer = 0.07; // approximate midpoint
+        mf.light.intensity = 3 * (mf.timer / maxTimer);
+      }
+    }
   }
 
   render(): void {
