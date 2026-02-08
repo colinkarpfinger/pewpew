@@ -155,6 +155,7 @@ export function hideCrosshair(): void {
 }
 
 let reloadPopupTimeout: ReturnType<typeof setTimeout> | null = null;
+let multikillPopupTimeout: ReturnType<typeof setTimeout> | null = null;
 
 export function processHitEvents(events: GameEvent[]): void {
   for (const event of events) {
@@ -170,6 +171,9 @@ export function processHitEvents(events: GameEvent[]): void {
       }
     } else if (event.type === 'reload_fumbled') {
       showReloadPopup('fumbled', 'Fumbled', 'Reload delayed');
+    } else if (event.type === 'multikill') {
+      const killCount = event.data?.['killCount'] as number;
+      showMultiKillPopup(killCount);
     }
   }
 }
@@ -193,6 +197,31 @@ function showReloadPopup(type: 'perfect' | 'active' | 'fumbled', title: string, 
     popup.classList.add('hidden');
     reloadPopupTimeout = null;
   }, 1500);
+}
+
+function showMultiKillPopup(killCount: number): void {
+  const popup = document.getElementById('multikill-popup')!;
+
+  // Clear previous
+  if (multikillPopupTimeout) clearTimeout(multikillPopupTimeout);
+  popup.classList.remove('visible', 'double', 'triple', 'quad', 'mega', 'hidden');
+  void popup.offsetWidth; // force reflow
+
+  const labels: Record<number, [string, string]> = {
+    2: ['DOUBLE KILL', 'double'],
+    3: ['TRIPLE KILL', 'triple'],
+    4: ['QUAD KILL', 'quad'],
+  };
+  const [label, tier] = labels[killCount] ?? [`${killCount}x KILL`, 'mega'];
+
+  popup.textContent = label;
+  popup.classList.add('visible', tier);
+
+  multikillPopupTimeout = setTimeout(() => {
+    popup.classList.remove('visible', tier);
+    popup.classList.add('hidden');
+    multikillPopupTimeout = null;
+  }, 2000);
 }
 
 function triggerHitmarker(headshot: boolean): void {

@@ -1,0 +1,10 @@
+{
+  "minKills": 2,
+  "tiers": [
+    { "kills": 2, "speedMultiplier": 1.3, "duration": 60, "pulseForce": 15.0 },
+    { "kills": 3, "speedMultiplier": 1.5, "duration": 90, "pulseForce": 20.0 },
+    { "kills": 4, "speedMultiplier": 1.7, "duration": 120, "pulseForce": 25.0 },
+    { "kills": 5, "speedMultiplier": 1.9, "duration": 150, "pulseForce": 30.0 }
+  ],
+  "pulseRadius": 5.0
+}

@@ -33,6 +33,7 @@ export function tryFire(state: GameState, input: InputState, weapons: WeaponsCon
     headshotTargetId: input.headshotTargetId,
     penetrationLeft: rifle.penetration,
     hitEnemyIds: [],
+    killCount: 0,
   };
 
   state.projectiles.push(projectile);
@@ -208,10 +209,11 @@ export function checkProjectileCollisions(state: GameState, weapons: WeaponsConf
       if (enemy.hp <= 0) {
         deadEnemies.add(enemy.id);
         state.score += enemy.scoreValue;
+        proj.killCount++;
         state.events.push({
           tick: state.tick,
           type: 'enemy_killed',
-          data: { enemyId: enemy.id, scoreValue: enemy.scoreValue, x: enemy.pos.x, y: enemy.pos.y, headshot: isHeadshot },
+          data: { enemyId: enemy.id, scoreValue: enemy.scoreValue, x: enemy.pos.x, y: enemy.pos.y, headshot: isHeadshot, bulletKillCount: proj.killCount },
         });
       }
 

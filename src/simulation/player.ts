@@ -33,8 +33,9 @@ export function updatePlayer(state: GameState, input: InputState, config: Player
   } else {
     // Normal movement (instant, no inertia)
     if (input.moveDir.x !== 0 || input.moveDir.y !== 0) {
-      player.pos.x += input.moveDir.x * config.speed * TICK_DURATION;
-      player.pos.y += input.moveDir.y * config.speed * TICK_DURATION;
+      const speed = config.speed * player.speedBoostMultiplier;
+      player.pos.x += input.moveDir.x * speed * TICK_DURATION;
+      player.pos.y += input.moveDir.y * speed * TICK_DURATION;
     }
 
     // Update aim direction
@@ -68,5 +69,13 @@ export function updatePlayer(state: GameState, input: InputState, config: Player
   // Tick dodge cooldown
   if (player.dodgeCooldown > 0) {
     player.dodgeCooldown--;
+  }
+
+  // Tick speed boost
+  if (player.speedBoostTimer > 0) {
+    player.speedBoostTimer--;
+    if (player.speedBoostTimer === 0) {
+      player.speedBoostMultiplier = 1.0;
+    }
   }
 }

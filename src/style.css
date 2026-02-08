@@ -168,6 +168,42 @@ html, body {
   100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
 }
 
+/* ---- Multi-Kill Popup ---- */
+
+#multikill-popup {
+  position: absolute;
+  top: 25%;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+  z-index: 46;
+  opacity: 0;
+  font-size: 48px;
+  font-weight: bold;
+  text-transform: uppercase;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.9);
+  letter-spacing: 4px;
+}
+
+#multikill-popup.visible {
+  opacity: 1;
+  animation: multikill-pop 2s ease-out forwards;
+}
+
+#multikill-popup.double { color: #ff8c00; }
+#multikill-popup.triple { color: #c040ff; }
+#multikill-popup.quad { color: #00e5ff; }
+#multikill-popup.mega { color: #00ff66; }
+
+@keyframes multikill-pop {
+  0% { opacity: 0; transform: translateX(-50%) scale(0.5); }
+  10% { opacity: 1; transform: translateX(-50%) scale(1.2); }
+  20% { transform: translateX(-50%) scale(1.0); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-30px) scale(1.0); }
+}
+
 /* ---- Hitmarker ---- */
 
 #hitmarker {

@@ -61,12 +61,26 @@ export interface ArenaConfig {
   obstacleSize: number;
 }
 
+export interface MultiKillTier {
+  kills: number;
+  speedMultiplier: number;
+  duration: number; // ticks
+  pulseForce: number;
+}
+
+export interface MultiKillConfig {
+  minKills: number;
+  tiers: MultiKillTier[];
+  pulseRadius: number;
+}
+
 export interface GameConfigs {
   player: PlayerConfig;
   weapons: WeaponsConfig;
   enemies: EnemiesConfig;
   spawning: SpawningConfig;
   arena: ArenaConfig;
+  multikill: MultiKillConfig;
 }
 
 // ---- Entities ----
@@ -90,6 +104,8 @@ export interface Player {
   ammo: number;
   reloadTimer: number; // 0 = not reloading, >0 = ticks elapsed since reload started
   damageBonusMultiplier: number; // from active/perfect reload, resets on next reload
+  speedBoostTimer: number; // ticks remaining for multi-kill speed boost
+  speedBoostMultiplier: number; // current speed multiplier from multi-kill
 }
 
 export interface Enemy {
@@ -113,6 +129,7 @@ export interface Projectile {
   headshotTargetId: number | null; // enemy ID whose head was under cursor at fire time
   penetrationLeft: number; // how many more enemies this bullet can hit
   hitEnemyIds: number[]; // enemies already hit (to avoid double-hits)
+  killCount: number; // accumulated kills by this bullet (for multi-kill detection)
 }
 
 export interface Obstacle {
@@ -145,7 +162,8 @@ export type GameEventType =
   | 'player_dodge_start'
   | 'reload_start'
   | 'reload_complete'
-  | 'reload_fumbled';
+  | 'reload_fumbled'
+  | 'multikill';
 
 export interface GameEvent {
   tick: number;

@@ -16,6 +16,14 @@ const configs: GameConfigs = {
   },
   spawning: { initialInterval: 120, minimumInterval: 30, decayRate: 0.95, maxEnemies: 30 },
   arena: { width: 30, height: 20, obstacleCount: 8, obstacleSize: 1.5 },
+  multikill: {
+    minKills: 2,
+    tiers: [
+      { kills: 2, speedMultiplier: 1.3, duration: 60, pulseForce: 15.0 },
+      { kills: 3, speedMultiplier: 1.5, duration: 90, pulseForce: 20.0 },
+    ],
+    pulseRadius: 5.0,
+  },
 };
 
 const noInput: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: false, headshotTargetId: null, dodge: false };

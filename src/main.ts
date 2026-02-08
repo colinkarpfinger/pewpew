@@ -22,6 +22,7 @@ import weaponsConfig from './configs/weapons.json';
 import enemiesConfig from './configs/enemies.json';
 import spawningConfig from './configs/spawning.json';
 import arenaConfig from './configs/arena.json';
+import multikillConfig from './configs/multikill.json';
 
 const configs: GameConfigs = {
   player: playerConfig,
@@ -29,6 +30,7 @@ const configs: GameConfigs = {
   enemies: enemiesConfig,
   spawning: spawningConfig,
   arena: arenaConfig,
+  multikill: multikillConfig,
 };
 const configsJson = JSON.stringify(configs);
 

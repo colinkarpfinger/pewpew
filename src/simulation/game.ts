@@ -1,4 +1,4 @@
-import type { GameState, GameConfigs, InputState } from './types.ts';
+import type { GameState, GameConfigs, InputState, MultiKillConfig } from './types.ts';
 import { SeededRNG } from './rng.ts';
 import { createArena } from './arena.ts';
 import { updatePlayer } from './player.ts';
@@ -31,6 +31,8 @@ export function createGame(configs: GameConfigs, seed: number = 12345): GameInst
       ammo: configs.weapons.rifle.magazineSize,
       reloadTimer: 0,
       damageBonusMultiplier: 1.0,
+      speedBoostTimer: 0,
+      speedBoostMultiplier: 1.0,
     },
     enemies: [],
     projectiles: [],
@@ -72,6 +74,11 @@ export function tick(game: GameInstance, input: InputState, configs: GameConfigs
   // 5. Projectile collisions (vs enemies, walls, obstacles)
   checkProjectileCollisions(state, configs.weapons);
 
+  // 5b. Multi-kill detection
+  if (configs.multikill) {
+    detectMultiKills(state, configs.multikill);
+  }
+
   // 6. Enemy AI
   updateEnemies(state, configs.enemies);
 
@@ -84,6 +91,50 @@ export function tick(game: GameInstance, input: InputState, configs: GameConfigs
 
   // 7. Spawner
   updateSpawner(state, configs.spawning, configs.enemies, rng);
+}
+
+function detectMultiKills(state: GameState, config: MultiKillConfig): void {
+  // Find the highest bullet kill count from any enemy_killed event this tick
+  let killCount = 0;
+  for (const e of state.events) {
+    if (e.type === 'enemy_killed') {
+      const bkc = (e.data?.['bulletKillCount'] as number) ?? 0;
+      if (bkc > killCount) killCount = bkc;
+    }
+  }
+  if (killCount < config.minKills) return;
+
+  // Find highest matching tier (tiers sorted by kills ascending)
+  let tier = config.tiers[0];
+  for (const t of config.tiers) {
+    if (t.kills <= killCount) tier = t;
+  }
+
+  // Apply speed boost (overwrite, not stack)
+  state.player.speedBoostTimer = tier.duration;
+  state.player.speedBoostMultiplier = tier.speedMultiplier;
+
+  // Knockback pulse: push nearby enemies away from player
+  const px = state.player.pos.x;
+  const py = state.player.pos.y;
+  for (const enemy of state.enemies) {
+    const dx = enemy.pos.x - px;
+    const dy = enemy.pos.y - py;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > 0 && dist <= config.pulseRadius) {
+      const nx = dx / dist;
+      const ny = dy / dist;
+      enemy.knockbackVel.x += nx * tier.pulseForce;
+      enemy.knockbackVel.y += ny * tier.pulseForce;
+    }
+  }
+
+  // Emit multikill event
+  state.events.push({
+    tick: state.tick,
+    type: 'multikill',
+    data: { killCount },
+  });
 }
 
 /** Deep clone a GameState via JSON round-trip */
@@ -101,6 +152,8 @@ export function restoreGame(stateSnapshot: GameState, rngState: number): GameIns
   state.player.ammo ??= 30;
   state.player.reloadTimer ??= 0;
   state.player.damageBonusMultiplier ??= 1.0;
+  state.player.speedBoostTimer ??= 0;
+  state.player.speedBoostMultiplier ??= 1.0;
   const rng = new SeededRNG(0);
   rng.setState(rngState);
   return { state, rng };
