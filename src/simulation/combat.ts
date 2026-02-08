@@ -34,7 +34,7 @@ export function tryFire(state: GameState, input: InputState, weapons: WeaponsCon
   state.events.push({
     tick: state.tick,
     type: 'projectile_fired',
-    data: { projectileId: projectile.id },
+    data: { projectileId: projectile.id, x: state.player.pos.x, y: state.player.pos.y, angle },
   });
 }
 
@@ -64,7 +64,7 @@ export function checkProjectileCollisions(state: GameState, weapons: WeaponsConf
       state.events.push({
         tick: state.tick,
         type: 'projectile_destroyed',
-        data: { projectileId: proj.id, reason: 'wall' },
+        data: { projectileId: proj.id, reason: 'wall', x: proj.pos.x, y: proj.pos.y },
       });
       continue;
     }
@@ -77,7 +77,7 @@ export function checkProjectileCollisions(state: GameState, weapons: WeaponsConf
         state.events.push({
           tick: state.tick,
           type: 'projectile_destroyed',
-          data: { projectileId: proj.id, reason: 'obstacle' },
+          data: { projectileId: proj.id, reason: 'obstacle', x: proj.pos.x, y: proj.pos.y },
         });
         hitObstacle = true;
         break;
@@ -99,7 +99,7 @@ export function checkProjectileCollisions(state: GameState, weapons: WeaponsConf
         state.events.push({
           tick: state.tick,
           type: 'enemy_hit',
-          data: { enemyId: enemy.id, damage, headshot: isHeadshot, remainingHp: enemy.hp },
+          data: { enemyId: enemy.id, damage, headshot: isHeadshot, remainingHp: enemy.hp, x: proj.pos.x, y: proj.pos.y },
         });
 
         if (enemy.hp <= 0) {
@@ -108,7 +108,7 @@ export function checkProjectileCollisions(state: GameState, weapons: WeaponsConf
           state.events.push({
             tick: state.tick,
             type: 'enemy_killed',
-            data: { enemyId: enemy.id, scoreValue: enemy.scoreValue },
+            data: { enemyId: enemy.id, scoreValue: enemy.scoreValue, x: enemy.pos.x, y: enemy.pos.y, headshot: isHeadshot },
           });
         }
         break;

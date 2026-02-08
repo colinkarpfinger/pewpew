@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import type { GameState } from '../simulation/types.ts';
+import type { GameState, GameEvent } from '../simulation/types.ts';
+import { ParticleSystem } from './particles.ts';
 import {
   createPlayerMesh,
   createEnemyMesh,
@@ -23,6 +24,7 @@ export class Renderer {
   private dodgeDuration = 18;
   private enemyGroups = new Map<number, EnemyMeshGroup>();
   private projectileMeshes = new Map<number, THREE.Mesh>();
+  private particles: ParticleSystem | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.scene = new THREE.Scene();
@@ -75,6 +77,11 @@ export class Renderer {
       mesh.position.set(obs.pos.x, mesh.position.y, obs.pos.y);
       this.scene.add(mesh);
     }
+
+    // Particles
+    if (this.particles) this.particles.dispose();
+    this.particles = new ParticleSystem();
+    this.scene.add(this.particles.points);
 
     // Player
     this.playerRadius = state.player.radius;
@@ -199,6 +206,13 @@ export class Renderer {
         this.projectileMeshes.delete(id);
       }
     }
+  }
+
+  /** Update particle system with accumulated events and dt */
+  updateParticles(dt: number, events: GameEvent[], state: GameState): void {
+    if (!this.particles) return;
+    this.particles.processEvents(events, state);
+    this.particles.update(dt);
   }
 
   render(): void {
