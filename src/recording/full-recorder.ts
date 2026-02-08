@@ -20,6 +20,8 @@ export class FullRecorder {
       headshotTargetId: input.headshotTargetId,
       dodge: input.dodge,
       reload: input.reload,
+      throwGrenade: input.throwGrenade,
+      throwPower: input.throwPower,
     });
   }
 

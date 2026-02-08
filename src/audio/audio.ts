@@ -28,6 +28,9 @@ const EVENT_MAP: Partial<Record<GameEventType, string>> = {
   reload_complete: 'reload_complete',
   reload_fumbled: 'reload_fumbled',
   player_dodge_start: 'dodge',
+  grenade_thrown: 'grenade_throw',
+  grenade_bounced: 'grenade_bounce',
+  grenade_exploded: 'grenade_explode',
 };
 
 export class AudioSystem {

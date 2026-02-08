@@ -118,6 +118,42 @@
       "maxInstances": 1,
       "cooldown": 0.3,
       "spatial": false
+    },
+    "grenade_throw": {
+      "files": [
+        "assets/audio/weapons/grenade/throw/UI_Click_Distinct_Short_mono.wav"
+      ],
+      "volume": 0.4,
+      "pitchRange": [0.9, 1.1],
+      "maxInstances": 1,
+      "cooldown": 0.2,
+      "spatial": true
+    },
+    "grenade_bounce": {
+      "files": [
+        "assets/audio/weapons/grenade/collision/sfx_drone_granade_impact_metal_strong_1.wav",
+        "assets/audio/weapons/grenade/collision/sfx_drone_granade_impact_metal_strong_2.wav",
+        "assets/audio/weapons/grenade/collision/sfx_drone_granade_impact_metal_strong_3.wav",
+        "assets/audio/weapons/grenade/collision/sfx_drone_granade_impact_metal_strong_4.wav",
+        "assets/audio/weapons/grenade/collision/sfx_drone_granade_impact_metal_strong_5.wav"
+      ],
+      "volume": 0.3,
+      "pitchRange": [0.9, 1.1],
+      "maxInstances": 2,
+      "cooldown": 0.05,
+      "spatial": true
+    },
+    "grenade_explode": {
+      "files": [
+        "assets/audio/weapons/grenade/explosion/sfx_drone_grenade_explosion_1.wav",
+        "assets/audio/weapons/grenade/explosion/sfx_drone_grenade_explosion_2.wav",
+        "assets/audio/weapons/grenade/explosion/sfx_drone_grenade_explosion_3.wav"
+      ],
+      "volume": 0.6,
+      "pitchRange": [0.9, 1.05],
+      "maxInstances": 2,
+      "cooldown": 0.1,
+      "spatial": true
     }
   }
 }

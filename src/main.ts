@@ -24,6 +24,7 @@ import enemiesConfig from './configs/enemies.json';
 import spawningConfig from './configs/spawning.json';
 import arenaConfig from './configs/arena.json';
 import multikillConfig from './configs/multikill.json';
+import grenadeConfig from './configs/grenade.json';
 import audioConfig from './configs/audio.json';
 
 const configs: GameConfigs = {
@@ -33,6 +34,7 @@ const configs: GameConfigs = {
   spawning: spawningConfig,
   arena: arenaConfig,
   multikill: multikillConfig,
+  grenade: grenadeConfig,
 };
 const configsJson = JSON.stringify(configs);
 

@@ -21,6 +21,12 @@ export class InputHandler {
   private reloadPressed = false;
   private reloadConsumed = false;
 
+  // Charge-based grenade input (hold G to charge, release to throw)
+  private grenadeChargeStart: number | null = null;
+  private grenadeReleased = false;
+  private grenadeReleasePower = 0;
+  private static readonly GRENADE_MAX_CHARGE_MS = 1000;
+
   constructor(camera: THREE.PerspectiveCamera, canvas: HTMLCanvasElement) {
     this.camera = camera;
 
@@ -32,6 +38,9 @@ export class InputHandler {
       if (e.key.toLowerCase() === 'r' && !this.reloadConsumed) {
         this.reloadPressed = true;
       }
+      if (e.key.toLowerCase() === 'g' && this.grenadeChargeStart === null) {
+        this.grenadeChargeStart = performance.now();
+      }
     });
 
     window.addEventListener('keyup', (e) => {
@@ -41,6 +50,12 @@ export class InputHandler {
       }
       if (e.key.toLowerCase() === 'r') {
         this.reloadConsumed = false;
+      }
+      if (e.key.toLowerCase() === 'g' && this.grenadeChargeStart !== null) {
+        const holdMs = performance.now() - this.grenadeChargeStart;
+        this.grenadeReleasePower = Math.min(1, holdMs / InputHandler.GRENADE_MAX_CHARGE_MS);
+        this.grenadeReleased = true;
+        this.grenadeChargeStart = null;
       }
     });
 
@@ -137,6 +152,14 @@ export class InputHandler {
       this.reloadConsumed = true;
     }
 
+    // Read and consume grenade release
+    const throwGrenade = this.grenadeReleased;
+    const throwPower = this.grenadeReleasePower;
+    if (throwGrenade) {
+      this.grenadeReleased = false;
+      this.grenadeReleasePower = 0;
+    }
+
     return {
       moveDir,
       aimDir,
@@ -144,6 +167,8 @@ export class InputHandler {
       headshotTargetId,
       dodge,
       reload,
+      throwGrenade,
+      throwPower,
     };
   }
 }

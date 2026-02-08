@@ -104,6 +104,22 @@ html, body {
   color: rgba(255, 200, 50, 1);
 }
 
+/* ---- Grenade Counter ---- */
+
+#grenade-counter {
+  position: absolute;
+  bottom: 58px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(34, 170, 34, 0.9);
+  font-size: 16px;
+  font-family: monospace;
+  font-weight: bold;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+  z-index: 40;
+}
+
 /* ---- Reload Popup ---- */
 
 #reload-popup {

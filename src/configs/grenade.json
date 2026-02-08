@@ -1,0 +1,14 @@
+{
+  "minSpeed": 8,
+  "maxSpeed": 17,
+  "radius": 0.15,
+  "fuseTime": 180,
+  "gravity": 25,
+  "damageRadius": 12,
+  "knockbackRadius": 10,
+  "damage": 150,
+  "knockbackForce": 35,
+  "groundFriction": 0.95,
+  "bounceRestitution": 0.4,
+  "startingAmmo": 5
+}

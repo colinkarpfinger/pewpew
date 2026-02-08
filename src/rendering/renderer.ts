@@ -5,6 +5,7 @@ import {
   createPlayerMesh,
   createEnemyMesh,
   createProjectileMesh,
+  createGrenadeMesh,
   createObstacleMesh,
   createGroundMesh,
   createWallMeshes,
@@ -24,6 +25,7 @@ export class Renderer {
   private dodgeDuration = 18;
   private enemyGroups = new Map<number, EnemyMeshGroup>();
   private projectileMeshes = new Map<number, THREE.Mesh>();
+  private grenadeMeshes = new Map<number, THREE.Mesh>();
   private particles: ParticleSystem | null = null;
   private muzzleFlashes: { light: THREE.PointLight; timer: number }[] = [];
 
@@ -62,6 +64,7 @@ export class Renderer {
     // Clear stale refs from previous game
     this.enemyGroups.clear();
     this.projectileMeshes.clear();
+    this.grenadeMeshes.clear();
     this.playerGroup = null;
 
     // Ground
@@ -214,6 +217,26 @@ export class Renderer {
         this.projectileMeshes.delete(id);
       }
     }
+
+    // Sync grenades
+    const currentGrenadeIds = new Set<number>();
+    for (const grenade of state.grenades) {
+      currentGrenadeIds.add(grenade.id);
+      let mesh = this.grenadeMeshes.get(grenade.id);
+      if (!mesh) {
+        mesh = createGrenadeMesh();
+        this.grenadeMeshes.set(grenade.id, mesh);
+        this.scene.add(mesh);
+      }
+      mesh.position.set(grenade.pos.x, 0.15 + grenade.height, grenade.pos.y);
+    }
+    // Remove exploded grenade meshes
+    for (const [id, mesh] of this.grenadeMeshes) {
+      if (!currentGrenadeIds.has(id)) {
+        this.scene.remove(mesh);
+        this.grenadeMeshes.delete(id);
+      }
+    }
   }
 
   /** Update particle system with accumulated events and dt */
@@ -227,15 +250,24 @@ export class Renderer {
   private updateMuzzleFlashes(dt: number, events: GameEvent[]): void {
     // Spawn new flashes from projectile_fired events
     for (const ev of events) {
-      if (ev.type !== 'projectile_fired') continue;
-      const d = ev.data;
-      if (!d || typeof d.x !== 'number' || typeof d.y !== 'number') continue;
+      if (ev.type === 'projectile_fired') {
+        const d = ev.data;
+        if (!d || typeof d.x !== 'number' || typeof d.y !== 'number') continue;
 
-      const light = new THREE.PointLight(0xff8c20, 3, 8);
-      light.position.set(d.x as number, 0.5, d.y as number);
-      this.scene.add(light);
-      // Random duration between 60-80ms
-      this.muzzleFlashes.push({ light, timer: 0.06 + Math.random() * 0.02 });
+        const light = new THREE.PointLight(0xff8c20, 3, 8);
+        light.position.set(d.x as number, 0.5, d.y as number);
+        this.scene.add(light);
+        // Random duration between 60-80ms
+        this.muzzleFlashes.push({ light, timer: 0.06 + Math.random() * 0.02 });
+      } else if (ev.type === 'grenade_exploded') {
+        const d = ev.data;
+        if (!d || typeof d.x !== 'number' || typeof d.y !== 'number') continue;
+
+        const light = new THREE.PointLight(0xff6600, 8, 15);
+        light.position.set(d.x as number, 1.0, d.y as number);
+        this.scene.add(light);
+        this.muzzleFlashes.push({ light, timer: 0.2 });
+      }
     }
 
     // Update existing flashes

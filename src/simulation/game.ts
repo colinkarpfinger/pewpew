@@ -5,6 +5,7 @@ import { updatePlayer } from './player.ts';
 import { tryFire, updateProjectiles, checkProjectileCollisions, updateReload } from './combat.ts';
 import { updateEnemies, checkContactDamage } from './enemies.ts';
 import { updateSpawner } from './spawner.ts';
+import { tryThrowGrenade, updateGrenades } from './grenade.ts';
 
 export interface GameInstance {
   state: GameState;
@@ -36,8 +37,10 @@ export function createGame(configs: GameConfigs, seed: number = 12345): GameInst
     },
     enemies: [],
     projectiles: [],
+    grenades: [],
     obstacles,
     arena: configs.arena,
+    grenadeAmmo: configs.grenade.startingAmmo,
     score: 0,
     gameOver: false,
     nextEntityId: 1,
@@ -67,6 +70,12 @@ export function tick(game: GameInstance, input: InputState, configs: GameConfigs
 
   // 3. Fire weapon
   tryFire(state, input, configs.weapons, rng);
+
+  // 3b. Throw grenade
+  tryThrowGrenade(state, input, configs.grenade);
+
+  // 3c. Update grenades (movement, bouncing, explosions)
+  updateGrenades(state, configs.grenade);
 
   // 4. Update projectiles
   updateProjectiles(state);
@@ -154,6 +163,8 @@ export function restoreGame(stateSnapshot: GameState, rngState: number): GameIns
   state.player.damageBonusMultiplier ??= 1.0;
   state.player.speedBoostTimer ??= 0;
   state.player.speedBoostMultiplier ??= 1.0;
+  state.grenades ??= [];
+  state.grenadeAmmo ??= 3;
   const rng = new SeededRNG(0);
   rng.setState(rngState);
   return { state, rng };

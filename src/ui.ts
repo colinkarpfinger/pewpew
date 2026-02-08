@@ -2,6 +2,7 @@ import type { GameState } from './simulation/types.ts';
 
 const scoreEl = () => document.getElementById('hud-score')!;
 const hpBar = () => document.getElementById('hud-hp-bar')!;
+const grenadeCounterEl = () => document.getElementById('grenade-counter')!;
 const gameOverEl = () => document.getElementById('game-over')!;
 const finalScoreEl = () => document.getElementById('final-score')!;
 const restartBtn = () => document.getElementById('restart-btn')!;
@@ -10,6 +11,8 @@ export function updateHUD(state: GameState): void {
   scoreEl().textContent = `Score: ${state.score}`;
   const pct = Math.max(0, (state.player.hp / state.player.maxHp) * 100);
   hpBar().style.width = `${pct}%`;
+
+  grenadeCounterEl().textContent = `Grenades: ${state.grenadeAmmo}`;
 
   // Change HP bar color based on health
   if (pct > 50) {

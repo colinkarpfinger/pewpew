@@ -316,6 +316,53 @@ export class ParticleSystem {
             ySpeed: [1, 3],
           });
           break;
+
+        case 'grenade_exploded':
+          // Primary burst: fiery orange/yellow
+          this.emit({
+            x: d.x as number,
+            z: d.y as number,
+            count: 80 + Math.floor(Math.random() * 21),
+            speed: [6, 18],
+            angle: 0,
+            spread: Math.PI,
+            lifetime: [0.2, 0.5],
+            size: [0.4, 0.9],
+            color: new THREE.Color(1.0, 0.6, 0.1),
+            gravity: 6,
+            ySpeed: [4, 12],
+          });
+          // Secondary: darker lingering smoke
+          this.emit({
+            x: d.x as number,
+            z: d.y as number,
+            count: 30 + Math.floor(Math.random() * 11),
+            speed: [2, 6],
+            angle: 0,
+            spread: Math.PI,
+            lifetime: [0.4, 0.8],
+            size: [0.5, 1.0],
+            color: new THREE.Color(0.8, 0.25, 0.05),
+            gravity: 3,
+            ySpeed: [2, 6],
+          });
+          break;
+
+        case 'grenade_bounced':
+          this.emit({
+            x: d.x as number,
+            z: d.y as number,
+            count: 5 + Math.floor(Math.random() * 4),
+            speed: [2, 5],
+            angle: 0,
+            spread: Math.PI,
+            lifetime: [0.05, 0.12],
+            size: [0.1, 0.2],
+            color: new THREE.Color(1.0, 0.8, 0.3),
+            gravity: 4,
+            ySpeed: [1, 3],
+          });
+          break;
       }
     }
 

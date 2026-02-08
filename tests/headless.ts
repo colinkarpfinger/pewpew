@@ -24,9 +24,13 @@ const configs: GameConfigs = {
     ],
     pulseRadius: 5.0,
   },
+  grenade: {
+    minSpeed: 8, maxSpeed: 17, radius: 0.15, fuseTime: 180, gravity: 25, damageRadius: 4,
+    knockbackRadius: 6, damage: 80, knockbackForce: 25, groundFriction: 0.95, bounceRestitution: 0.4, startingAmmo: 3,
+  },
 };
 
-const noInput: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: false, headshotTargetId: null, dodge: false };
+const noInput: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: false, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
 
 function assert(condition: boolean, msg: string): void {
   if (!condition) {
@@ -56,7 +60,7 @@ assert(game.state.tick === 60, 'Tick count is 60 after 60 ticks');
 // Test 3: Player movement
 console.log('\n--- Test 3: Player movement ---');
 const moveGame = createGame(configs, 42);
-const moveRight: InputState = { moveDir: { x: 1, y: 0 }, aimDir: { x: 1, y: 0 }, fire: false, headshotTargetId: null, dodge: false };
+const moveRight: InputState = { moveDir: { x: 1, y: 0 }, aimDir: { x: 1, y: 0 }, fire: false, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
 for (let i = 0; i < 60; i++) {
   tick(moveGame, moveRight, configs);
 }
@@ -73,7 +77,7 @@ assert(spawnGame.state.enemies.length > 0, `Enemies spawned: ${spawnGame.state.e
 // Test 5: Firing creates projectiles
 console.log('\n--- Test 5: Firing ---');
 const fireGame = createGame(configs, 42);
-const fireInput: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: true, headshotTargetId: null, dodge: false };
+const fireInput: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: true, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
 tick(fireGame, fireInput, configs);
 assert(fireGame.state.projectiles.length > 0, `Projectile created: ${fireGame.state.projectiles.length}`);
 
@@ -123,6 +127,9 @@ if (combatGame.state.enemies.length > 0) {
     fire: true,
     headshotTargetId: null,
     dodge: false,
+    reload: false,
+    throwGrenade: false,
+    throwPower: 0,
   };
   for (let i = 0; i < 120; i++) {
     tick(combatGame, aimAtEnemy, configs);
@@ -141,6 +148,8 @@ const dodgeInput: InputState = {
   fire: false,
   headshotTargetId: null,
   dodge: true,
+  reload: false,
+  throwGrenade: false,
 };
 tick(dodgeGame, dodgeInput, configs);
 assert(dodgeGame.state.player.dodgeTimer > 0, `Dodge timer started: ${dodgeGame.state.player.dodgeTimer}`);
@@ -148,7 +157,7 @@ assert(dodgeGame.state.player.dodgeDir.x === 1, 'Dodge direction locked to moveD
 const posAfterDodgeStart = dodgeGame.state.player.pos.x;
 
 // Continue dodging (dodge input should be edge-detected, so set to false)
-const noDodgeInput: InputState = { moveDir: { x: 1, y: 0 }, aimDir: { x: 1, y: 0 }, fire: false, headshotTargetId: null, dodge: false };
+const noDodgeInput: InputState = { moveDir: { x: 1, y: 0 }, aimDir: { x: 1, y: 0 }, fire: false, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
 for (let i = 0; i < 17; i++) {
   tick(dodgeGame, noDodgeInput, configs);
 }
@@ -176,6 +185,8 @@ const dodgeFireInput: InputState = {
   fire: true,
   headshotTargetId: null,
   dodge: true,
+  reload: false,
+  throwGrenade: false,
 };
 tick(dodgeFireGame, dodgeFireInput, configs);
 assert(dodgeFireGame.state.projectiles.length === 0, 'Cannot fire during dodge');

@@ -74,6 +74,21 @@ export interface MultiKillConfig {
   pulseRadius: number;
 }
 
+export interface GrenadeConfig {
+  minSpeed: number;        // launch speed at minimum charge
+  maxSpeed: number;        // launch speed at full charge
+  radius: number;
+  fuseTime: number;        // ticks
+  gravity: number;         // vertical acceleration (units/s²)
+  damageRadius: number;
+  knockbackRadius: number;
+  damage: number;
+  knockbackForce: number;
+  groundFriction: number;  // per-tick velocity multiplier when rolling on ground
+  bounceRestitution: number; // velocity preserved on bounce
+  startingAmmo: number;
+}
+
 export interface GameConfigs {
   player: PlayerConfig;
   weapons: WeaponsConfig;
@@ -81,6 +96,7 @@ export interface GameConfigs {
   spawning: SpawningConfig;
   arena: ArenaConfig;
   multikill: MultiKillConfig;
+  grenade: GrenadeConfig;
 }
 
 // ---- Entities ----
@@ -138,6 +154,15 @@ export interface Obstacle {
   height: number;
 }
 
+export interface Grenade {
+  id: number;
+  pos: Vec2;
+  vel: Vec2;
+  height: number;      // vertical position above ground
+  verticalVel: number; // vertical velocity (positive = up)
+  fuseTimer: number;   // ticks remaining until explosion
+}
+
 // ---- Input ----
 
 export interface InputState {
@@ -147,6 +172,8 @@ export interface InputState {
   headshotTargetId: number | null; // enemy ID whose head is under cursor
   dodge: boolean; // edge-detected: true only on press frame
   reload: boolean; // edge-detected: true only on press frame
+  throwGrenade: boolean; // true on G key release frame
+  throwPower: number;    // 0-1 charge fraction (how long G was held)
 }
 
 // ---- Events ----
@@ -163,7 +190,10 @@ export type GameEventType =
   | 'reload_start'
   | 'reload_complete'
   | 'reload_fumbled'
-  | 'multikill';
+  | 'multikill'
+  | 'grenade_thrown'
+  | 'grenade_bounced'
+  | 'grenade_exploded';
 
 export interface GameEvent {
   tick: number;
@@ -183,8 +213,10 @@ export interface GameState {
   player: Player;
   enemies: Enemy[];
   projectiles: Projectile[];
+  grenades: Grenade[];
   obstacles: Obstacle[];
   arena: ArenaConfig;
+  grenadeAmmo: number;
   score: number;
   gameOver: boolean;
   nextEntityId: number;

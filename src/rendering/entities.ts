@@ -63,6 +63,19 @@ export function createProjectileMesh(): THREE.Mesh {
   return mesh;
 }
 
+export function createGrenadeMesh(): THREE.Mesh {
+  const geometry = new THREE.SphereGeometry(0.15, 8, 8);
+  const material = new THREE.MeshStandardMaterial({
+    color: 0x22aa22,
+    emissive: 0x115511,
+    emissiveIntensity: 0.5,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.castShadow = true;
+  mesh.position.y = 0.15;
+  return mesh;
+}
+
 export function createObstacleMesh(width: number, height: number): THREE.Mesh {
   const wallHeight = 1.5;
   const geometry = new THREE.BoxGeometry(width, wallHeight, height);
