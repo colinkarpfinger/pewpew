@@ -20,20 +20,31 @@ interface EmitConfig {
 // ---- Procedural soft-circle texture ----
 
 function createCircleTexture(): THREE.Texture {
-  const size = 32;
+  const sz = 32;
   const c = document.createElement('canvas');
-  c.width = size;
-  c.height = size;
+  c.width = sz;
+  c.height = sz;
   const ctx = c.getContext('2d')!;
-  const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  const g = ctx.createRadialGradient(sz / 2, sz / 2, 0, sz / 2, sz / 2, sz / 2);
   g.addColorStop(0, 'rgba(255,255,255,1)');
   g.addColorStop(0.5, 'rgba(255,255,255,0.6)');
   g.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, size, size);
+  ctx.fillRect(0, 0, sz, sz);
   const tex = new THREE.CanvasTexture(c);
   tex.needsUpdate = true;
   return tex;
+}
+
+// ---- Patch PointsMaterial for per-vertex sizes ----
+
+function patchPointsMaterial(mat: THREE.PointsMaterial): void {
+  mat.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader.replace(
+      'uniform float size;',
+      'attribute float size;',
+    );
+  };
 }
 
 // ---- ParticleSystem ----
@@ -76,6 +87,7 @@ export class ParticleSystem {
     geo.setAttribute('position', this.posAttr);
     geo.setAttribute('color', this.colorAttr);
     geo.setAttribute('size', this.sizeAttr);
+    geo.setDrawRange(0, 0);
 
     const mat = new THREE.PointsMaterial({
       vertexColors: true,
@@ -85,6 +97,7 @@ export class ParticleSystem {
       transparent: true,
       map: createCircleTexture(),
     });
+    patchPointsMaterial(mat);
 
     this.points = new THREE.Points(geo, mat);
     this.points.frustumCulled = false;
@@ -190,11 +203,7 @@ export class ParticleSystem {
       i++;
     }
 
-    // Zero out dead region (size=0 hides them)
-    for (let j = this.aliveCount; j < MAX_PARTICLES; j++) {
-      sizes[j] = 0;
-    }
-
+    this.points.geometry.setDrawRange(0, this.aliveCount);
     this.posAttr.needsUpdate = true;
     this.colorAttr.needsUpdate = true;
     this.sizeAttr.needsUpdate = true;
@@ -210,14 +219,15 @@ export class ParticleSystem {
           this.emit({
             x: d.x as number,
             z: d.y as number,
-            count: 5 + Math.floor(Math.random() * 4), // 5-8
-            speed: [3, 8],
+            count: 4 + Math.floor(Math.random() * 3), // 4-6
+            speed: [4, 10],
             angle: d.angle as number,
-            spread: 0.3,
-            lifetime: [0.05, 0.12],
-            size: [0.15, 0.3],
+            spread: 0.25,
+            lifetime: [0.03, 0.08],
+            size: [0.1, 0.2],
             color: new THREE.Color(1, 0.7, 0.2), // orange/yellow
-            gravity: 0,
+            gravity: 6,
+            ySpeed: [1, 3],
           });
           break;
 
@@ -258,19 +268,19 @@ export class ParticleSystem {
         case 'enemy_killed': {
           const hs = d.headshot as boolean;
           if (hs) {
-            // Headshot kill — very dramatic
+            // Headshot kill — dense blood burst
             this.emit({
               x: d.x as number,
               z: d.y as number,
-              count: 40 + Math.floor(Math.random() * 21), // 40-60
-              speed: [3, 10],
+              count: 50 + Math.floor(Math.random() * 21), // 50-70
+              speed: [6, 16],
               angle: 0,
               spread: Math.PI,
-              lifetime: [0.4, 0.8],
-              size: [0.3, 0.6],
-              color: new THREE.Color(1, 0.2, 0.15), // bright red
-              gravity: 5,
-              ySpeed: [3, 8],
+              lifetime: [0.1, 0.3],
+              size: [0.08, 0.18],
+              color: new THREE.Color(1.0, 0.1, 0.05), // bright red, fades visibly with additive blend
+              gravity: 8,
+              ySpeed: [4, 10],
             });
           } else {
             // Normal kill
@@ -329,8 +339,9 @@ export class ParticleSystem {
 
   dispose(): void {
     this.points.geometry.dispose();
-    (this.points.material as THREE.PointsMaterial).map?.dispose();
-    (this.points.material as THREE.PointsMaterial).dispose();
+    const mat = this.points.material as THREE.PointsMaterial;
+    mat.map?.dispose();
+    mat.dispose();
   }
 
   private swapRemove(i: number): void {
@@ -361,8 +372,6 @@ export class ParticleSystem {
 
       (this.sizeAttr.array as Float32Array)[i] = (this.sizeAttr.array as Float32Array)[last];
     }
-    // Zero the last slot's size so it's invisible
-    (this.sizeAttr.array as Float32Array)[last] = 0;
     this.aliveCount--;
   }
 }
