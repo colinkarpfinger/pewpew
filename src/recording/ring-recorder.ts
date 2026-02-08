@@ -35,6 +35,7 @@ export class RingRecorder {
       fire: input.fire,
       headshotTargetId: input.headshotTargetId,
       dodge: input.dodge,
+      reload: input.reload,
     });
     this.ticksSinceCheckpoint++;
   }

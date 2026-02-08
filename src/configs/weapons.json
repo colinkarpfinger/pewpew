@@ -9,6 +9,14 @@
     "headshotMultiplier": 2.0,
     "penetration": 5,
     "knockback": 12,
-    "headshotKnockbackMultiplier": 2.0
+    "headshotKnockbackMultiplier": 2.0,
+    "magazineSize": 30,
+    "reloadTime": 90,
+    "activeReloadStart": 0.4,
+    "activeReloadEnd": 0.65,
+    "perfectReloadStart": 0.5,
+    "perfectReloadEnd": 0.58,
+    "activeReloadDamageBonus": 1.1,
+    "perfectReloadDamageBonus": 1.25
   }
 }
