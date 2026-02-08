@@ -103,12 +103,17 @@ export function tick(game: GameInstance, input: InputState, configs: GameConfigs
 }
 
 function detectMultiKills(state: GameState, config: MultiKillConfig): void {
-  // Find the highest bullet kill count from any enemy_killed event this tick
+  // Find the highest kill count from any single source this tick:
+  // - bulletKillCount: penetrating bullet kills (per bullet)
+  // - grenade_exploded killCount: AoE kills (per explosion)
   let killCount = 0;
   for (const e of state.events) {
     if (e.type === 'enemy_killed') {
       const bkc = (e.data?.['bulletKillCount'] as number) ?? 0;
       if (bkc > killCount) killCount = bkc;
+    } else if (e.type === 'grenade_exploded') {
+      const gkc = (e.data?.['killCount'] as number) ?? 0;
+      if (gkc > killCount) killCount = gkc;
     }
   }
   if (killCount < config.minKills) return;

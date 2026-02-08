@@ -211,6 +211,6 @@ function explodeGrenade(state: GameState, grenade: Grenade, config: GrenadeConfi
   state.events.push({
     tick: state.tick,
     type: 'grenade_exploded',
-    data: { x: grenade.pos.x, y: grenade.pos.y, radius: config.damageRadius },
+    data: { x: grenade.pos.x, y: grenade.pos.y, radius: config.damageRadius, killCount: deadEnemies.size },
   });
 }
