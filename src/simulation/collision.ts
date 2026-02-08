@@ -78,6 +78,23 @@ export function circleAABB(
   return { x: (dx / d) * overlap, y: (dy / d) * overlap };
 }
 
+/**
+ * Perpendicular distance from a point to an infinite line.
+ * Line defined by a point on the line and a direction vector.
+ */
+export function pointToLineDist(
+  point: Vec2,
+  linePoint: Vec2,
+  lineDir: Vec2,
+): number {
+  const len = vecLen(lineDir);
+  if (len === 0) return Math.sqrt(distSq(point, linePoint));
+  // |cross product| / |dir|
+  const dx = point.x - linePoint.x;
+  const dy = point.y - linePoint.y;
+  return Math.abs(dx * lineDir.y - dy * lineDir.x) / len;
+}
+
 /** Clamp a circle position within arena bounds */
 export function clampToArena(pos: Vec2, radius: number, arenaWidth: number, arenaHeight: number): Vec2 {
   const halfW = arenaWidth / 2;

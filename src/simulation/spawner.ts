@@ -33,6 +33,7 @@ export function updateSpawner(
       speed: cfg.speed,
       contactDamage: cfg.contactDamage,
       scoreValue: cfg.scoreValue,
+      knockbackVel: { x: 0, y: 0 },
     };
 
     state.enemies.push(enemy);

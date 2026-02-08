@@ -2,7 +2,7 @@ import type { GameState, GameConfigs, InputState } from './types.ts';
 import { SeededRNG } from './rng.ts';
 import { createArena } from './arena.ts';
 import { updatePlayer } from './player.ts';
-import { tryFire, updateProjectiles, checkProjectileCollisions } from './combat.ts';
+import { tryFire, updateProjectiles, checkProjectileCollisions, updateReload } from './combat.ts';
 import { updateEnemies, checkContactDamage } from './enemies.ts';
 import { updateSpawner } from './spawner.ts';
 
@@ -28,6 +28,9 @@ export function createGame(configs: GameConfigs, seed: number = 12345): GameInst
       dodgeTimer: 0,
       dodgeCooldown: 0,
       dodgeDir: { x: 0, y: 0 },
+      ammo: configs.weapons.rifle.magazineSize,
+      reloadTimer: 0,
+      damageBonusMultiplier: 1.0,
     },
     enemies: [],
     projectiles: [],
@@ -57,19 +60,22 @@ export function tick(game: GameInstance, input: InputState, configs: GameConfigs
   // 1. Player movement
   updatePlayer(state, input, configs.player);
 
-  // 2. Fire weapon
+  // 2. Reload
+  updateReload(state, input, configs.weapons);
+
+  // 3. Fire weapon
   tryFire(state, input, configs.weapons, rng);
 
-  // 3. Update projectiles
+  // 4. Update projectiles
   updateProjectiles(state);
 
-  // 4. Projectile collisions (vs enemies, walls, obstacles)
+  // 5. Projectile collisions (vs enemies, walls, obstacles)
   checkProjectileCollisions(state, configs.weapons);
 
-  // 5. Enemy AI
+  // 6. Enemy AI
   updateEnemies(state, configs.enemies);
 
-  // 6. Contact damage
+  // 7. Contact damage
   const savedIframe = state.player.iframeTimer;
   checkContactDamage(state, configs.enemies);
   if (state.player.iframeTimer > 0 && savedIframe === 0) {
@@ -92,6 +98,9 @@ export function restoreGame(stateSnapshot: GameState, rngState: number): GameIns
   state.player.dodgeTimer ??= 0;
   state.player.dodgeCooldown ??= 0;
   state.player.dodgeDir ??= { x: 0, y: 0 };
+  state.player.ammo ??= 30;
+  state.player.reloadTimer ??= 0;
+  state.player.damageBonusMultiplier ??= 1.0;
   const rng = new SeededRNG(0);
   rng.setState(rngState);
   return { state, rng };

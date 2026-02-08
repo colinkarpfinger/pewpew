@@ -12,6 +12,13 @@
       <!-- Crosshair + Hitmarker -->
       <div id="crosshair">
         <svg id="crosshair-svg" width="48" height="48" viewBox="-24 -24 48 48">
+          <!-- Ammo arc (behind crosshair lines) -->
+          <g transform="rotate(-90)">
+            <circle class="ammo-arc-bg" cx="0" cy="0" r="20" />
+            <circle class="ammo-arc-fill" cx="0" cy="0" r="20" />
+            <circle class="ammo-arc-active" cx="0" cy="0" r="20" />
+            <circle class="ammo-arc-perfect" cx="0" cy="0" r="20" />
+          </g>
           <!-- Crosshair lines (positions updated by JS) -->
           <line class="xh-line" data-dir="up"    x1="0" y1="-10" x2="0" y2="-4" />
           <line class="xh-line" data-dir="down"  x1="0" y1="4"   x2="0" y2="10" />
@@ -39,6 +46,11 @@
         <div id="hud-hp-container">
           <div id="hud-hp-bar"></div>
         </div>
+      </div>
+      <div id="ammo-counter">30 / 30</div>
+      <div id="reload-popup" class="hidden">
+        <div id="reload-popup-title"></div>
+        <div id="reload-popup-detail"></div>
       </div>
       <div id="game-over" class="hidden">
         <div id="game-over-content">

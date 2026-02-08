@@ -17,6 +17,10 @@ export class InputHandler {
   private dodgePressed = false;
   private dodgeConsumed = false;
 
+  // Edge-detected reload input
+  private reloadPressed = false;
+  private reloadConsumed = false;
+
   constructor(camera: THREE.PerspectiveCamera, canvas: HTMLCanvasElement) {
     this.camera = camera;
 
@@ -25,12 +29,18 @@ export class InputHandler {
       if (e.key === ' ' && !this.dodgeConsumed) {
         this.dodgePressed = true;
       }
+      if (e.key.toLowerCase() === 'r' && !this.reloadConsumed) {
+        this.reloadPressed = true;
+      }
     });
 
     window.addEventListener('keyup', (e) => {
       this.keys.delete(e.key.toLowerCase());
       if (e.key === ' ') {
         this.dodgeConsumed = false;
+      }
+      if (e.key.toLowerCase() === 'r') {
+        this.reloadConsumed = false;
       }
     });
 
@@ -120,12 +130,20 @@ export class InputHandler {
       this.dodgeConsumed = true;
     }
 
+    // Read and consume reload press
+    const reload = this.reloadPressed;
+    if (reload) {
+      this.reloadPressed = false;
+      this.reloadConsumed = true;
+    }
+
     return {
       moveDir,
       aimDir,
       fire: this.mouseDown,
       headshotTargetId,
       dodge,
+      reload,
     };
   }
 }
