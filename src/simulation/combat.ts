@@ -1,6 +1,6 @@
 import type { GameState, InputState, WeaponsConfig, Projectile } from './types.ts';
 import { TICK_RATE } from './types.ts';
-import { circleCircle, circleAABB, isOutOfBounds } from './collision.ts';
+import { circleCircle, circleAABB, isOutOfBounds, pointToLineDist } from './collision.ts';
 import type { SeededRNG } from './rng.ts';
 
 export function tryFire(state: GameState, input: InputState, weapons: WeaponsConfig, rng: SeededRNG): void {
@@ -28,6 +28,8 @@ export function tryFire(state: GameState, input: InputState, weapons: WeaponsCon
     damage: rifle.damage,
     lifetime: rifle.projectileLifetime,
     headshotTargetId: input.headshotTargetId,
+    penetrationLeft: rifle.penetration,
+    hitEnemyIds: [],
   };
 
   state.projectiles.push(projectile);
@@ -85,34 +87,62 @@ export function checkProjectileCollisions(state: GameState, weapons: WeaponsConf
     }
     if (hitObstacle) continue;
 
-    // Check vs enemies
+    // Check vs enemies (with penetration)
     for (const enemy of state.enemies) {
       if (deadEnemies.has(enemy.id)) continue;
-      if (circleCircle(proj.pos, 0.1, enemy.pos, enemy.radius)) {
-        toRemove.add(proj.id);
-        const isHeadshot = proj.headshotTargetId === enemy.id;
-        const damage = isHeadshot
-          ? proj.damage * weapons.rifle.headshotMultiplier
-          : proj.damage;
-        enemy.hp -= damage;
+      if (proj.hitEnemyIds.includes(enemy.id)) continue;
+      if (!circleCircle(proj.pos, 0.1, enemy.pos, enemy.radius)) continue;
 
+      const isFirstHit = proj.hitEnemyIds.length === 0;
+      let isHeadshot: boolean;
+
+      if (isFirstHit) {
+        // First hit: use cursor-based headshot targeting
+        isHeadshot = proj.headshotTargetId === enemy.id;
+      } else {
+        // Penetration hit: check if bullet trajectory passes through head
+        const headRadius = enemy.radius * 0.8;
+        const perpDist = pointToLineDist(enemy.pos, proj.pos, proj.vel);
+        isHeadshot = perpDist < headRadius;
+      }
+
+      const damage = isHeadshot
+        ? proj.damage * weapons.rifle.headshotMultiplier
+        : proj.damage;
+      enemy.hp -= damage;
+
+      proj.hitEnemyIds.push(enemy.id);
+      proj.penetrationLeft--;
+
+      state.events.push({
+        tick: state.tick,
+        type: 'enemy_hit',
+        data: { enemyId: enemy.id, damage, headshot: isHeadshot, remainingHp: enemy.hp, x: proj.pos.x, y: proj.pos.y },
+      });
+
+      if (enemy.hp <= 0) {
+        deadEnemies.add(enemy.id);
+        state.score += enemy.scoreValue;
         state.events.push({
           tick: state.tick,
-          type: 'enemy_hit',
-          data: { enemyId: enemy.id, damage, headshot: isHeadshot, remainingHp: enemy.hp, x: proj.pos.x, y: proj.pos.y },
+          type: 'enemy_killed',
+          data: { enemyId: enemy.id, scoreValue: enemy.scoreValue, x: enemy.pos.x, y: enemy.pos.y, headshot: isHeadshot },
         });
+      }
 
-        if (enemy.hp <= 0) {
-          deadEnemies.add(enemy.id);
-          state.score += enemy.scoreValue;
-          state.events.push({
-            tick: state.tick,
-            type: 'enemy_killed',
-            data: { enemyId: enemy.id, scoreValue: enemy.scoreValue, x: enemy.pos.x, y: enemy.pos.y, headshot: isHeadshot },
-          });
-        }
+      // Penetration: only continue if player was aiming at a head
+      if (isFirstHit && proj.headshotTargetId === null) {
+        toRemove.add(proj.id);
         break;
       }
+
+      // Stop if penetration limit reached
+      if (proj.penetrationLeft <= 0) {
+        toRemove.add(proj.id);
+        break;
+      }
+
+      // Bullet continues — check more enemies this tick
     }
   }
 
