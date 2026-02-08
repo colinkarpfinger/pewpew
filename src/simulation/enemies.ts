@@ -39,7 +39,7 @@ export function checkContactDamage(state: GameState, _configs: EnemiesConfig): v
       state.events.push({
         tick: state.tick,
         type: 'player_hit',
-        data: { enemyId: enemy.id, damage: enemy.contactDamage, remainingHp: state.player.hp },
+        data: { enemyId: enemy.id, damage: enemy.contactDamage, remainingHp: state.player.hp, x: state.player.pos.x, y: state.player.pos.y },
       });
 
       if (state.player.hp <= 0) {

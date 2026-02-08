@@ -1,6 +1,6 @@
 import './style.css';
 import * as THREE from 'three';
-import type { GameConfigs } from './simulation/types.ts';
+import type { GameConfigs, GameEvent } from './simulation/types.ts';
 import { TICK_DURATION } from './simulation/types.ts';
 import { createGame, tick } from './simulation/game.ts';
 import type { GameInstance } from './simulation/game.ts';
@@ -222,11 +222,13 @@ function gameLoop(now: number): void {
       : rifle.spread * (isMoving ? rifle.movingSpreadMultiplier : 1.0);
     updateCrosshairSpread(effectiveSpread);
 
+    const frameEvents: GameEvent[] = [];
     while (accumulator >= TICK_DURATION) {
       fullRecorder.recordTick(currentInput);
       ringRecorder.recordTick(currentInput, game);
       tick(game, currentInput, configs);
       processHitEvents(state.events);
+      frameEvents.push(...state.events);
       accumulator -= TICK_DURATION;
     }
 
@@ -237,11 +239,13 @@ function gameLoop(now: number): void {
     }
 
     renderer.syncState(state);
+    renderer.updateParticles(dt, frameEvents, state);
     renderer.render();
     updateHUD(state);
   } else if (screen === 'paused' || screen === 'gameOver') {
     // Still render the scene (visible behind overlay)
     renderer.syncState(game.state);
+    renderer.updateParticles(dt, [], game.state);
     renderer.render();
     updateHUD(game.state);
   } else if (screen === 'replay') {
