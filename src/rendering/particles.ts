@@ -219,12 +219,12 @@ export class ParticleSystem {
           this.emit({
             x: d.x as number,
             z: d.y as number,
-            count: 4 + Math.floor(Math.random() * 3), // 4-6
+            count: 5 + Math.floor(Math.random() * 4), // 5-8
             speed: [4, 10],
             angle: d.angle as number,
             spread: 0.25,
-            lifetime: [0.03, 0.08],
-            size: [0.1, 0.2],
+            lifetime: [0.04, 0.12],
+            size: [0.2, 0.4],
             color: new THREE.Color(1, 0.7, 0.2), // orange/yellow
             gravity: 6,
             ySpeed: [1, 3],
@@ -235,12 +235,12 @@ export class ParticleSystem {
           this.emit({
             x: d.x as number,
             z: d.y as number,
-            count: 6 + Math.floor(Math.random() * 5), // 6-10
+            count: 8 + Math.floor(Math.random() * 5), // 8-12
             speed: [2, 6],
             angle: 0,
             spread: Math.PI,
             lifetime: [0.1, 0.25],
-            size: [0.1, 0.2],
+            size: [0.2, 0.4],
             color: new THREE.Color(1, 0.7, 0.2), // orange/yellow sparks
             gravity: 3,
             ySpeed: [1, 4],
@@ -277,7 +277,7 @@ export class ParticleSystem {
               angle: 0,
               spread: Math.PI,
               lifetime: [0.1, 0.3],
-              size: [0.08, 0.18],
+              size: [0.25, 0.5],
               color: new THREE.Color(1.0, 0.1, 0.05), // bright red, fades visibly with additive blend
               gravity: 8,
               ySpeed: [4, 10],
