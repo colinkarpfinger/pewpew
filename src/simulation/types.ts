@@ -13,6 +13,7 @@ export interface WeaponConfig {
   projectileSpeed: number;
   projectileLifetime: number; // ticks
   spread: number; // radians
+  headshotMultiplier: number;
 }
 
 export interface WeaponsConfig {
@@ -87,6 +88,7 @@ export interface Projectile {
   vel: Vec2;
   damage: number;
   lifetime: number; // ticks remaining
+  headshotTargetId: number | null; // enemy ID whose head was under cursor at fire time
 }
 
 export interface Obstacle {
@@ -101,6 +103,7 @@ export interface InputState {
   moveDir: Vec2; // normalized or zero
   aimDir: Vec2; // normalized, world-space direction from player
   fire: boolean;
+  headshotTargetId: number | null; // enemy ID whose head is under cursor
 }
 
 // ---- Events ----

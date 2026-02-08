@@ -61,7 +61,7 @@ export function tick(game: GameInstance, input: InputState, configs: GameConfigs
   updateProjectiles(state);
 
   // 4. Projectile collisions (vs enemies, walls, obstacles)
-  checkProjectileCollisions(state);
+  checkProjectileCollisions(state, configs.weapons);
 
   // 5. Enemy AI
   updateEnemies(state, configs.enemies);

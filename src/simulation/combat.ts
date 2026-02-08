@@ -24,6 +24,7 @@ export function tryFire(state: GameState, input: InputState, weapons: WeaponsCon
     },
     damage: rifle.damage,
     lifetime: rifle.projectileLifetime,
+    headshotTargetId: input.headshotTargetId,
   };
 
   state.projectiles.push(projectile);
@@ -47,7 +48,7 @@ export function updateProjectiles(state: GameState): void {
   state.projectiles = state.projectiles.filter(p => p.lifetime > 0);
 }
 
-export function checkProjectileCollisions(state: GameState): void {
+export function checkProjectileCollisions(state: GameState, weapons: WeaponsConfig): void {
   const toRemove = new Set<number>();
   const deadEnemies = new Set<number>();
 
@@ -86,12 +87,16 @@ export function checkProjectileCollisions(state: GameState): void {
       if (deadEnemies.has(enemy.id)) continue;
       if (circleCircle(proj.pos, 0.1, enemy.pos, enemy.radius)) {
         toRemove.add(proj.id);
-        enemy.hp -= proj.damage;
+        const isHeadshot = proj.headshotTargetId === enemy.id;
+        const damage = isHeadshot
+          ? proj.damage * weapons.rifle.headshotMultiplier
+          : proj.damage;
+        enemy.hp -= damage;
 
         state.events.push({
           tick: state.tick,
           type: 'enemy_hit',
-          data: { enemyId: enemy.id, damage: proj.damage, remainingHp: enemy.hp },
+          data: { enemyId: enemy.id, damage, headshot: isHeadshot, remainingHp: enemy.hp },
         });
 
         if (enemy.hp <= 0) {

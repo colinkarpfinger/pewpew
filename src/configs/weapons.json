@@ -2,8 +2,9 @@
   "rifle": {
     "damage": 25,
     "fireRate": 8,
-    "projectileSpeed": 20,
-    "projectileLifetime": 120,
-    "spread": 0.03
+    "projectileSpeed": 50,
+    "projectileLifetime": 60,
+    "spread": 0.03,
+    "headshotMultiplier": 2.0
   }
 }

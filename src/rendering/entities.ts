@@ -23,21 +23,40 @@ export function createPlayerMesh(radius: number): THREE.Group {
   return group;
 }
 
-export function createEnemyMesh(radius: number): THREE.Mesh {
-  const geometry = new THREE.BoxGeometry(radius * 2, radius * 2, radius * 2);
-  const material = new THREE.MeshStandardMaterial({ color: 0xff3333 });
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.castShadow = true;
-  mesh.position.y = radius;
-  return mesh;
+export interface EnemyMeshGroup {
+  group: THREE.Group;
+  headMesh: THREE.Mesh;
+}
+
+export function createEnemyMesh(radius: number): EnemyMeshGroup {
+  const group = new THREE.Group();
+
+  // Body cube
+  const bodyGeo = new THREE.BoxGeometry(radius * 2, radius * 2, radius * 2);
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xff3333 });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.castShadow = true;
+  body.position.y = radius;
+  group.add(body);
+
+  // Head sphere — sits on top of body
+  const headRadius = radius * 0.8;
+  const headGeo = new THREE.SphereGeometry(headRadius, 10, 10);
+  const headMat = new THREE.MeshStandardMaterial({ color: 0xcc2222 });
+  const head = new THREE.Mesh(headGeo, headMat);
+  head.castShadow = true;
+  head.position.y = radius * 2 + headRadius; // top of body cube + head radius
+  group.add(head);
+
+  return { group, headMesh: head };
 }
 
 export function createProjectileMesh(): THREE.Mesh {
-  const geometry = new THREE.SphereGeometry(0.1, 8, 8);
+  const geometry = new THREE.SphereGeometry(0.04, 6, 6);
   const material = new THREE.MeshStandardMaterial({
     color: 0xffff00,
     emissive: 0xffaa00,
-    emissiveIntensity: 0.8,
+    emissiveIntensity: 1.0,
   });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.y = 0.5;

@@ -11,6 +11,7 @@ export class InputHandler {
 
   private camera: THREE.PerspectiveCamera;
   private playerPos: Vec2 = { x: 0, y: 0 };
+  private headMeshes = new Map<number, THREE.Mesh>();
 
   constructor(camera: THREE.PerspectiveCamera, canvas: HTMLCanvasElement) {
     this.camera = camera;
@@ -47,6 +48,11 @@ export class InputHandler {
     this.playerPos = pos;
   }
 
+  /** Update head meshes for headshot raycasting */
+  setHeadMeshes(heads: Map<number, THREE.Mesh>): void {
+    this.headMeshes = heads;
+  }
+
   /** Get current input state for simulation */
   getInput(): InputState {
     // Movement direction from WASD
@@ -73,10 +79,27 @@ export class InputHandler {
       aimDir = normalize({ x: dx, y: dy });
     }
 
+    // Check if cursor is over an enemy head
+    let headshotTargetId: number | null = null;
+    if (this.headMeshes.size > 0) {
+      const headArray = Array.from(this.headMeshes.values());
+      const hits = this.raycaster.intersectObjects(headArray);
+      if (hits.length > 0) {
+        // Find which enemy ID this head mesh belongs to
+        for (const [id, mesh] of this.headMeshes) {
+          if (mesh === hits[0].object) {
+            headshotTargetId = id;
+            break;
+          }
+        }
+      }
+    }
+
     return {
       moveDir,
       aimDir,
       fire: this.mouseDown,
+      headshotTargetId,
     };
   }
 }

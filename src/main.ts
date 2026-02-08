@@ -15,6 +15,7 @@ import { showStartScreen, hideStartScreen, onStartGame } from './ui/start-screen
 import { showEscapeMenu, hideEscapeMenu, setupEscapeMenu } from './ui/escape-menu.ts';
 import { showReplayBrowser } from './ui/replay-browser.ts';
 import { showReplayControls, hideReplayControls, onReplayExit } from './ui/replay-controls.ts';
+import { initCrosshair, showCrosshair, hideCrosshair, processHitEvents } from './ui/crosshair.ts';
 
 import playerConfig from './configs/player.json';
 import weaponsConfig from './configs/weapons.json';
@@ -50,6 +51,8 @@ let lastTime = performance.now();
 let gameOverShown = false;
 let currentSeed = 0;
 
+initCrosshair(canvas);
+
 // ---- Scene setup ----
 function rebuildScene(): void {
   renderer.scene.clear();
@@ -84,6 +87,7 @@ function startGame(): void {
   hideStartScreen();
   hideEscapeMenu();
   hideReplayControls();
+  showCrosshair();
   accumulator = 0;
   lastTime = performance.now();
   screen = 'playing';
@@ -113,6 +117,7 @@ function goToTitle(): void {
   hideGameOver();
   hideEscapeMenu();
   hideReplayControls();
+  hideCrosshair();
   showStartScreen();
   screen = 'start';
 }
@@ -204,12 +209,14 @@ function gameLoop(now: number): void {
     accumulator += dt;
     const state = game.state;
     input.setPlayerPos(state.player.pos);
+    input.setHeadMeshes(renderer.getEnemyHeadMeshes());
     const currentInput = input.getInput();
 
     while (accumulator >= TICK_DURATION) {
       fullRecorder.recordTick(currentInput);
       ringRecorder.recordTick(currentInput, game);
       tick(game, currentInput, configs);
+      processHitEvents(state.events);
       accumulator -= TICK_DURATION;
     }
 

@@ -33,6 +33,7 @@ export class RingRecorder {
       moveDir: { x: input.moveDir.x, y: input.moveDir.y },
       aimDir: { x: input.aimDir.x, y: input.aimDir.y },
       fire: input.fire,
+      headshotTargetId: input.headshotTargetId,
     });
     this.ticksSinceCheckpoint++;
   }

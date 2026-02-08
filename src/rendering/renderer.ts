@@ -7,6 +7,7 @@ import {
   createObstacleMesh,
   createGroundMesh,
   createWallMeshes,
+  type EnemyMeshGroup,
 } from './entities.ts';
 import { createCamera, updateCamera } from './camera.ts';
 
@@ -16,7 +17,7 @@ export class Renderer {
   readonly webglRenderer: THREE.WebGLRenderer;
 
   private playerGroup: THREE.Group | null = null;
-  private enemyMeshes = new Map<number, THREE.Mesh>();
+  private enemyGroups = new Map<number, EnemyMeshGroup>();
   private projectileMeshes = new Map<number, THREE.Mesh>();
 
   constructor(canvas: HTMLCanvasElement) {
@@ -52,7 +53,7 @@ export class Renderer {
   /** Set up static arena geometry (ground, walls, obstacles) */
   initArena(state: GameState): void {
     // Clear stale refs from previous game
-    this.enemyMeshes.clear();
+    this.enemyGroups.clear();
     this.projectileMeshes.clear();
     this.playerGroup = null;
 
@@ -96,19 +97,19 @@ export class Renderer {
     const currentEnemyIds = new Set<number>();
     for (const enemy of state.enemies) {
       currentEnemyIds.add(enemy.id);
-      let mesh = this.enemyMeshes.get(enemy.id);
-      if (!mesh) {
-        mesh = createEnemyMesh(enemy.radius);
-        this.enemyMeshes.set(enemy.id, mesh);
-        this.scene.add(mesh);
+      let entry = this.enemyGroups.get(enemy.id);
+      if (!entry) {
+        entry = createEnemyMesh(enemy.radius);
+        this.enemyGroups.set(enemy.id, entry);
+        this.scene.add(entry.group);
       }
-      mesh.position.set(enemy.pos.x, mesh.position.y, enemy.pos.y);
+      entry.group.position.set(enemy.pos.x, 0, enemy.pos.y);
     }
     // Remove dead enemy meshes
-    for (const [id, mesh] of this.enemyMeshes) {
+    for (const [id, entry] of this.enemyGroups) {
       if (!currentEnemyIds.has(id)) {
-        this.scene.remove(mesh);
-        this.enemyMeshes.delete(id);
+        this.scene.remove(entry.group);
+        this.enemyGroups.delete(id);
       }
     }
 
@@ -148,5 +149,14 @@ export class Renderer {
   /** Get the ground plane for raycasting (y=0) */
   getGroundPlane(): THREE.Plane {
     return new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  }
+
+  /** Get enemy head meshes mapped by enemy ID, for headshot raycasting */
+  getEnemyHeadMeshes(): Map<number, THREE.Mesh> {
+    const heads = new Map<number, THREE.Mesh>();
+    for (const [id, entry] of this.enemyGroups) {
+      heads.set(id, entry.headMesh);
+    }
+    return heads;
   }
 }
