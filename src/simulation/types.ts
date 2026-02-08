@@ -87,6 +87,7 @@ export interface GrenadeConfig {
   groundFriction: number;  // per-tick velocity multiplier when rolling on ground
   bounceRestitution: number; // velocity preserved on bounce
   startingAmmo: number;
+  selfDamageMultiplier: number; // fraction of grenade damage applied to player
 }
 
 export interface CrateConfig {

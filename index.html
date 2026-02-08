@@ -89,6 +89,7 @@
             <button class="menu-btn" data-action="save-full">Save Full Recording</button>
             <button class="menu-btn" data-action="save-ring">Save Ring Buffer</button>
             <button class="menu-btn" data-action="load-replay">Load Replay</button>
+            <button class="menu-btn" data-action="toggle-console">Dev Console: OFF</button>
             <button class="menu-btn" data-action="quit">Quit to Title</button>
           </div>
         </div>
@@ -101,6 +102,12 @@
           <div id="replay-list"></div>
           <button class="menu-btn" id="replay-browser-back">Back</button>
         </div>
+      </div>
+
+      <!-- Developer Console -->
+      <div id="dev-console" class="hidden">
+        <div id="dev-console-output"></div>
+        <input id="dev-console-input" type="text" placeholder="Type a command..." autocomplete="off" spellcheck="false" />
       </div>
 
       <!-- Replay Controls -->

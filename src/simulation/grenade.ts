@@ -208,6 +208,35 @@ function explodeGrenade(state: GameState, grenade: Grenade, config: GrenadeConfi
     state.enemies = state.enemies.filter(e => !deadEnemies.has(e.id));
   }
 
+  // Player self-damage (respects dodge and iframes)
+  if (state.player.dodgeTimer === 0 && state.player.iframeTimer === 0) {
+    const pdx = state.player.pos.x - grenade.pos.x;
+    const pdy = state.player.pos.y - grenade.pos.y;
+    const playerDist = Math.sqrt(pdx * pdx + pdy * pdy);
+
+    if (playerDist < config.damageRadius) {
+      const falloff = 1 - (playerDist / config.damageRadius);
+      const damage = config.damage * falloff * config.selfDamageMultiplier;
+      state.player.hp -= damage;
+
+      state.events.push({
+        tick: state.tick,
+        type: 'player_hit',
+        data: { damage, remainingHp: state.player.hp, x: state.player.pos.x, y: state.player.pos.y, selfDamage: true },
+      });
+
+      if (state.player.hp <= 0) {
+        state.player.hp = 0;
+        state.gameOver = true;
+        state.events.push({
+          tick: state.tick,
+          type: 'player_death',
+          data: { finalScore: state.score },
+        });
+      }
+    }
+  }
+
   state.events.push({
     tick: state.tick,
     type: 'grenade_exploded',

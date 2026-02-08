@@ -5,6 +5,7 @@ export interface EscapeMenuCallbacks {
   onSaveFull: () => Promise<string>;
   onSaveRing: () => Promise<string>;
   onLoadReplay: () => void;
+  onToggleConsole: () => boolean; // returns new enabled state
   onQuit: () => void;
 }
 
@@ -59,6 +60,11 @@ export function setupEscapeMenu(callbacks: EscapeMenuCallbacks): void {
         case 'save-full': handleSave(btn, callbacks.onSaveFull); break;
         case 'save-ring': handleSave(btn, callbacks.onSaveRing); break;
         case 'load-replay': callbacks.onLoadReplay(); break;
+        case 'toggle-console': {
+          const on = callbacks.onToggleConsole();
+          btn.textContent = `Dev Console: ${on ? 'ON' : 'OFF'}`;
+          break;
+        }
         case 'quit': callbacks.onQuit(); break;
       }
     });

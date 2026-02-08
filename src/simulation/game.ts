@@ -77,7 +77,17 @@ export function tick(game: GameInstance, input: InputState, configs: GameConfigs
   tryThrowGrenade(state, input, configs.grenade);
 
   // 3c. Update grenades (movement, bouncing, explosions)
+  const preGrenadeIframe = state.player.iframeTimer;
   updateGrenades(state, configs.grenade);
+  if (state.player.iframeTimer === 0 && preGrenadeIframe === 0) {
+    // Check if grenade self-damage occurred (player_hit event with selfDamage flag)
+    for (const ev of state.events) {
+      if (ev.type === 'player_hit' && ev.data?.['selfDamage']) {
+        state.player.iframeTimer = configs.player.iframeDuration;
+        break;
+      }
+    }
+  }
 
   // 4. Update projectiles
   updateProjectiles(state);

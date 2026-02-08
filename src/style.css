@@ -569,3 +569,49 @@ html, body {
   font-style: italic;
   padding: 16px;
 }
+
+/* ---- Developer Console ---- */
+
+#dev-console {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 55;
+  background: rgba(0, 0, 0, 0.85);
+  border-top: 1px solid rgba(100, 255, 100, 0.3);
+  font-family: monospace;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+}
+
+#dev-console.hidden {
+  display: none;
+}
+
+#dev-console-output {
+  padding: 8px 12px;
+  color: rgba(200, 200, 200, 0.9);
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 200px;
+  overflow-y: auto;
+  line-height: 1.4;
+}
+
+#dev-console-input {
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  color: #4f4;
+  font-family: monospace;
+  font-size: 13px;
+  outline: none;
+  caret-color: #4f4;
+}
+
+#dev-console-input::placeholder {
+  color: rgba(100, 255, 100, 0.3);
+}

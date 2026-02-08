@@ -16,6 +16,7 @@ import { showEscapeMenu, hideEscapeMenu, setupEscapeMenu } from './ui/escape-men
 import { showReplayBrowser } from './ui/replay-browser.ts';
 import { showReplayControls, hideReplayControls, onReplayExit } from './ui/replay-controls.ts';
 import { initCrosshair, showCrosshair, hideCrosshair, processHitEvents, updateCrosshairSpread, updateAmmoArc } from './ui/crosshair.ts';
+import { initDevConsole, toggleDevConsole, isDevConsoleEnabled, setDevConsoleEnabled, isDevConsoleVisible, logToConsole, registerCommand } from './ui/dev-console.ts';
 
 import { AudioSystem } from './audio/audio.ts';
 import playerConfig from './configs/player.json';
@@ -61,6 +62,45 @@ let gameOverShown = false;
 let currentSeed = 0;
 
 initCrosshair(canvas);
+initDevConsole();
+
+// Register dev console commands
+registerCommand('state', () => {
+  if (!game) return 'No active game';
+  const s = game.state;
+  return `tick:${s.tick} hp:${s.player.hp.toFixed(0)}/${s.player.maxHp} score:${s.score} enemies:${s.enemies.length} grenades:${s.grenadeAmmo}`;
+});
+
+registerCommand('hp', (args) => {
+  if (!game) return 'No active game';
+  const val = parseInt(args);
+  if (isNaN(val)) return `HP: ${game.state.player.hp.toFixed(0)}/${game.state.player.maxHp}`;
+  game.state.player.hp = Math.min(val, game.state.player.maxHp);
+  return `HP set to ${game.state.player.hp}`;
+});
+
+registerCommand('score', (args) => {
+  if (!game) return 'No active game';
+  const val = parseInt(args);
+  if (isNaN(val)) return `Score: ${game.state.score}`;
+  game.state.score = val;
+  return `Score set to ${val}`;
+});
+
+registerCommand('grenades', (args) => {
+  if (!game) return 'No active game';
+  const val = parseInt(args);
+  if (isNaN(val)) return `Grenades: ${game.state.grenadeAmmo}`;
+  game.state.grenadeAmmo = val;
+  return `Grenades set to ${val}`;
+});
+
+registerCommand('kill', () => {
+  if (!game) return 'No active game';
+  const count = game.state.enemies.length;
+  game.state.enemies = [];
+  return `Killed ${count} enemies`;
+});
 
 // ---- Scene setup ----
 function rebuildScene(): void {
@@ -147,6 +187,12 @@ window.addEventListener('keydown', (e) => {
     }
   }
 
+  // Tilde toggles dev console
+  if (e.key === '`') {
+    toggleDevConsole();
+    return;
+  }
+
   // F8 quick-save ring buffer
   if (e.key === 'F8' && (screen === 'playing' || screen === 'paused' || screen === 'gameOver')) {
     const replay = ringRecorder.toReplay(configsJson);
@@ -187,6 +233,11 @@ setupEscapeMenu({
       },
     );
   },
+  onToggleConsole: () => {
+    const newState = !isDevConsoleEnabled();
+    setDevConsoleEnabled(newState);
+    return newState;
+  },
   onQuit: () => {
     goToTitle();
   },
@@ -223,6 +274,15 @@ function gameLoop(now: number): void {
     input.setHeadMeshes(renderer.getEnemyHeadMeshes());
     const currentInput = input.getInput();
 
+    // Suppress game input while dev console is focused
+    if (isDevConsoleVisible()) {
+      currentInput.moveDir = { x: 0, y: 0 };
+      currentInput.fire = false;
+      currentInput.dodge = false;
+      currentInput.reload = false;
+      currentInput.throwGrenade = false;
+    }
+
     // Update dynamic crosshair based on effective spread
     const isDodging = state.player.dodgeTimer > 0;
     const isMoving = currentInput.moveDir.x !== 0 || currentInput.moveDir.y !== 0;
@@ -255,6 +315,15 @@ function gameLoop(now: number): void {
       processHitEvents(state.events);
       frameEvents.push(...state.events);
       accumulator -= TICK_DURATION;
+    }
+
+    // Log events to dev console
+    if (isDevConsoleVisible() && frameEvents.length > 0) {
+      for (const ev of frameEvents) {
+        if (ev.type === 'enemy_spawned') continue; // too noisy
+        const data = ev.data ? ' ' + JSON.stringify(ev.data) : '';
+        logToConsole(`[${ev.tick}] ${ev.type}${data}`);
+      }
     }
 
     if (state.gameOver && !gameOverShown) {

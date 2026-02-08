@@ -10,5 +10,6 @@
   "knockbackForce": 35,
   "groundFriction": 0.95,
   "bounceRestitution": 0.4,
-  "startingAmmo": 5
+  "startingAmmo": 5,
+  "selfDamageMultiplier": 0.5
 }
