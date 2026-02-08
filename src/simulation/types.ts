@@ -13,6 +13,7 @@ export interface WeaponConfig {
   projectileSpeed: number;
   projectileLifetime: number; // ticks
   spread: number; // radians
+  movingSpreadMultiplier: number; // multiplier applied to spread when player is moving
   headshotMultiplier: number;
 }
 

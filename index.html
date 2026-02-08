@@ -11,12 +11,12 @@
 
       <!-- Crosshair + Hitmarker -->
       <div id="crosshair">
-        <svg width="32" height="32" viewBox="-16 -16 32 32">
-          <!-- Crosshair lines -->
-          <line class="xh-line" x1="0" y1="-10" x2="0" y2="-4" />
-          <line class="xh-line" x1="0" y1="4" x2="0" y2="10" />
-          <line class="xh-line" x1="-10" y1="0" x2="-4" y2="0" />
-          <line class="xh-line" x1="4" y1="0" x2="10" y2="0" />
+        <svg id="crosshair-svg" width="48" height="48" viewBox="-24 -24 48 48">
+          <!-- Crosshair lines (positions updated by JS) -->
+          <line class="xh-line" data-dir="up"    x1="0" y1="-10" x2="0" y2="-4" />
+          <line class="xh-line" data-dir="down"  x1="0" y1="4"   x2="0" y2="10" />
+          <line class="xh-line" data-dir="left"  x1="-10" y1="0" x2="-4" y2="0" />
+          <line class="xh-line" data-dir="right" x1="4"   y1="0" x2="10" y2="0" />
           <!-- Center dot -->
           <circle cx="0" cy="0" r="1.5" fill="white" />
         </svg>

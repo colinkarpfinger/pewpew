@@ -11,9 +11,11 @@ export function tryFire(state: GameState, input: InputState, weapons: WeaponsCon
   const cooldownTicks = Math.ceil(TICK_RATE / rifle.fireRate);
   state.player.fireCooldown = cooldownTicks;
 
-  // Apply spread
+  // Apply spread (wider when moving)
+  const isMoving = input.moveDir.x !== 0 || input.moveDir.y !== 0;
+  const effectiveSpread = rifle.spread * (isMoving ? rifle.movingSpreadMultiplier : 1.0);
   const baseAngle = Math.atan2(state.player.aimDir.y, state.player.aimDir.x);
-  const angle = baseAngle + (rng.next() * 2 - 1) * rifle.spread;
+  const angle = baseAngle + (rng.next() * 2 - 1) * effectiveSpread;
 
   const projectile: Projectile = {
     id: state.nextEntityId++,

@@ -15,7 +15,7 @@ import { showStartScreen, hideStartScreen, onStartGame } from './ui/start-screen
 import { showEscapeMenu, hideEscapeMenu, setupEscapeMenu } from './ui/escape-menu.ts';
 import { showReplayBrowser } from './ui/replay-browser.ts';
 import { showReplayControls, hideReplayControls, onReplayExit } from './ui/replay-controls.ts';
-import { initCrosshair, showCrosshair, hideCrosshair, processHitEvents } from './ui/crosshair.ts';
+import { initCrosshair, showCrosshair, hideCrosshair, processHitEvents, updateCrosshairSpread } from './ui/crosshair.ts';
 
 import playerConfig from './configs/player.json';
 import weaponsConfig from './configs/weapons.json';
@@ -211,6 +211,12 @@ function gameLoop(now: number): void {
     input.setPlayerPos(state.player.pos);
     input.setHeadMeshes(renderer.getEnemyHeadMeshes());
     const currentInput = input.getInput();
+
+    // Update dynamic crosshair based on effective spread
+    const isMoving = currentInput.moveDir.x !== 0 || currentInput.moveDir.y !== 0;
+    const rifle = configs.weapons.rifle;
+    const effectiveSpread = rifle.spread * (isMoving ? rifle.movingSpreadMultiplier : 1.0);
+    updateCrosshairSpread(effectiveSpread);
 
     while (accumulator >= TICK_DURATION) {
       fullRecorder.recordTick(currentInput);
