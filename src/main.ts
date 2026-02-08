@@ -82,6 +82,7 @@ function startGame(): void {
 
   rebuildScene();
   renderer.initArena(game.state);
+  renderer.setDodgeDuration(configs.player.dodgeDuration);
   gameOverShown = false;
   hideGameOver();
   hideStartScreen();
@@ -213,9 +214,12 @@ function gameLoop(now: number): void {
     const currentInput = input.getInput();
 
     // Update dynamic crosshair based on effective spread
+    const isDodging = state.player.dodgeTimer > 0;
     const isMoving = currentInput.moveDir.x !== 0 || currentInput.moveDir.y !== 0;
     const rifle = configs.weapons.rifle;
-    const effectiveSpread = rifle.spread * (isMoving ? rifle.movingSpreadMultiplier : 1.0);
+    const effectiveSpread = isDodging
+      ? rifle.spread * rifle.movingSpreadMultiplier * 3.0
+      : rifle.spread * (isMoving ? rifle.movingSpreadMultiplier : 1.0);
     updateCrosshairSpread(effectiveSpread);
 
     while (accumulator >= TICK_DURATION) {

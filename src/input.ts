@@ -13,15 +13,25 @@ export class InputHandler {
   private playerPos: Vec2 = { x: 0, y: 0 };
   private headMeshes = new Map<number, THREE.Mesh>();
 
+  // Edge-detected dodge input
+  private dodgePressed = false;
+  private dodgeConsumed = false;
+
   constructor(camera: THREE.PerspectiveCamera, canvas: HTMLCanvasElement) {
     this.camera = camera;
 
     window.addEventListener('keydown', (e) => {
       this.keys.add(e.key.toLowerCase());
+      if (e.key === ' ' && !this.dodgeConsumed) {
+        this.dodgePressed = true;
+      }
     });
 
     window.addEventListener('keyup', (e) => {
       this.keys.delete(e.key.toLowerCase());
+      if (e.key === ' ') {
+        this.dodgeConsumed = false;
+      }
     });
 
     canvas.addEventListener('mousedown', (e) => {
@@ -103,11 +113,19 @@ export class InputHandler {
       }
     }
 
+    // Read and consume dodge press
+    const dodge = this.dodgePressed;
+    if (dodge) {
+      this.dodgePressed = false;
+      this.dodgeConsumed = true;
+    }
+
     return {
       moveDir,
       aimDir,
       fire: this.mouseDown,
       headshotTargetId,
+      dodge,
     };
   }
 }

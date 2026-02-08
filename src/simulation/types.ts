@@ -5,6 +5,9 @@ export interface PlayerConfig {
   hp: number;
   radius: number;
   iframeDuration: number; // ticks
+  dodgeDuration: number; // ticks
+  dodgeCooldown: number; // ticks after dodge ends
+  dodgeSpeedMultiplier: number;
 }
 
 export interface WeaponConfig {
@@ -70,6 +73,9 @@ export interface Player {
   aimDir: Vec2; // normalized
   iframeTimer: number; // ticks remaining, 0 = vulnerable
   fireCooldown: number; // ticks remaining
+  dodgeTimer: number; // ticks remaining in dodge, 0 = not dodging
+  dodgeCooldown: number; // ticks remaining before dodge available again
+  dodgeDir: Vec2; // locked movement direction during dodge
 }
 
 export interface Enemy {
@@ -105,6 +111,7 @@ export interface InputState {
   aimDir: Vec2; // normalized, world-space direction from player
   fire: boolean;
   headshotTargetId: number | null; // enemy ID whose head is under cursor
+  dodge: boolean; // edge-detected: true only on press frame
 }
 
 // ---- Events ----
@@ -116,7 +123,8 @@ export type GameEventType =
   | 'player_hit'
   | 'player_death'
   | 'enemy_spawned'
-  | 'projectile_destroyed';
+  | 'projectile_destroyed'
+  | 'player_dodge_start';
 
 export interface GameEvent {
   tick: number;

@@ -5,21 +5,48 @@ import { clampToArena, circleAABB } from './collision.ts';
 export function updatePlayer(state: GameState, input: InputState, config: PlayerConfig): void {
   const player = state.player;
 
-  // Apply movement (instant, no inertia)
-  if (input.moveDir.x !== 0 || input.moveDir.y !== 0) {
-    player.pos.x += input.moveDir.x * config.speed * TICK_DURATION;
-    player.pos.y += input.moveDir.y * config.speed * TICK_DURATION;
+  // Start dodge if requested and able
+  if (input.dodge && player.dodgeTimer === 0 && player.dodgeCooldown === 0) {
+    player.dodgeTimer = config.dodgeDuration;
+    // Lock direction: use moveDir if moving, otherwise aimDir
+    if (input.moveDir.x !== 0 || input.moveDir.y !== 0) {
+      player.dodgeDir = { x: input.moveDir.x, y: input.moveDir.y };
+    } else {
+      player.dodgeDir = { x: player.aimDir.x, y: player.aimDir.y };
+    }
+    state.events.push({
+      tick: state.tick,
+      type: 'player_dodge_start',
+      data: { dirX: player.dodgeDir.x, dirY: player.dodgeDir.y },
+    });
   }
 
-  // Update aim direction
-  if (input.aimDir.x !== 0 || input.aimDir.y !== 0) {
-    player.aimDir = { ...input.aimDir };
+  if (player.dodgeTimer > 0) {
+    // Dodge movement: locked direction at boosted speed
+    const dodgeSpeed = config.speed * config.dodgeSpeedMultiplier;
+    player.pos.x += player.dodgeDir.x * dodgeSpeed * TICK_DURATION;
+    player.pos.y += player.dodgeDir.y * dodgeSpeed * TICK_DURATION;
+    player.dodgeTimer--;
+    if (player.dodgeTimer === 0) {
+      player.dodgeCooldown = config.dodgeCooldown;
+    }
+  } else {
+    // Normal movement (instant, no inertia)
+    if (input.moveDir.x !== 0 || input.moveDir.y !== 0) {
+      player.pos.x += input.moveDir.x * config.speed * TICK_DURATION;
+      player.pos.y += input.moveDir.y * config.speed * TICK_DURATION;
+    }
+
+    // Update aim direction
+    if (input.aimDir.x !== 0 || input.aimDir.y !== 0) {
+      player.aimDir = { ...input.aimDir };
+    }
   }
 
-  // Clamp to arena bounds
+  // Clamp to arena bounds (applies during dodge too)
   player.pos = clampToArena(player.pos, player.radius, state.arena.width, state.arena.height);
 
-  // Collide with obstacles
+  // Collide with obstacles (applies during dodge too)
   for (const obs of state.obstacles) {
     const pushOut = circleAABB(player.pos, player.radius, obs);
     if (pushOut) {
@@ -36,5 +63,10 @@ export function updatePlayer(state: GameState, input: InputState, config: Player
   // Tick fire cooldown
   if (player.fireCooldown > 0) {
     player.fireCooldown--;
+  }
+
+  // Tick dodge cooldown
+  if (player.dodgeCooldown > 0) {
+    player.dodgeCooldown--;
   }
 }

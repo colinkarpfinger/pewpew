@@ -17,6 +17,10 @@ export class Renderer {
   readonly webglRenderer: THREE.WebGLRenderer;
 
   private playerGroup: THREE.Group | null = null;
+  private playerCapsule: THREE.Mesh | null = null;
+  private playerAim: THREE.Mesh | null = null;
+  private playerRadius = 0.4;
+  private dodgeDuration = 18;
   private enemyGroups = new Map<number, EnemyMeshGroup>();
   private projectileMeshes = new Map<number, THREE.Mesh>();
 
@@ -73,17 +77,80 @@ export class Renderer {
     }
 
     // Player
+    this.playerRadius = state.player.radius;
     this.playerGroup = createPlayerMesh(state.player.radius);
+    this.playerCapsule = this.playerGroup.children[0] as THREE.Mesh;
+    this.playerAim = this.playerGroup.children[1] as THREE.Mesh;
     this.scene.add(this.playerGroup);
+  }
+
+  /** Configure dodge animation duration (in ticks) */
+  setDodgeDuration(ticks: number): void {
+    this.dodgeDuration = ticks;
   }
 
   /** Sync all dynamic visuals to match simulation state */
   syncState(state: GameState): void {
     // Player position and rotation
-    if (this.playerGroup) {
+    if (this.playerGroup && this.playerCapsule && this.playerAim) {
       this.playerGroup.position.set(state.player.pos.x, 0, state.player.pos.y);
-      const aimAngle = Math.atan2(state.player.aimDir.y, state.player.aimDir.x);
-      this.playerGroup.rotation.y = -aimAngle;
+
+      if (state.player.dodgeTimer > 0) {
+        // Dodge animation
+        const elapsed = this.dodgeDuration - state.player.dodgeTimer;
+        const t = elapsed / this.dodgeDuration; // 0→1
+
+        // Face dodge direction instead of aim direction
+        const dodgeAngle = Math.atan2(state.player.dodgeDir.y, state.player.dodgeDir.x);
+        this.playerGroup.rotation.y = -dodgeAngle;
+
+        // Hide aim indicator during dodge
+        this.playerAim.visible = false;
+
+        const r = this.playerRadius;
+        const capsuleHeight = r * 1.2;
+        const uprightY = r + capsuleHeight / 2;
+
+        // Easing functions
+        const easeInQuad = (x: number) => x * x;
+        const easeOutQuad = (x: number) => 1 - (1 - x) * (1 - x);
+
+        if (t < 0.22) {
+          // Phase 1: Tip over (0→90° on local X axis)
+          const p = easeInQuad(t / 0.22);
+          const tipAngle = p * Math.PI / 2;
+          this.playerCapsule.rotation.x = 0;
+          this.playerCapsule.rotation.z = tipAngle;
+          // Lower Y as capsule tips: from upright to lying on ground
+          this.playerCapsule.position.y = uprightY * (1 - p) + r * p;
+        } else if (t < 0.78) {
+          // Phase 2: Roll — keep tipped, spin around long axis
+          const rollT = (t - 0.22) / (0.78 - 0.22);
+          this.playerCapsule.rotation.z = Math.PI / 2;
+          // 3 half-rotations while rolling
+          this.playerCapsule.rotation.x = rollT * Math.PI * 3;
+          this.playerCapsule.position.y = r;
+        } else {
+          // Phase 3: Pop up (90°→0° on local X axis)
+          const p = easeOutQuad((t - 0.78) / (1 - 0.78));
+          const tipAngle = (1 - p) * Math.PI / 2;
+          this.playerCapsule.rotation.z = tipAngle;
+          this.playerCapsule.rotation.x = 0;
+          // Raise Y back to upright
+          this.playerCapsule.position.y = r * (1 - p) + uprightY * p;
+        }
+      } else {
+        // Normal: upright, aim-directed
+        const aimAngle = Math.atan2(state.player.aimDir.y, state.player.aimDir.x);
+        this.playerGroup.rotation.y = -aimAngle;
+        this.playerAim.visible = true;
+
+        // Reset capsule mesh to upright defaults
+        const r = this.playerRadius;
+        const capsuleHeight = r * 1.2;
+        this.playerCapsule.rotation.set(0, 0, 0);
+        this.playerCapsule.position.y = r + capsuleHeight / 2;
+      }
 
       // Flash during i-frames
       this.playerGroup.visible = state.player.iframeTimer === 0 ||

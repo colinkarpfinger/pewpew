@@ -2,5 +2,8 @@
   "speed": 5.0,
   "hp": 100,
   "radius": 0.4,
-  "iframeDuration": 60
+  "iframeDuration": 60,
+  "dodgeDuration": 18,
+  "dodgeCooldown": 42,
+  "dodgeSpeedMultiplier": 1.8
 }

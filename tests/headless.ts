@@ -7,7 +7,7 @@ import type { GameConfigs, InputState } from '../src/simulation/types.ts';
 import { createGame, tick, getSnapshot } from '../src/simulation/game.ts';
 
 const configs: GameConfigs = {
-  player: { speed: 5.0, hp: 100, radius: 0.4, iframeDuration: 60 },
+  player: { speed: 5.0, hp: 100, radius: 0.4, iframeDuration: 60, dodgeDuration: 18, dodgeCooldown: 42, dodgeSpeedMultiplier: 1.8 },
   weapons: {
     rifle: { damage: 25, fireRate: 8, projectileSpeed: 20, projectileLifetime: 120, spread: 0.03 },
   },
@@ -18,7 +18,7 @@ const configs: GameConfigs = {
   arena: { width: 30, height: 20, obstacleCount: 8, obstacleSize: 1.5 },
 };
 
-const noInput: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: false };
+const noInput: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: false, headshotTargetId: null, dodge: false };
 
 function assert(condition: boolean, msg: string): void {
   if (!condition) {
@@ -48,7 +48,7 @@ assert(game.state.tick === 60, 'Tick count is 60 after 60 ticks');
 // Test 3: Player movement
 console.log('\n--- Test 3: Player movement ---');
 const moveGame = createGame(configs, 42);
-const moveRight: InputState = { moveDir: { x: 1, y: 0 }, aimDir: { x: 1, y: 0 }, fire: false };
+const moveRight: InputState = { moveDir: { x: 1, y: 0 }, aimDir: { x: 1, y: 0 }, fire: false, headshotTargetId: null, dodge: false };
 for (let i = 0; i < 60; i++) {
   tick(moveGame, moveRight, configs);
 }
@@ -65,7 +65,7 @@ assert(spawnGame.state.enemies.length > 0, `Enemies spawned: ${spawnGame.state.e
 // Test 5: Firing creates projectiles
 console.log('\n--- Test 5: Firing ---');
 const fireGame = createGame(configs, 42);
-const fireInput: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: true };
+const fireInput: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: true, headshotTargetId: null, dodge: false };
 tick(fireGame, fireInput, configs);
 assert(fireGame.state.projectiles.length > 0, `Projectile created: ${fireGame.state.projectiles.length}`);
 
@@ -113,6 +113,8 @@ if (combatGame.state.enemies.length > 0) {
     moveDir: { x: 0, y: 0 },
     aimDir: { x: dx / len, y: dy / len },
     fire: true,
+    headshotTargetId: null,
+    dodge: false,
   };
   for (let i = 0; i < 120; i++) {
     tick(combatGame, aimAtEnemy, configs);
@@ -121,6 +123,54 @@ if (combatGame.state.enemies.length > 0) {
   const allEvents = combatGame.state.events;
   console.log(`  Events on last tick: ${allEvents.map(e => e.type).join(', ') || '(none)'}`);
 }
+
+// Test 9: Dodge mechanic
+console.log('\n--- Test 9: Dodge ---');
+const dodgeGame = createGame(configs, 42);
+const dodgeInput: InputState = {
+  moveDir: { x: 1, y: 0 },
+  aimDir: { x: 1, y: 0 },
+  fire: false,
+  headshotTargetId: null,
+  dodge: true,
+};
+tick(dodgeGame, dodgeInput, configs);
+assert(dodgeGame.state.player.dodgeTimer > 0, `Dodge timer started: ${dodgeGame.state.player.dodgeTimer}`);
+assert(dodgeGame.state.player.dodgeDir.x === 1, 'Dodge direction locked to moveDir');
+const posAfterDodgeStart = dodgeGame.state.player.pos.x;
+
+// Continue dodging (dodge input should be edge-detected, so set to false)
+const noDodgeInput: InputState = { moveDir: { x: 1, y: 0 }, aimDir: { x: 1, y: 0 }, fire: false, headshotTargetId: null, dodge: false };
+for (let i = 0; i < 17; i++) {
+  tick(dodgeGame, noDodgeInput, configs);
+}
+assert(dodgeGame.state.player.dodgeTimer === 0, 'Dodge timer expired after duration');
+assert(dodgeGame.state.player.dodgeCooldown > 0, `Cooldown started: ${dodgeGame.state.player.dodgeCooldown}`);
+assert(dodgeGame.state.player.pos.x > posAfterDodgeStart, `Player moved during dodge (x=${dodgeGame.state.player.pos.x.toFixed(2)})`);
+
+// Can't dodge during cooldown
+tick(dodgeGame, dodgeInput, configs);
+assert(dodgeGame.state.player.dodgeTimer === 0, 'Cannot dodge during cooldown');
+
+// Wait for cooldown to expire, then dodge again
+for (let i = 0; i < 42; i++) {
+  tick(dodgeGame, noDodgeInput, configs);
+}
+assert(dodgeGame.state.player.dodgeCooldown === 0, 'Cooldown expired');
+tick(dodgeGame, dodgeInput, configs);
+assert(dodgeGame.state.player.dodgeTimer > 0, 'Can dodge again after cooldown');
+
+// Test: can't fire during dodge
+const dodgeFireGame = createGame(configs, 42);
+const dodgeFireInput: InputState = {
+  moveDir: { x: 1, y: 0 },
+  aimDir: { x: 1, y: 0 },
+  fire: true,
+  headshotTargetId: null,
+  dodge: true,
+};
+tick(dodgeFireGame, dodgeFireInput, configs);
+assert(dodgeFireGame.state.projectiles.length === 0, 'Cannot fire during dodge');
 
 console.log('\n=== All headless tests passed! ===');
 console.log(`\nFinal state summary:`);

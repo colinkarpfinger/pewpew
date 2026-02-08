@@ -25,6 +25,9 @@ export function createGame(configs: GameConfigs, seed: number = 12345): GameInst
       aimDir: { x: 1, y: 0 },
       iframeTimer: 0,
       fireCooldown: 0,
+      dodgeTimer: 0,
+      dodgeCooldown: 0,
+      dodgeDir: { x: 0, y: 0 },
     },
     enemies: [],
     projectiles: [],
@@ -85,6 +88,10 @@ export function cloneState(state: GameState): GameState {
 /** Reconstruct a GameInstance from a serialized snapshot + RNG state */
 export function restoreGame(stateSnapshot: GameState, rngState: number): GameInstance {
   const state = cloneState(stateSnapshot);
+  // Backward-compat defaults for dodge fields
+  state.player.dodgeTimer ??= 0;
+  state.player.dodgeCooldown ??= 0;
+  state.player.dodgeDir ??= { x: 0, y: 0 };
   const rng = new SeededRNG(0);
   rng.setState(rngState);
   return { state, rng };

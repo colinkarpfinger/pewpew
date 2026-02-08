@@ -28,6 +28,7 @@ export function updateEnemies(state: GameState, _configs: EnemiesConfig): void {
 }
 
 export function checkContactDamage(state: GameState, _configs: EnemiesConfig): void {
+  if (state.player.dodgeTimer > 0) return;
   if (state.player.iframeTimer > 0) return;
 
   for (const enemy of state.enemies) {

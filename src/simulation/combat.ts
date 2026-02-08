@@ -4,6 +4,7 @@ import { circleCircle, circleAABB, isOutOfBounds } from './collision.ts';
 import type { SeededRNG } from './rng.ts';
 
 export function tryFire(state: GameState, input: InputState, weapons: WeaponsConfig, rng: SeededRNG): void {
+  if (state.player.dodgeTimer > 0) return;
   if (!input.fire) return;
   if (state.player.fireCooldown > 0) return;
 
