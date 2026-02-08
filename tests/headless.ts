@@ -28,6 +28,10 @@ const configs: GameConfigs = {
     minSpeed: 8, maxSpeed: 17, radius: 0.15, fuseTime: 180, gravity: 25, damageRadius: 4,
     knockbackRadius: 6, damage: 80, knockbackForce: 25, groundFriction: 0.95, bounceRestitution: 0.4, startingAmmo: 3,
   },
+  crates: {
+    dropChance: 0.15, multikillDropChance: 0.4, lifetime: 600, blinkThreshold: 120, radius: 0.5,
+    types: { grenade: 0.4, health: 0.6 }, healthAmount: 25,
+  },
 };
 
 const noInput: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: false, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };

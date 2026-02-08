@@ -363,6 +363,40 @@ export class ParticleSystem {
             ySpeed: [1, 3],
           });
           break;
+
+        case 'crate_picked_up': {
+          const isHealth = d.crateType === 'health';
+          this.emit({
+            x: d.x as number,
+            z: d.y as number,
+            count: 20 + Math.floor(Math.random() * 11),
+            speed: [2, 6],
+            angle: 0,
+            spread: Math.PI,
+            lifetime: [0.3, 0.6],
+            size: [0.2, 0.4],
+            color: isHealth ? new THREE.Color(0.2, 1.0, 0.4) : new THREE.Color(0.2, 0.4, 1.0),
+            gravity: -1,
+            ySpeed: [3, 7],
+          });
+          break;
+        }
+
+        case 'crate_expired':
+          this.emit({
+            x: d.x as number,
+            z: d.y as number,
+            count: 8 + Math.floor(Math.random() * 5),
+            speed: [1, 3],
+            angle: 0,
+            spread: Math.PI,
+            lifetime: [0.2, 0.4],
+            size: [0.15, 0.3],
+            color: new THREE.Color(0.4, 0.4, 0.4),
+            gravity: 1,
+            ySpeed: [0.5, 2],
+          });
+          break;
       }
     }
 

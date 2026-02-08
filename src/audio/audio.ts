@@ -31,6 +31,7 @@ const EVENT_MAP: Partial<Record<GameEventType, string>> = {
   grenade_thrown: 'grenade_throw',
   grenade_bounced: 'grenade_bounce',
   grenade_exploded: 'grenade_explode',
+  crate_picked_up: 'crate_pickup',
 };
 
 export class AudioSystem {

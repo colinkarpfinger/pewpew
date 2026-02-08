@@ -174,6 +174,13 @@ export function processHitEvents(events: GameEvent[]): void {
     } else if (event.type === 'multikill') {
       const killCount = event.data?.['killCount'] as number;
       showMultiKillPopup(killCount);
+    } else if (event.type === 'crate_picked_up') {
+      const crateType = event.data?.['crateType'] as string;
+      if (crateType === 'health') {
+        showReloadPopup('active', '+25 HP', 'Health Restored');
+      } else {
+        showReloadPopup('active', '+1 Grenade', 'Ammo Restored');
+      }
     }
   }
 }

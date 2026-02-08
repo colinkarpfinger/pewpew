@@ -6,6 +6,7 @@ import {
   createEnemyMesh,
   createProjectileMesh,
   createGrenadeMesh,
+  createCrateMesh,
   createObstacleMesh,
   createGroundMesh,
   createWallMeshes,
@@ -26,6 +27,7 @@ export class Renderer {
   private enemyGroups = new Map<number, EnemyMeshGroup>();
   private projectileMeshes = new Map<number, THREE.Mesh>();
   private grenadeMeshes = new Map<number, THREE.Mesh>();
+  private crateMeshes = new Map<number, THREE.Mesh>();
   private particles: ParticleSystem | null = null;
   private muzzleFlashes: { light: THREE.PointLight; timer: number }[] = [];
 
@@ -65,6 +67,7 @@ export class Renderer {
     this.enemyGroups.clear();
     this.projectileMeshes.clear();
     this.grenadeMeshes.clear();
+    this.crateMeshes.clear();
     this.playerGroup = null;
 
     // Ground
@@ -235,6 +238,36 @@ export class Renderer {
       if (!currentGrenadeIds.has(id)) {
         this.scene.remove(mesh);
         this.grenadeMeshes.delete(id);
+      }
+    }
+
+    // Sync crates
+    const currentCrateIds = new Set<number>();
+    for (const crate of state.crates) {
+      currentCrateIds.add(crate.id);
+      let mesh = this.crateMeshes.get(crate.id);
+      if (!mesh) {
+        mesh = createCrateMesh(crate.crateType);
+        this.crateMeshes.set(crate.id, mesh);
+        this.scene.add(mesh);
+      }
+      // Bob animation
+      const bobY = 0.3 + Math.sin(state.tick * 0.05) * 0.08;
+      mesh.position.set(crate.pos.x, bobY, crate.pos.y);
+      mesh.rotation.y = state.tick * 0.02;
+
+      // Blink when expiring (last 120 ticks = 2s)
+      if (crate.lifetime <= 120) {
+        mesh.visible = Math.floor(crate.lifetime / 6) % 2 === 0;
+      } else {
+        mesh.visible = true;
+      }
+    }
+    // Remove picked up / expired crate meshes
+    for (const [id, mesh] of this.crateMeshes) {
+      if (!currentCrateIds.has(id)) {
+        this.scene.remove(mesh);
+        this.crateMeshes.delete(id);
       }
     }
   }

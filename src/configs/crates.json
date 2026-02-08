@@ -1,0 +1,12 @@
+{
+  "dropChance": 0.15,
+  "multikillDropChance": 0.4,
+  "lifetime": 600,
+  "blinkThreshold": 120,
+  "radius": 0.5,
+  "types": {
+    "grenade": 0.4,
+    "health": 0.6
+  },
+  "healthAmount": 25
+}

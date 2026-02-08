@@ -6,6 +6,7 @@ import { tryFire, updateProjectiles, checkProjectileCollisions, updateReload } f
 import { updateEnemies, checkContactDamage } from './enemies.ts';
 import { updateSpawner } from './spawner.ts';
 import { tryThrowGrenade, updateGrenades } from './grenade.ts';
+import { spawnCrates, checkCratePickups, updateCrateLifetimes } from './crates.ts';
 
 export interface GameInstance {
   state: GameState;
@@ -38,6 +39,7 @@ export function createGame(configs: GameConfigs, seed: number = 12345): GameInst
     enemies: [],
     projectiles: [],
     grenades: [],
+    crates: [],
     obstacles,
     arena: configs.arena,
     grenadeAmmo: configs.grenade.startingAmmo,
@@ -87,6 +89,15 @@ export function tick(game: GameInstance, input: InputState, configs: GameConfigs
   if (configs.multikill) {
     detectMultiKills(state, configs.multikill);
   }
+
+  // 5c. Crate drops from killed enemies
+  spawnCrates(state, configs.crates, rng);
+
+  // 5d. Crate pickups (player collision)
+  checkCratePickups(state, configs.crates);
+
+  // 5e. Crate lifetime expiration
+  updateCrateLifetimes(state);
 
   // 6. Enemy AI
   updateEnemies(state, configs.enemies);
@@ -169,6 +180,7 @@ export function restoreGame(stateSnapshot: GameState, rngState: number): GameIns
   state.player.speedBoostTimer ??= 0;
   state.player.speedBoostMultiplier ??= 1.0;
   state.grenades ??= [];
+  state.crates ??= [];
   state.grenadeAmmo ??= 3;
   const rng = new SeededRNG(0);
   rng.setState(rngState);

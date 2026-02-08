@@ -154,6 +154,16 @@
       "maxInstances": 2,
       "cooldown": 0.1,
       "spatial": true
+    },
+    "crate_pickup": {
+      "files": [
+        "assets/audio/reload/reload_complete/UI_Click_Distinct_mono.wav"
+      ],
+      "volume": 0.5,
+      "pitchRange": [1.3, 1.5],
+      "maxInstances": 2,
+      "cooldown": 0.1,
+      "spatial": true
     }
   }
 }

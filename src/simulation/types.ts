@@ -89,6 +89,16 @@ export interface GrenadeConfig {
   startingAmmo: number;
 }
 
+export interface CrateConfig {
+  dropChance: number;
+  multikillDropChance: number;
+  lifetime: number; // ticks
+  blinkThreshold: number; // ticks remaining when blinking starts
+  radius: number;
+  types: Record<string, number>; // type name → weight
+  healthAmount: number;
+}
+
 export interface GameConfigs {
   player: PlayerConfig;
   weapons: WeaponsConfig;
@@ -97,6 +107,7 @@ export interface GameConfigs {
   arena: ArenaConfig;
   multikill: MultiKillConfig;
   grenade: GrenadeConfig;
+  crates: CrateConfig;
 }
 
 // ---- Entities ----
@@ -163,6 +174,15 @@ export interface Grenade {
   fuseTimer: number;   // ticks remaining until explosion
 }
 
+export type CrateType = 'grenade' | 'health';
+
+export interface Crate {
+  id: number;
+  pos: Vec2;
+  crateType: CrateType;
+  lifetime: number; // ticks remaining
+}
+
 // ---- Input ----
 
 export interface InputState {
@@ -193,7 +213,10 @@ export type GameEventType =
   | 'multikill'
   | 'grenade_thrown'
   | 'grenade_bounced'
-  | 'grenade_exploded';
+  | 'grenade_exploded'
+  | 'crate_spawned'
+  | 'crate_picked_up'
+  | 'crate_expired';
 
 export interface GameEvent {
   tick: number;
@@ -214,6 +237,7 @@ export interface GameState {
   enemies: Enemy[];
   projectiles: Projectile[];
   grenades: Grenade[];
+  crates: Crate[];
   obstacles: Obstacle[];
   arena: ArenaConfig;
   grenadeAmmo: number;

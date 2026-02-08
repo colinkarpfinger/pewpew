@@ -76,6 +76,20 @@ export function createGrenadeMesh(): THREE.Mesh {
   return mesh;
 }
 
+export function createCrateMesh(crateType: string): THREE.Mesh {
+  const geometry = new THREE.BoxGeometry(0.4, 0.4, 0.4);
+  const isHealth = crateType === 'health';
+  const material = new THREE.MeshStandardMaterial({
+    color: isHealth ? 0x22cc44 : 0x2266ff,
+    emissive: isHealth ? 0x115522 : 0x112255,
+    emissiveIntensity: 0.6,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.castShadow = true;
+  mesh.position.y = 0.3;
+  return mesh;
+}
+
 export function createObstacleMesh(width: number, height: number): THREE.Mesh {
   const wallHeight = 1.5;
   const geometry = new THREE.BoxGeometry(width, wallHeight, height);
