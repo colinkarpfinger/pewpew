@@ -3,21 +3,21 @@ import * as THREE from 'three';
 export function createPlayerMesh(radius: number): THREE.Group {
   const group = new THREE.Group();
 
-  // Capsule body
-  const geometry = new THREE.CapsuleGeometry(radius, radius * 1.2, 8, 16);
+  // Capsule body (CapsuleGeometry is vertical by default along Y)
+  const height = radius * 1.2;
+  const geometry = new THREE.CapsuleGeometry(radius, height, 8, 16);
   const material = new THREE.MeshStandardMaterial({ color: 0x00aaff });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.castShadow = true;
-  mesh.rotation.x = -Math.PI / 2; // stand upright
-  mesh.position.y = radius * 1.1; // raise above ground
+  mesh.position.y = radius + height / 2; // bottom hemisphere rests on ground
   group.add(mesh);
 
-  // Aim indicator (small cone pointing forward)
+  // Aim indicator (small cone pointing forward along X)
   const aimGeo = new THREE.ConeGeometry(radius * 0.3, radius * 0.8, 8);
   const aimMat = new THREE.MeshStandardMaterial({ color: 0x44ccff });
   const aimMesh = new THREE.Mesh(aimGeo, aimMat);
-  aimMesh.rotation.x = -Math.PI / 2;
-  aimMesh.position.set(radius * 1.2, radius * 0.8, 0);
+  aimMesh.rotation.z = -Math.PI / 2; // tip points along +X
+  aimMesh.position.set(radius * 1.2, radius + height / 2, 0);
   group.add(aimMesh);
 
   return group;

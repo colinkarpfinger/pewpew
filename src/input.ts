@@ -89,6 +89,14 @@ export class InputHandler {
         for (const [id, mesh] of this.headMeshes) {
           if (mesh === hits[0].object) {
             headshotTargetId = id;
+            // Aim at the enemy's ground position instead of the ground plane
+            // intersection — clicking the top of a head would otherwise aim
+            // behind the enemy due to the camera angle.
+            const enemyWorldPos = new THREE.Vector3();
+            mesh.parent!.getWorldPosition(enemyWorldPos);
+            const dx = enemyWorldPos.x - this.playerPos.x;
+            const dy = enemyWorldPos.z - this.playerPos.y;
+            aimDir = normalize({ x: dx, y: dy });
             break;
           }
         }
