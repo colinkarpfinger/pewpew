@@ -1,6 +1,6 @@
 import type { GameState, InputState, WeaponsConfig, Projectile } from './types.ts';
 import { TICK_RATE } from './types.ts';
-import { circleCircle, circleAABB, isOutOfBounds, pointToLineDist } from './collision.ts';
+import { circleCircle, circleAABB, isOutOfBounds, pointToLineDist, normalize } from './collision.ts';
 import type { SeededRNG } from './rng.ts';
 
 export function tryFire(state: GameState, input: InputState, weapons: WeaponsConfig, rng: SeededRNG): void {
@@ -110,6 +110,12 @@ export function checkProjectileCollisions(state: GameState, weapons: WeaponsConf
         ? proj.damage * weapons.rifle.headshotMultiplier
         : proj.damage;
       enemy.hp -= damage;
+
+      // Apply knockback along bullet direction
+      const knockDir = normalize(proj.vel);
+      const knockSpeed = weapons.rifle.knockback * (isHeadshot ? weapons.rifle.headshotKnockbackMultiplier : 1);
+      enemy.knockbackVel.x += knockDir.x * knockSpeed;
+      enemy.knockbackVel.y += knockDir.y * knockSpeed;
 
       proj.hitEnemyIds.push(enemy.id);
       proj.penetrationLeft--;

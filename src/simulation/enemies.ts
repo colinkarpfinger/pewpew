@@ -13,6 +13,14 @@ export function updateEnemies(state: GameState, _configs: EnemiesConfig): void {
     enemy.pos.x += dir.x * enemy.speed * TICK_DURATION;
     enemy.pos.y += dir.y * enemy.speed * TICK_DURATION;
 
+    // Apply knockback velocity
+    enemy.pos.x += enemy.knockbackVel.x * TICK_DURATION;
+    enemy.pos.y += enemy.knockbackVel.y * TICK_DURATION;
+
+    // Decay knockback (friction)
+    enemy.knockbackVel.x *= 0.85;
+    enemy.knockbackVel.y *= 0.85;
+
     // Clamp to arena bounds
     enemy.pos = clampToArena(enemy.pos, enemy.radius, state.arena.width, state.arena.height);
 

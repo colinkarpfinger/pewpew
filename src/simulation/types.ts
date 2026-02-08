@@ -19,6 +19,8 @@ export interface WeaponConfig {
   movingSpreadMultiplier: number; // multiplier applied to spread when player is moving
   headshotMultiplier: number;
   penetration: number; // max enemies a bullet can hit (requires first-hit headshot)
+  knockback: number; // knockback speed applied to enemies on hit
+  headshotKnockbackMultiplier: number;
 }
 
 export interface WeaponsConfig {
@@ -88,6 +90,7 @@ export interface Enemy {
   speed: number;
   contactDamage: number;
   scoreValue: number;
+  knockbackVel: Vec2;
 }
 
 export interface Projectile {
