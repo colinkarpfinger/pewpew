@@ -6,6 +6,7 @@
     "projectileLifetime": 60,
     "spread": 0.03,
     "movingSpreadMultiplier": 3.0,
-    "headshotMultiplier": 2.0
+    "headshotMultiplier": 2.0,
+    "penetration": 3
   }
 }

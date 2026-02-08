@@ -18,6 +18,7 @@ export interface WeaponConfig {
   spread: number; // radians
   movingSpreadMultiplier: number; // multiplier applied to spread when player is moving
   headshotMultiplier: number;
+  penetration: number; // max enemies a bullet can hit (requires first-hit headshot)
 }
 
 export interface WeaponsConfig {
@@ -96,6 +97,8 @@ export interface Projectile {
   damage: number;
   lifetime: number; // ticks remaining
   headshotTargetId: number | null; // enemy ID whose head was under cursor at fire time
+  penetrationLeft: number; // how many more enemies this bullet can hit
+  hitEnemyIds: number[]; // enemies already hit (to avoid double-hits)
 }
 
 export interface Obstacle {
