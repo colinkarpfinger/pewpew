@@ -337,10 +337,6 @@ function gameLoop(now: number): void {
         maxAmmo: rifle.magazineSize,
         reloading: isReloading,
         reloadProgress: isReloading ? state.player.reloadTimer / rifle.reloadTime : 0,
-        activeStart: rifle.activeReloadStart,
-        activeEnd: rifle.activeReloadEnd,
-        perfectStart: rifle.perfectReloadStart,
-        perfectEnd: rifle.perfectReloadEnd,
         damageBonusMultiplier: state.player.damageBonusMultiplier,
       });
     }

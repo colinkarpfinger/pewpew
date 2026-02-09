@@ -185,21 +185,39 @@ export class Renderer {
       this.playerGroup.visible = state.player.iframeTimer === 0 ||
         Math.floor(state.player.iframeTimer / 4) % 2 === 0;
 
-      // Reload bar
+      // Reload bar with active/perfect timing zones
       if (this.playerReloadBar && this.weaponConfig) {
         const reloading = state.player.reloadTimer > 0;
         this.playerReloadBar.visible = reloading;
 
         if (reloading) {
-          const progress = state.player.reloadTimer / this.weaponConfig.reloadTime;
+          const wc = this.weaponConfig;
+          const progress = state.player.reloadTimer / wc.reloadTime;
           const barHeight = this.playerRadius * 3;
+          const baseY = 0.1; // bottom of bar
+
+          // Fill bar — grows from bottom
           const fillMesh = this.playerReloadBar.children[1] as THREE.Mesh;
-
-          // Scale Y to show progress, anchor from bottom
           fillMesh.scale.y = progress;
-          fillMesh.position.y = (barHeight * progress) / 2 + 0.1;
+          fillMesh.position.y = (barHeight * progress) / 2 + baseY;
 
-          // Counter-rotate so bar always faces camera (undo player group rotation)
+          // Active zone — positioned by config fractions
+          const activeMesh = this.playerReloadBar.children[2] as THREE.Mesh;
+          const activeCenterY = ((wc.activeReloadStart + wc.activeReloadEnd) / 2) * barHeight + baseY;
+          activeMesh.scale.y = (wc.activeReloadEnd - wc.activeReloadStart);
+          activeMesh.position.y = activeCenterY;
+
+          // Perfect zone — positioned within active zone
+          const perfectMesh = this.playerReloadBar.children[3] as THREE.Mesh;
+          const perfectCenterY = ((wc.perfectReloadStart + wc.perfectReloadEnd) / 2) * barHeight + baseY;
+          perfectMesh.scale.y = (wc.perfectReloadEnd - wc.perfectReloadStart);
+          perfectMesh.position.y = perfectCenterY;
+
+          // Cursor line — shows current progress position
+          const cursorMesh = this.playerReloadBar.children[4] as THREE.Mesh;
+          cursorMesh.position.y = progress * barHeight + baseY;
+
+          // Counter-rotate so bar always faces camera
           this.playerReloadBar.rotation.y = -this.playerGroup.rotation.y;
         }
       }

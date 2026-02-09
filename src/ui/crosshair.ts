@@ -64,10 +64,6 @@ export interface AmmoArcState {
   maxAmmo: number;
   reloading: boolean;
   reloadProgress: number; // 0-1
-  activeStart: number;
-  activeEnd: number;
-  perfectStart: number;
-  perfectEnd: number;
   damageBonusMultiplier: number;
 }
 
@@ -79,17 +75,9 @@ export function updateAmmoArc(s: AmmoArcState): void {
     arcFill.setAttribute('stroke-dashoffset', '0');
     arcFill.classList.remove('bonus-active', 'bonus-perfect');
 
-    // Show active reload window
-    const activeStartLen = s.activeStart * ARC_CIRCUMFERENCE;
-    const activeLen = (s.activeEnd - s.activeStart) * ARC_CIRCUMFERENCE;
-    arcActive.setAttribute('stroke-dasharray', `${activeLen} ${ARC_CIRCUMFERENCE}`);
-    arcActive.setAttribute('stroke-dashoffset', String(-activeStartLen));
-
-    // Show perfect reload window
-    const perfectStartLen = s.perfectStart * ARC_CIRCUMFERENCE;
-    const perfectLen = (s.perfectEnd - s.perfectStart) * ARC_CIRCUMFERENCE;
-    arcPerfect.setAttribute('stroke-dasharray', `${perfectLen} ${ARC_CIRCUMFERENCE}`);
-    arcPerfect.setAttribute('stroke-dashoffset', String(-perfectStartLen));
+    // Timing windows are now shown on the in-world reload bar
+    arcActive.setAttribute('stroke-dasharray', `0 ${ARC_CIRCUMFERENCE}`);
+    arcPerfect.setAttribute('stroke-dasharray', `0 ${ARC_CIRCUMFERENCE}`);
   } else {
     // Normal: arc shows ammo fraction
     const fraction = s.ammo / s.maxAmmo;
@@ -97,7 +85,7 @@ export function updateAmmoArc(s: AmmoArcState): void {
     arcFill.setAttribute('stroke-dasharray', `${fillLen} ${ARC_CIRCUMFERENCE}`);
     arcFill.setAttribute('stroke-dashoffset', '0');
 
-    // Hide reload windows
+    // Hide reload arcs
     arcActive.setAttribute('stroke-dasharray', `0 ${ARC_CIRCUMFERENCE}`);
     arcPerfect.setAttribute('stroke-dasharray', `0 ${ARC_CIRCUMFERENCE}`);
 

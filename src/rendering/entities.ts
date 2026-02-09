@@ -32,29 +32,62 @@ export function createReloadBar(playerRadius: number): THREE.Group {
   barGroup.visible = false;
 
   const barHeight = playerRadius * 3;
-  const barWidth = 0.08;
-  const barDepth = 0.08;
+  const barWidth = 0.12;
+  const barDepth = 0.06;
 
   // Background (dark)
   const bgGeo = new THREE.BoxGeometry(barWidth, barHeight, barDepth);
-  const bgMat = new THREE.MeshStandardMaterial({ color: 0x333333, transparent: true, opacity: 0.6 });
+  const bgMat = new THREE.MeshStandardMaterial({ color: 0x222222, transparent: true, opacity: 0.7 });
   const bgMesh = new THREE.Mesh(bgGeo, bgMat);
   bgMesh.position.y = barHeight / 2 + 0.1;
-  barGroup.add(bgMesh); // barGroup.children[0]
+  barGroup.add(bgMesh); // children[0] — background
 
-  // Fill (green, scales with progress)
-  const fillGeo = new THREE.BoxGeometry(barWidth * 1.01, barHeight, barDepth * 1.01);
+  // Fill (white, scales with progress)
+  const fillGeo = new THREE.BoxGeometry(barWidth * 0.8, barHeight, barDepth * 1.01);
   const fillMat = new THREE.MeshStandardMaterial({
-    color: 0x44ff88,
-    emissive: 0x22aa44,
-    emissiveIntensity: 0.5,
+    color: 0xaaaaaa,
+    emissive: 0x555555,
+    emissiveIntensity: 0.3,
   });
   const fillMesh = new THREE.Mesh(fillGeo, fillMat);
   fillMesh.position.y = barHeight / 2 + 0.1;
-  barGroup.add(fillMesh); // barGroup.children[1]
+  barGroup.add(fillMesh); // children[1] — fill
 
-  // Position to the right of player (in local space, before rotation)
-  // This will be counter-rotated so it always faces camera
+  // Active reload zone (green tint)
+  const activeGeo = new THREE.BoxGeometry(barWidth * 1.02, barHeight, barDepth * 1.02);
+  const activeMat = new THREE.MeshStandardMaterial({
+    color: 0x66ccff,
+    emissive: 0x3388aa,
+    emissiveIntensity: 0.4,
+    transparent: true,
+    opacity: 0.6,
+  });
+  const activeMesh = new THREE.Mesh(activeGeo, activeMat);
+  barGroup.add(activeMesh); // children[2] — active zone
+
+  // Perfect reload zone (gold)
+  const perfectGeo = new THREE.BoxGeometry(barWidth * 1.03, barHeight, barDepth * 1.03);
+  const perfectMat = new THREE.MeshStandardMaterial({
+    color: 0xffcc33,
+    emissive: 0xaa8822,
+    emissiveIntensity: 0.6,
+    transparent: true,
+    opacity: 0.8,
+  });
+  const perfectMesh = new THREE.Mesh(perfectGeo, perfectMat);
+  barGroup.add(perfectMesh); // children[3] — perfect zone
+
+  // Cursor line (thin bright line showing current position)
+  const cursorGeo = new THREE.BoxGeometry(barWidth * 1.4, 0.03, barDepth * 1.4);
+  const cursorMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    emissive: 0xffffff,
+    emissiveIntensity: 1.0,
+  });
+  const cursorMesh = new THREE.Mesh(cursorGeo, cursorMat);
+  barGroup.add(cursorMesh); // children[4] — cursor
+
+  // Position to the right of player
   barGroup.position.set(playerRadius + 0.4, 0, 0);
 
   return barGroup;
