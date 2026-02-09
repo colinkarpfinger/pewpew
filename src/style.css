@@ -615,3 +615,78 @@ html, body {
 #dev-console-input::placeholder {
   color: rgba(100, 255, 100, 0.3);
 }
+
+/* ---- Mobile Touch Controls ---- */
+
+#game-canvas.touch-active {
+  touch-action: none;
+  cursor: default;
+}
+
+#touch-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 35;
+  pointer-events: none;
+}
+
+#touch-overlay > * {
+  pointer-events: auto;
+}
+
+.joystick-base {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+}
+
+.joystick-thumb {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  transition: none;
+  will-change: transform;
+}
+
+#grenade-btn {
+  position: absolute;
+  bottom: 100px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(34, 170, 34, 0.5);
+  border: 2px solid rgba(100, 255, 100, 0.4);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 20px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  user-select: none;
+}
+
+#mobile-pause-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  touch-action: none;
+}

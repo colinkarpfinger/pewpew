@@ -6,6 +6,9 @@ import { createGame, tick } from './simulation/game.ts';
 import type { GameInstance } from './simulation/game.ts';
 import { Renderer } from './rendering/renderer.ts';
 import { InputHandler } from './input.ts';
+import type { IInputHandler } from './input-interface.ts';
+import { TouchInputHandler } from './touch-input.ts';
+import { isMobile } from './platform.ts';
 import { updateHUD, showGameOver, hideGameOver, onRestart } from './ui.ts';
 import { FullRecorder } from './recording/full-recorder.ts';
 import { RingRecorder } from './recording/ring-recorder.ts';
@@ -48,7 +51,10 @@ let screen: Screen = 'start';
 // ---- Core objects ----
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const renderer = new Renderer(canvas);
-const input = new InputHandler(renderer.camera, canvas);
+const mobile = isMobile();
+const input: IInputHandler = mobile
+  ? new TouchInputHandler(canvas)
+  : new InputHandler(renderer.camera, canvas);
 const audioSystem = new AudioSystem(audioConfig);
 
 let game: GameInstance;
@@ -61,7 +67,7 @@ let lastTime = performance.now();
 let gameOverShown = false;
 let currentSeed = 0;
 
-initCrosshair(canvas);
+if (!mobile) initCrosshair(canvas);
 initDevConsole();
 
 // Register dev console commands
@@ -138,7 +144,11 @@ function startGame(): void {
   hideStartScreen();
   hideEscapeMenu();
   hideReplayControls();
-  showCrosshair();
+  if (mobile) {
+    (input as TouchInputHandler).setVisible(true);
+  } else {
+    showCrosshair();
+  }
   accumulator = 0;
   lastTime = performance.now();
   screen = 'playing';
@@ -168,22 +178,45 @@ function goToTitle(): void {
   hideGameOver();
   hideEscapeMenu();
   hideReplayControls();
-  hideCrosshair();
+  if (mobile) {
+    (input as TouchInputHandler).setVisible(false);
+  } else {
+    hideCrosshair();
+  }
   showStartScreen();
   screen = 'start';
+}
+
+// ---- Pause logic ----
+function pauseGame(): void {
+  if (screen === 'playing' || screen === 'gameOver') {
+    showEscapeMenu();
+    if (mobile) (input as TouchInputHandler).setVisible(false);
+    screen = 'paused';
+  }
+}
+
+function resumeGame(): void {
+  hideEscapeMenu();
+  const resumeToPlaying = !gameOverShown;
+  if (mobile && resumeToPlaying) (input as TouchInputHandler).setVisible(true);
+  screen = resumeToPlaying ? 'playing' : 'gameOver';
+  lastTime = performance.now();
+  accumulator = 0;
+}
+
+// Wire up mobile pause button
+if (mobile) {
+  (input as TouchInputHandler).setPauseHandler(pauseGame);
 }
 
 // ---- Escape key ----
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     if (screen === 'playing' || screen === 'gameOver') {
-      showEscapeMenu();
-      screen = 'paused';
+      pauseGame();
     } else if (screen === 'paused') {
-      hideEscapeMenu();
-      screen = gameOverShown ? 'gameOver' : 'playing';
-      lastTime = performance.now();
-      accumulator = 0;
+      resumeGame();
     }
   }
 
@@ -205,10 +238,7 @@ window.addEventListener('keydown', (e) => {
 // ---- Escape menu callbacks ----
 setupEscapeMenu({
   onResume: () => {
-    hideEscapeMenu();
-    screen = gameOverShown ? 'gameOver' : 'playing';
-    lastTime = performance.now();
-    accumulator = 0;
+    resumeGame();
   },
   onSaveFull: () => {
     const replay = fullRecorder.toReplay();
@@ -271,7 +301,10 @@ function gameLoop(now: number): void {
     accumulator += dt;
     const state = game.state;
     input.setPlayerPos(state.player.pos);
-    input.setHeadMeshes(renderer.getEnemyHeadMeshes());
+    input.setEnemies(state.enemies.map(e => ({ id: e.id, pos: e.pos, radius: e.radius })));
+    if (!mobile) {
+      (input as InputHandler).setHeadMeshes(renderer.getEnemyHeadMeshes());
+    }
     const currentInput = input.getInput();
 
     // Suppress game input while dev console is focused
@@ -283,36 +316,38 @@ function gameLoop(now: number): void {
       currentInput.throwGrenade = false;
     }
 
-    // Update dynamic crosshair based on effective spread
-    const isDodging = state.player.dodgeTimer > 0;
-    const isMoving = currentInput.moveDir.x !== 0 || currentInput.moveDir.y !== 0;
-    const rifle = configs.weapons.rifle;
-    const effectiveSpread = isDodging
-      ? rifle.spread * rifle.movingSpreadMultiplier * 3.0
-      : rifle.spread * (isMoving ? rifle.movingSpreadMultiplier : 1.0);
-    updateCrosshairSpread(effectiveSpread);
-
     const frameEvents: GameEvent[] = [];
 
-    // Update ammo arc
-    const isReloading = state.player.reloadTimer > 0;
-    updateAmmoArc({
-      ammo: state.player.ammo,
-      maxAmmo: rifle.magazineSize,
-      reloading: isReloading,
-      reloadProgress: isReloading ? state.player.reloadTimer / rifle.reloadTime : 0,
-      activeStart: rifle.activeReloadStart,
-      activeEnd: rifle.activeReloadEnd,
-      perfectStart: rifle.perfectReloadStart,
-      perfectEnd: rifle.perfectReloadEnd,
-      damageBonusMultiplier: state.player.damageBonusMultiplier,
-    });
+    if (!mobile) {
+      // Update dynamic crosshair based on effective spread
+      const isDodging = state.player.dodgeTimer > 0;
+      const isMoving = currentInput.moveDir.x !== 0 || currentInput.moveDir.y !== 0;
+      const rifle = configs.weapons.rifle;
+      const effectiveSpread = isDodging
+        ? rifle.spread * rifle.movingSpreadMultiplier * 3.0
+        : rifle.spread * (isMoving ? rifle.movingSpreadMultiplier : 1.0);
+      updateCrosshairSpread(effectiveSpread);
+
+      // Update ammo arc
+      const isReloading = state.player.reloadTimer > 0;
+      updateAmmoArc({
+        ammo: state.player.ammo,
+        maxAmmo: rifle.magazineSize,
+        reloading: isReloading,
+        reloadProgress: isReloading ? state.player.reloadTimer / rifle.reloadTime : 0,
+        activeStart: rifle.activeReloadStart,
+        activeEnd: rifle.activeReloadEnd,
+        perfectStart: rifle.perfectReloadStart,
+        perfectEnd: rifle.perfectReloadEnd,
+        damageBonusMultiplier: state.player.damageBonusMultiplier,
+      });
+    }
 
     while (accumulator >= TICK_DURATION) {
       fullRecorder.recordTick(currentInput);
       ringRecorder.recordTick(currentInput, game);
       tick(game, currentInput, configs);
-      processHitEvents(state.events);
+      if (!mobile) processHitEvents(state.events);
       frameEvents.push(...state.events);
       accumulator -= TICK_DURATION;
     }
@@ -329,6 +364,7 @@ function gameLoop(now: number): void {
     if (state.gameOver && !gameOverShown) {
       gameOverShown = true;
       showGameOver(state.score);
+      if (mobile) (input as TouchInputHandler).setVisible(false);
       screen = 'gameOver';
     }
 
@@ -354,5 +390,9 @@ function gameLoop(now: number): void {
 }
 
 // ---- Boot ----
+if (mobile) {
+  const prompt = document.getElementById('start-prompt');
+  if (prompt) prompt.textContent = 'Tap to start';
+}
 showStartScreen();
 requestAnimationFrame(gameLoop);

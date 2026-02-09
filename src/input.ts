@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import type { InputState, Vec2 } from './simulation/types.ts';
+import type { IInputHandler, EnemyRef } from './input-interface.ts';
 import { normalize } from './simulation/collision.ts';
 
-export class InputHandler {
+export class InputHandler implements IInputHandler {
   private keys = new Set<string>();
   private mouseDown = false;
   private mousePos = new THREE.Vector2();
@@ -82,6 +83,12 @@ export class InputHandler {
   setPlayerPos(pos: Vec2): void {
     this.playerPos = pos;
   }
+
+  /** No-op on desktop — used by touch input for auto-targeting */
+  setEnemies(_enemies: EnemyRef[]): void {}
+
+  /** No-op on desktop — touch handler cleans up DOM */
+  dispose(): void {}
 
   /** Update head meshes for headshot raycasting */
   setHeadMeshes(heads: Map<number, THREE.Mesh>): void {
