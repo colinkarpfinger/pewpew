@@ -50,6 +50,14 @@ function handleSave(btn: HTMLButtonElement, saveFn: () => Promise<string>): void
   });
 }
 
+function toggleFullscreen(): void {
+  if (document.fullscreenElement) {
+    document.exitFullscreen();
+  } else {
+    document.documentElement.requestFullscreen();
+  }
+}
+
 export function setupEscapeMenu(callbacks: EscapeMenuCallbacks): void {
   const buttons = el().querySelectorAll<HTMLButtonElement>('.menu-btn[data-action]');
   for (const btn of buttons) {
@@ -60,6 +68,7 @@ export function setupEscapeMenu(callbacks: EscapeMenuCallbacks): void {
         case 'save-full': handleSave(btn, callbacks.onSaveFull); break;
         case 'save-ring': handleSave(btn, callbacks.onSaveRing); break;
         case 'load-replay': callbacks.onLoadReplay(); break;
+        case 'fullscreen': toggleFullscreen(); break;
         case 'toggle-console': {
           const on = callbacks.onToggleConsole();
           btn.textContent = `Dev Console: ${on ? 'ON' : 'OFF'}`;

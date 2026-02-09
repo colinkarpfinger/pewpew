@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { GameState, GameEvent } from '../simulation/types.ts';
+import type { GameState, GameEvent, WeaponConfig } from '../simulation/types.ts';
 import { ParticleSystem } from './particles.ts';
 import {
   createPlayerMesh,
@@ -22,8 +22,10 @@ export class Renderer {
   private playerGroup: THREE.Group | null = null;
   private playerCapsule: THREE.Mesh | null = null;
   private playerAim: THREE.Mesh | null = null;
+  private playerReloadBar: THREE.Group | null = null;
   private playerRadius = 0.4;
   private dodgeDuration = 18;
+  private weaponConfig: WeaponConfig | null = null;
   private enemyGroups = new Map<number, EnemyMeshGroup>();
   private projectileMeshes = new Map<number, THREE.Mesh>();
   private grenadeMeshes = new Map<number, THREE.Mesh>();
@@ -102,12 +104,18 @@ export class Renderer {
     this.playerGroup = createPlayerMesh(state.player.radius);
     this.playerCapsule = this.playerGroup.children[0] as THREE.Mesh;
     this.playerAim = this.playerGroup.children[1] as THREE.Mesh;
+    this.playerReloadBar = this.playerGroup.children[2] as THREE.Group;
     this.scene.add(this.playerGroup);
   }
 
   /** Configure dodge animation duration (in ticks) */
   setDodgeDuration(ticks: number): void {
     this.dodgeDuration = ticks;
+  }
+
+  /** Store weapon config for reload bar calculations */
+  setWeaponConfig(config: WeaponConfig): void {
+    this.weaponConfig = config;
   }
 
   /** Sync all dynamic visuals to match simulation state */
@@ -176,6 +184,25 @@ export class Renderer {
       // Flash during i-frames
       this.playerGroup.visible = state.player.iframeTimer === 0 ||
         Math.floor(state.player.iframeTimer / 4) % 2 === 0;
+
+      // Reload bar
+      if (this.playerReloadBar && this.weaponConfig) {
+        const reloading = state.player.reloadTimer > 0;
+        this.playerReloadBar.visible = reloading;
+
+        if (reloading) {
+          const progress = state.player.reloadTimer / this.weaponConfig.reloadTime;
+          const barHeight = this.playerRadius * 3;
+          const fillMesh = this.playerReloadBar.children[1] as THREE.Mesh;
+
+          // Scale Y to show progress, anchor from bottom
+          fillMesh.scale.y = progress;
+          fillMesh.position.y = (barHeight * progress) / 2 + 0.1;
+
+          // Counter-rotate so bar always faces camera (undo player group rotation)
+          this.playerReloadBar.rotation.y = -this.playerGroup.rotation.y;
+        }
+      }
     }
 
     // Update camera

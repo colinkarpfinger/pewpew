@@ -2,7 +2,6 @@ import type { GameEvent } from '../simulation/types.ts';
 
 const crosshairEl = () => document.getElementById('crosshair')!;
 const hitmarkerEl = () => document.getElementById('hitmarker')!;
-const ammoCounterEl = () => document.getElementById('ammo-counter')!;
 
 let hitmarkerTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -73,8 +72,6 @@ export interface AmmoArcState {
 }
 
 export function updateAmmoArc(s: AmmoArcState): void {
-  const counter = ammoCounterEl();
-
   if (s.reloading) {
     // During reload: arc shows reload progress filling up
     const fillLen = s.reloadProgress * ARC_CIRCUMFERENCE;
@@ -93,10 +90,6 @@ export function updateAmmoArc(s: AmmoArcState): void {
     const perfectLen = (s.perfectEnd - s.perfectStart) * ARC_CIRCUMFERENCE;
     arcPerfect.setAttribute('stroke-dasharray', `${perfectLen} ${ARC_CIRCUMFERENCE}`);
     arcPerfect.setAttribute('stroke-dashoffset', String(-perfectStartLen));
-
-    counter.textContent = 'RELOADING';
-    counter.classList.add('reloading');
-    counter.classList.remove('bonus-active', 'bonus-perfect');
   } else {
     // Normal: arc shows ammo fraction
     const fraction = s.ammo / s.maxAmmo;
@@ -108,23 +101,16 @@ export function updateAmmoArc(s: AmmoArcState): void {
     arcActive.setAttribute('stroke-dasharray', `0 ${ARC_CIRCUMFERENCE}`);
     arcPerfect.setAttribute('stroke-dasharray', `0 ${ARC_CIRCUMFERENCE}`);
 
-    // Show damage bonus color
+    // Show damage bonus color on arc
     if (s.damageBonusMultiplier > 1.2) {
       arcFill.classList.add('bonus-perfect');
       arcFill.classList.remove('bonus-active');
-      counter.classList.add('bonus-perfect');
-      counter.classList.remove('bonus-active', 'reloading');
     } else if (s.damageBonusMultiplier > 1.0) {
       arcFill.classList.add('bonus-active');
       arcFill.classList.remove('bonus-perfect');
-      counter.classList.add('bonus-active');
-      counter.classList.remove('bonus-perfect', 'reloading');
     } else {
       arcFill.classList.remove('bonus-active', 'bonus-perfect');
-      counter.classList.remove('bonus-active', 'bonus-perfect', 'reloading');
     }
-
-    counter.textContent = `${s.ammo} / ${s.maxAmmo}`;
   }
 }
 

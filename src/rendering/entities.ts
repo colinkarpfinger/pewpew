@@ -10,7 +10,7 @@ export function createPlayerMesh(radius: number): THREE.Group {
   const mesh = new THREE.Mesh(geometry, material);
   mesh.castShadow = true;
   mesh.position.y = radius + height / 2; // bottom hemisphere rests on ground
-  group.add(mesh);
+  group.add(mesh); // children[0]
 
   // Aim indicator (small cone pointing forward along X)
   const aimGeo = new THREE.ConeGeometry(radius * 0.3, radius * 0.8, 8);
@@ -18,9 +18,46 @@ export function createPlayerMesh(radius: number): THREE.Group {
   const aimMesh = new THREE.Mesh(aimGeo, aimMat);
   aimMesh.rotation.z = -Math.PI / 2; // tip points along +X
   aimMesh.position.set(radius * 1.2, radius + height / 2, 0);
-  group.add(aimMesh);
+  group.add(aimMesh); // children[1]
+
+  // Reload progress bar (vertical bar to the right of the player)
+  const reloadGroup = createReloadBar(radius);
+  group.add(reloadGroup); // children[2]
 
   return group;
+}
+
+export function createReloadBar(playerRadius: number): THREE.Group {
+  const barGroup = new THREE.Group();
+  barGroup.visible = false;
+
+  const barHeight = playerRadius * 3;
+  const barWidth = 0.08;
+  const barDepth = 0.08;
+
+  // Background (dark)
+  const bgGeo = new THREE.BoxGeometry(barWidth, barHeight, barDepth);
+  const bgMat = new THREE.MeshStandardMaterial({ color: 0x333333, transparent: true, opacity: 0.6 });
+  const bgMesh = new THREE.Mesh(bgGeo, bgMat);
+  bgMesh.position.y = barHeight / 2 + 0.1;
+  barGroup.add(bgMesh); // barGroup.children[0]
+
+  // Fill (green, scales with progress)
+  const fillGeo = new THREE.BoxGeometry(barWidth * 1.01, barHeight, barDepth * 1.01);
+  const fillMat = new THREE.MeshStandardMaterial({
+    color: 0x44ff88,
+    emissive: 0x22aa44,
+    emissiveIntensity: 0.5,
+  });
+  const fillMesh = new THREE.Mesh(fillGeo, fillMat);
+  fillMesh.position.y = barHeight / 2 + 0.1;
+  barGroup.add(fillMesh); // barGroup.children[1]
+
+  // Position to the right of player (in local space, before rotation)
+  // This will be counter-rotated so it always faces camera
+  barGroup.position.set(playerRadius + 0.4, 0, 0);
+
+  return barGroup;
 }
 
 export interface EnemyMeshGroup {

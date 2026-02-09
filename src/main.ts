@@ -9,7 +9,7 @@ import { InputHandler } from './input.ts';
 import type { IInputHandler } from './input-interface.ts';
 import { TouchInputHandler } from './touch-input.ts';
 import { isMobile } from './platform.ts';
-import { updateHUD, showGameOver, hideGameOver, onRestart } from './ui.ts';
+import { updateHUD, showGameOver, hideGameOver, onRestart, setWeaponConfig } from './ui.ts';
 import { FullRecorder } from './recording/full-recorder.ts';
 import { RingRecorder } from './recording/ring-recorder.ts';
 import { saveReplay, loadReplay } from './recording/api.ts';
@@ -43,6 +43,7 @@ const configs: GameConfigs = {
   crates: cratesConfig,
 };
 const configsJson = JSON.stringify(configs);
+setWeaponConfig(configs.weapons.rifle);
 
 // ---- App State ----
 type Screen = 'start' | 'playing' | 'paused' | 'gameOver' | 'replay';
@@ -138,6 +139,7 @@ function startGame(): void {
   rebuildScene();
   renderer.initArena(game.state);
   renderer.setDodgeDuration(configs.player.dodgeDuration);
+  renderer.setWeaponConfig(configs.weapons.rifle);
   audioSystem.init();
   gameOverShown = false;
   hideGameOver();
@@ -394,5 +396,19 @@ if (mobile) {
   const prompt = document.getElementById('start-prompt');
   if (prompt) prompt.textContent = 'Tap to start';
 }
+
+// Fullscreen button on start screen
+const fullscreenBtn = document.getElementById('fullscreen-btn');
+if (fullscreenBtn) {
+  fullscreenBtn.addEventListener('click', (e) => {
+    e.stopPropagation(); // Don't trigger start game
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      document.documentElement.requestFullscreen();
+    }
+  });
+}
+
 showStartScreen();
 requestAnimationFrame(gameLoop);
