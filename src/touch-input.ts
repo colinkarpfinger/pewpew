@@ -92,6 +92,14 @@ export class TouchInputHandler implements IInputHandler {
     setTouchOverlayVisible(visible);
   }
 
+  consumeEdgeInputs(): void {
+    this.dodgeTriggered = false;
+    if (this.grenadeReleased) {
+      this.grenadeReleased = false;
+      this.grenadeReleasePower = 0;
+    }
+  }
+
   getInput(): InputState {
     // Update grenade charge visual
     if (this.grenadeChargeStart !== null) {
@@ -121,17 +129,10 @@ export class TouchInputHandler implements IInputHandler {
       fire = false;
     }
 
-    // Consume dodge
+    // Read edge-detected inputs (consumed separately via consumeEdgeInputs)
     const dodge = this.dodgeTriggered;
-    this.dodgeTriggered = false;
-
-    // Consume grenade
     const throwGrenade = this.grenadeReleased;
     const throwPower = this.grenadeReleasePower;
-    if (throwGrenade) {
-      this.grenadeReleased = false;
-      this.grenadeReleasePower = 0;
-    }
 
     return {
       moveDir,

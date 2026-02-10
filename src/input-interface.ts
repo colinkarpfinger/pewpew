@@ -12,5 +12,7 @@ export interface IInputHandler {
   setPlayerPos(pos: Vec2): void;
   setEnemies(enemies: EnemyRef[]): void;
   getInput(): InputState;
+  /** Consume edge-detected inputs (dodge, reload, grenade). Call only after simulation ticks have processed them. */
+  consumeEdgeInputs(): void;
   dispose(): void;
 }

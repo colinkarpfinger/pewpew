@@ -408,13 +408,18 @@ function gameLoop(now: number): void {
       });
     }
 
+    let ticksRan = false;
     while (accumulator >= TICK_DURATION) {
+      ticksRan = true;
       fullRecorder.recordTick(currentInput);
       ringRecorder.recordTick(currentInput, game);
       tick(game, currentInput, configs);
       if (!mobile) processHitEvents(state.events);
       frameEvents.push(...state.events);
       accumulator -= TICK_DURATION;
+    }
+    if (ticksRan) {
+      input.consumeEdgeInputs();
     }
 
     // Log events to dev console

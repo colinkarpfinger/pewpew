@@ -95,6 +95,22 @@ export class InputHandler implements IInputHandler {
     this.headMeshes = heads;
   }
 
+  /** Consume edge-detected inputs after simulation ticks have processed them. */
+  consumeEdgeInputs(): void {
+    if (this.dodgePressed) {
+      this.dodgePressed = false;
+      this.dodgeConsumed = true;
+    }
+    if (this.reloadPressed) {
+      this.reloadPressed = false;
+      this.reloadConsumed = true;
+    }
+    if (this.grenadeReleased) {
+      this.grenadeReleased = false;
+      this.grenadeReleasePower = 0;
+    }
+  }
+
   /** Get current input state for simulation */
   getInput(): InputState {
     // Movement direction from WASD
@@ -145,27 +161,11 @@ export class InputHandler implements IInputHandler {
       }
     }
 
-    // Read and consume dodge press
+    // Read edge-detected inputs (consumed separately via consumeEdgeInputs)
     const dodge = this.dodgePressed;
-    if (dodge) {
-      this.dodgePressed = false;
-      this.dodgeConsumed = true;
-    }
-
-    // Read and consume reload press
     const reload = this.reloadPressed;
-    if (reload) {
-      this.reloadPressed = false;
-      this.reloadConsumed = true;
-    }
-
-    // Read and consume grenade release
     const throwGrenade = this.grenadeReleased;
     const throwPower = this.grenadeReleasePower;
-    if (throwGrenade) {
-      this.grenadeReleased = false;
-      this.grenadeReleasePower = 0;
-    }
 
     return {
       moveDir,
