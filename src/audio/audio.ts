@@ -32,6 +32,7 @@ const EVENT_MAP: Partial<Record<GameEventType, string>> = {
   grenade_bounced: 'grenade_bounce',
   grenade_exploded: 'grenade_explode',
   crate_picked_up: 'crate_pickup',
+  cash_picked_up: 'cash_pickup',
   enemy_projectile_fired: 'enemy_fire',
 };
 

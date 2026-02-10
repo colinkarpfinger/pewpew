@@ -1,5 +1,7 @@
 {
-  "sprinterAmount": [25, 40],
-  "gunnerAmount": [30, 50],
+  "sprinterBills": [2, 4],
+  "gunnerBills": [3, 5],
+  "denomination": 10,
+  "scatterRadius": 1.0,
   "pickupRadius": 1.0
 }

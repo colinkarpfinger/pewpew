@@ -12,21 +12,27 @@ export function spawnCash(state: GameState, config: CashConfig | undefined, rng:
     if (!d || typeof d.x !== 'number' || typeof d.y !== 'number') continue;
 
     const enemyType = d.enemyType as EnemyType | undefined;
-    let range = config.sprinterAmount;
-    if (enemyType === 'gunner') range = config.gunnerAmount;
-    const amount = rng.int(range[0], range[1]);
+    let range = config.sprinterBills;
+    if (enemyType === 'gunner') range = config.gunnerBills;
+    const billCount = rng.int(range[0], range[1]);
 
-    const pickup = {
-      id: state.nextEntityId++,
-      pos: { x: d.x as number, y: d.y as number },
-      amount,
-    };
-    state.cashPickups.push(pickup);
-    state.events.push({
-      tick: state.tick,
-      type: 'cash_spawned',
-      data: { x: pickup.pos.x, y: pickup.pos.y, amount },
-    });
+    const cx = d.x as number;
+    const cy = d.y as number;
+    for (let i = 0; i < billCount; i++) {
+      const angle = rng.range(0, Math.PI * 2);
+      const dist = rng.range(0, config.scatterRadius);
+      const pickup = {
+        id: state.nextEntityId++,
+        pos: { x: cx + Math.cos(angle) * dist, y: cy + Math.sin(angle) * dist },
+        amount: config.denomination,
+      };
+      state.cashPickups.push(pickup);
+      state.events.push({
+        tick: state.tick,
+        type: 'cash_spawned',
+        data: { x: pickup.pos.x, y: pickup.pos.y, amount: config.denomination },
+      });
+    }
   }
 }
 

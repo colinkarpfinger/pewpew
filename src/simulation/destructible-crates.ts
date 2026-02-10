@@ -133,18 +133,26 @@ function spawnCrateLoot(
   const tableIdx = Math.max(0, Math.min(config.lootTables.length - 1, crate.lootTier - 1));
   const table = config.lootTables[tableIdx];
 
-  // Always drop cash
-  const cashAmount = Math.floor(rng.range(table.cashMin, table.cashMax + 1));
-  state.cashPickups.push({
-    id: state.nextEntityId++,
-    pos: { x: crate.pos.x, y: crate.pos.y },
-    amount: cashAmount,
-  });
-  state.events.push({
-    tick: state.tick,
-    type: 'cash_spawned',
-    data: { x: crate.pos.x, y: crate.pos.y, amount: cashAmount },
-  });
+  // Always drop cash — spawn individual bills
+  const billCount = rng.int(table.cashBillsMin, table.cashBillsMax);
+  const denomination = config.cashDenomination;
+  const scatter = config.cashScatterRadius;
+  for (let i = 0; i < billCount; i++) {
+    const angle = rng.range(0, Math.PI * 2);
+    const dist = rng.range(0, scatter);
+    const bx = crate.pos.x + Math.cos(angle) * dist;
+    const by = crate.pos.y + Math.sin(angle) * dist;
+    state.cashPickups.push({
+      id: state.nextEntityId++,
+      pos: { x: bx, y: by },
+      amount: denomination,
+    });
+    state.events.push({
+      tick: state.tick,
+      type: 'cash_spawned',
+      data: { x: bx, y: by, amount: denomination },
+    });
+  }
 
   // Roll for health drop
   if (rng.next() < table.healthChance) {

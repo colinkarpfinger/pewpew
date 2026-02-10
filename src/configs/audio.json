@@ -165,6 +165,16 @@
       "cooldown": 0.1,
       "spatial": true
     },
+    "cash_pickup": {
+      "files": [
+        "assets/audio/money/sfx_UI_money_kaching-001.wav"
+      ],
+      "volume": 0.5,
+      "pitchRange": [0.95, 1.1],
+      "maxInstances": 3,
+      "cooldown": 0.08,
+      "spatial": true
+    },
     "enemy_fire": {
       "files": [
         "assets/audio/weapons/m4_rifle/shoot/sfx_weapon_M4_shot_1.wav",
