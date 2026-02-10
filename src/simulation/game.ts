@@ -1,4 +1,4 @@
-import type { GameState, GameConfigs, InputState, MultiKillConfig, GameMode, WeaponType } from './types.ts';
+import type { GameState, GameConfigs, InputState, MultiKillConfig, GameMode, WeaponType, ArmorType } from './types.ts';
 import { SeededRNG } from './rng.ts';
 import { createArena } from './arena.ts';
 import { updatePlayer } from './player.ts';
@@ -18,10 +18,13 @@ export interface GameInstance {
   rng: SeededRNG;
 }
 
-export function createGame(configs: GameConfigs, seed: number = 12345, gameMode: GameMode = 'arena', activeWeapon?: WeaponType): GameInstance {
+export function createGame(configs: GameConfigs, seed: number = 12345, gameMode: GameMode = 'arena', activeWeapon?: WeaponType, equippedArmor?: ArmorType | null): GameInstance {
   const rng = new SeededRNG(seed);
 
   const weapon: WeaponType = activeWeapon ?? (gameMode === 'extraction' ? 'pistol' : 'rifle');
+  const armorDamageReduction = equippedArmor && configs.armor
+    ? configs.armor[equippedArmor].damageReduction
+    : 0;
 
   const isExtraction = gameMode === 'extraction' && configs.extractionMap;
   const extractionMap = isExtraction ? configs.extractionMap! : null;
@@ -59,6 +62,8 @@ export function createGame(configs: GameConfigs, seed: number = 12345, gameMode:
       speedBoostTimer: 0,
       speedBoostMultiplier: 1.0,
       activeWeapon: weapon,
+      equippedArmor: equippedArmor ?? null,
+      armorDamageReduction,
     },
     enemies: [],
     projectiles: [],
@@ -269,6 +274,8 @@ export function restoreGame(stateSnapshot: GameState, rngState: number): GameIns
   state.player.speedBoostTimer ??= 0;
   state.player.speedBoostMultiplier ??= 1.0;
   state.player.activeWeapon ??= 'rifle';
+  state.player.equippedArmor ??= null;
+  state.player.armorDamageReduction ??= 0;
   state.gameMode ??= 'arena';
   state.grenades ??= [];
   state.crates ??= [];

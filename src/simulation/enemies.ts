@@ -151,14 +151,15 @@ export function checkContactDamage(state: GameState, _configs: EnemiesConfig): v
 
   for (const enemy of state.enemies) {
     if (circleCircle(state.player.pos, state.player.radius, enemy.pos, enemy.radius)) {
-      state.player.hp -= enemy.contactDamage;
+      const damage = enemy.contactDamage * (1 - state.player.armorDamageReduction);
+      state.player.hp -= damage;
       state.player.iframeTimer = state.player.iframeTimer || 60; // will be set from config in game.ts
       enemy.stunTimer = 30; // 0.5 seconds stun after hitting player
 
       state.events.push({
         tick: state.tick,
         type: 'player_hit',
-        data: { enemyId: enemy.id, damage: enemy.contactDamage, remainingHp: state.player.hp, x: state.player.pos.x, y: state.player.pos.y },
+        data: { enemyId: enemy.id, damage, remainingHp: state.player.hp, x: state.player.pos.x, y: state.player.pos.y },
       });
 
       if (state.player.hp <= 0) {

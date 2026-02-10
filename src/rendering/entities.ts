@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { WeaponType, EnemyType } from '../simulation/types.ts';
+import type { WeaponType, EnemyType, ArmorType } from '../simulation/types.ts';
 
 export function createPlayerMesh(radius: number): THREE.Group {
   const group = new THREE.Group();
@@ -129,6 +129,24 @@ export function createEnemyMesh(radius: number, enemyType: EnemyType = 'sprinter
   return { group, headMesh: head };
 }
 
+export function createPlayerArmorMesh(playerRadius: number, armorTier: ArmorType): THREE.Mesh {
+  const scaleMap: Record<ArmorType, number> = { light: 1.0, medium: 1.15, heavy: 1.3 };
+  const scale = scaleMap[armorTier];
+
+  const width = playerRadius * 1.6 * scale;
+  const height = playerRadius * 1.0 * scale;
+  const depth = playerRadius * 1.2 * scale;
+
+  const geometry = new THREE.BoxGeometry(width, height, depth);
+  const material = new THREE.MeshStandardMaterial({
+    color: 0x111111,
+    roughness: 0.9,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.castShadow = true;
+  return mesh;
+}
+
 export function createExtractionZoneMesh(width: number, height: number): THREE.Mesh {
   const geometry = new THREE.PlaneGeometry(width, height);
   const material = new THREE.MeshStandardMaterial({
@@ -221,10 +239,10 @@ export function createCrateMesh(crateType: string): THREE.Mesh {
 }
 
 export function createCashMesh(): THREE.Mesh {
-  const geometry = new THREE.OctahedronGeometry(0.2, 0);
+  const geometry = new THREE.BoxGeometry(0.3, 0.02, 0.18);
   const material = new THREE.MeshStandardMaterial({
-    color: 0xffd700,
-    emissive: 0xcc9900,
+    color: 0x2e8b57,
+    emissive: 0x1a5c38,
     emissiveIntensity: 0.8,
   });
   const mesh = new THREE.Mesh(geometry, material);

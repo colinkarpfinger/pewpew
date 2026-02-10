@@ -1,6 +1,6 @@
 import './style.css';
 import * as THREE from 'three';
-import type { GameConfigs, GameEvent, GameMode, WeaponType } from './simulation/types.ts';
+import type { GameConfigs, GameEvent, GameMode, WeaponType, ArmorType } from './simulation/types.ts';
 import { TICK_DURATION } from './simulation/types.ts';
 import { createGame, tick } from './simulation/game.ts';
 import type { GameInstance } from './simulation/game.ts';
@@ -36,8 +36,9 @@ import gunnerConfig from './configs/gunner.json';
 import audioConfig from './configs/audio.json';
 import extractionMapConfig from './configs/extraction-map.json';
 import destructibleCratesConfig from './configs/destructible-crates.json';
-import { addCashToStash, removeWeapon } from './persistence.ts';
+import { addCashToStash, removeWeapon, removeArmor } from './persistence.ts';
 import shopConfig from './configs/shop.json';
+import armorConfig from './configs/armor.json';
 
 const configs: GameConfigs = {
   player: playerConfig,
@@ -50,6 +51,7 @@ const configs: GameConfigs = {
   crates: cratesConfig,
   cash: cashConfig,
   gunner: gunnerConfig,
+  armor: armorConfig,
   extractionMap: extractionMapConfig,
   destructibleCrates: destructibleCratesConfig,
 };
@@ -59,6 +61,7 @@ const configsJson = JSON.stringify(configs);
 type Screen = 'start' | 'hub' | 'playing' | 'paused' | 'gameOver' | 'replay';
 let screen: Screen = 'start';
 let equippedWeapon: WeaponType = 'pistol';
+let equippedArmor: ArmorType | null = null;
 
 // ---- Core objects ----
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
@@ -160,11 +163,12 @@ function rebuildScene(): void {
 }
 
 // ---- Game lifecycle ----
-function startGame(mode: GameMode = 'arena', weapon?: WeaponType): void {
+function startGame(mode: GameMode = 'arena', weapon?: WeaponType, armor?: ArmorType | null): void {
   currentSeed = Date.now();
   const activeWeapon: WeaponType = weapon ?? (mode === 'extraction' ? 'pistol' : 'rifle');
   equippedWeapon = activeWeapon;
-  game = createGame(configs, currentSeed, mode, activeWeapon);
+  equippedArmor = armor ?? null;
+  game = createGame(configs, currentSeed, mode, activeWeapon, equippedArmor);
   fullRecorder = new FullRecorder(currentSeed, configsJson);
   ringRecorder = new RingRecorder(game);
 
@@ -174,6 +178,7 @@ function startGame(mode: GameMode = 'arena', weapon?: WeaponType): void {
 
   rebuildScene();
   renderer.initArena(game.state);
+  renderer.setPlayerArmor(equippedArmor);
   renderer.setDodgeDuration(configs.player.dodgeDuration);
   renderer.setWeaponConfig(weaponConfig);
   audioSystem.init();
@@ -319,15 +324,15 @@ onReplayExit(() => {
 
 // ---- Hub screen ----
 setupHubScreen({
-  onStartRun: (weapon) => {
-    startGame('extraction', weapon);
+  onStartRun: (weapon, armor) => {
+    startGame('extraction', weapon, armor);
   },
   onBack: () => {
     hideHubScreen();
     showStartScreen();
     screen = 'start';
   },
-}, shopConfig.prices, configs.weapons);
+}, shopConfig.prices, configs.weapons, shopConfig.armorPrices, armorConfig);
 
 // ---- Start screen ----
 onStartGame((mode) => {
@@ -432,8 +437,14 @@ function gameLoop(now: number): void {
       // Cash is NOT added to stash on death — it's lost
       if (state.gameMode === 'extraction') {
         removeWeapon(equippedWeapon);
+        if (equippedArmor) removeArmor(equippedArmor);
       }
-      showGameOver(state.score, state.gameMode, equippedWeapon);
+      // Build lost gear string
+      const lostParts: string[] = [];
+      if (equippedWeapon !== 'pistol') lostParts.push(equippedWeapon);
+      if (equippedArmor) lostParts.push(`${equippedArmor} armor`);
+      const lostGear = lostParts.length > 0 ? lostParts.join(' + ') : undefined;
+      showGameOver(state.score, state.gameMode, lostGear);
       if (mobile) (input as TouchInputHandler).setVisible(false);
       screen = 'gameOver';
     }

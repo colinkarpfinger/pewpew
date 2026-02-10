@@ -1,14 +1,15 @@
-import type { WeaponType } from './simulation/types.ts';
+import type { WeaponType, ArmorType } from './simulation/types.ts';
 
 const SAVE_KEY = 'tss-save';
 
 export interface ExtractionSave {
   cashStash: number;
   ownedWeapons: WeaponType[];
+  ownedArmor: ArmorType[];
 }
 
 function defaults(): ExtractionSave {
-  return { cashStash: 0, ownedWeapons: ['pistol'] };
+  return { cashStash: 0, ownedWeapons: ['pistol'], ownedArmor: [] };
 }
 
 export function loadSave(): ExtractionSave {
@@ -19,6 +20,7 @@ export function loadSave(): ExtractionSave {
     return {
       cashStash: parsed.cashStash ?? 0,
       ownedWeapons: parsed.ownedWeapons ?? ['pistol'],
+      ownedArmor: parsed.ownedArmor ?? [],
     };
   } catch {
     return defaults();
@@ -56,5 +58,23 @@ export function removeWeapon(weapon: WeaponType): void {
   const save = loadSave();
   save.ownedWeapons = save.ownedWeapons.filter(w => w !== weapon);
   if (save.ownedWeapons.length === 0) save.ownedWeapons = ['pistol'];
+  writeSave(save);
+}
+
+export function getOwnedArmor(): ArmorType[] {
+  return loadSave().ownedArmor;
+}
+
+export function addArmor(type: ArmorType): void {
+  const save = loadSave();
+  if (!save.ownedArmor.includes(type)) {
+    save.ownedArmor.push(type);
+    writeSave(save);
+  }
+}
+
+export function removeArmor(type: ArmorType): void {
+  const save = loadSave();
+  save.ownedArmor = save.ownedArmor.filter(a => a !== type);
   writeSave(save);
 }

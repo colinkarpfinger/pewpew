@@ -1,6 +1,7 @@
 // ---- Configs ----
 
 export type WeaponType = 'pistol' | 'smg' | 'rifle' | 'shotgun';
+export type ArmorType = 'light' | 'medium' | 'heavy';
 export type GameMode = 'arena' | 'extraction';
 export type EnemyType = 'sprinter' | 'gunner';
 
@@ -105,8 +106,10 @@ export interface CrateConfig {
 }
 
 export interface CashConfig {
-  sprinterAmount: number[];
-  gunnerAmount: number[];
+  sprinterBills: number[];
+  gunnerBills: number[];
+  denomination: number;
+  scatterRadius: number;
   pickupRadius: number;
 }
 
@@ -123,6 +126,12 @@ export interface GunnerConfig {
   retreatSpeedMultiplier: number;
 }
 
+export interface ArmorTierConfig {
+  damageReduction: number;
+}
+
+export type ArmorConfig = Record<ArmorType, ArmorTierConfig>;
+
 export interface GameConfigs {
   player: PlayerConfig;
   weapons: WeaponsConfig;
@@ -134,6 +143,7 @@ export interface GameConfigs {
   crates: CrateConfig;
   cash?: CashConfig;
   gunner?: GunnerConfig;
+  armor?: ArmorConfig;
   extractionMap?: ExtractionMapConfig;
   destructibleCrates?: DestructibleCrateConfig;
 }
@@ -163,6 +173,8 @@ export interface Player {
   speedBoostTimer: number; // ticks remaining for multi-kill speed boost
   speedBoostMultiplier: number; // current speed multiplier from multi-kill
   activeWeapon: WeaponType;
+  equippedArmor: ArmorType | null;
+  armorDamageReduction: number;
 }
 
 export interface Enemy {
@@ -247,8 +259,8 @@ export interface DestructibleCrate {
 }
 
 export interface DestructibleCrateLootTable {
-  cashMin: number;
-  cashMax: number;
+  cashBillsMin: number;
+  cashBillsMax: number;
   healthChance: number;
   grenadeChance: number;
 }
@@ -257,6 +269,8 @@ export interface DestructibleCrateConfig {
   hp: number;
   width: number;
   height: number;
+  cashDenomination: number;
+  cashScatterRadius: number;
   lootTables: DestructibleCrateLootTable[];
   proceduralCountPerZone: number[];
 }

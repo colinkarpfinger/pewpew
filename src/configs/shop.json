@@ -3,5 +3,10 @@
     "smg": 200,
     "shotgun": 400,
     "rifle": 500
+  },
+  "armorPrices": {
+    "light": 150,
+    "medium": 300,
+    "heavy": 500
   }
 }

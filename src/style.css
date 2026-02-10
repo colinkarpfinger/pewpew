@@ -588,6 +588,27 @@ html, body {
   color: rgba(68, 255, 68, 0.5);
 }
 
+#hub-armor-shop {
+  margin-bottom: 24px;
+}
+
+#hub-armor-shop-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#hub-armor-loadout {
+  margin-bottom: 24px;
+}
+
+#hub-armor-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
 #hub-start-run {
   margin-bottom: 8px;
 }

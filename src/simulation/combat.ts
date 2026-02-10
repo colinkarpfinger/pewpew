@@ -282,13 +282,14 @@ export function checkEnemyProjectileHits(state: GameState, playerConfig: PlayerC
   for (let i = state.enemyProjectiles.length - 1; i >= 0; i--) {
     const proj = state.enemyProjectiles[i];
     if (circleCircle(proj.pos, ENEMY_PROJ_RADIUS, state.player.pos, state.player.radius)) {
-      state.player.hp -= proj.damage;
+      const damage = proj.damage * (1 - state.player.armorDamageReduction);
+      state.player.hp -= damage;
       state.player.iframeTimer = playerConfig.iframeDuration;
 
       state.events.push({
         tick: state.tick,
         type: 'player_hit',
-        data: { damage: proj.damage, remainingHp: state.player.hp, x: state.player.pos.x, y: state.player.pos.y, source: 'projectile' },
+        data: { damage, remainingHp: state.player.hp, x: state.player.pos.x, y: state.player.pos.y, source: 'projectile' },
       });
 
       if (state.player.hp <= 0) {

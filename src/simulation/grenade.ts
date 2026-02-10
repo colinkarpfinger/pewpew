@@ -216,7 +216,7 @@ function explodeGrenade(state: GameState, grenade: Grenade, config: GrenadeConfi
 
     if (playerDist < config.damageRadius) {
       const falloff = 1 - (playerDist / config.damageRadius);
-      const damage = config.damage * falloff * config.selfDamageMultiplier;
+      const damage = config.damage * falloff * config.selfDamageMultiplier * (1 - state.player.armorDamageReduction);
       state.player.hp -= damage;
 
       state.events.push({

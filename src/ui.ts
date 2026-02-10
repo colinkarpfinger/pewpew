@@ -69,13 +69,13 @@ export function updateHUD(state: GameState): void {
   }
 }
 
-export function showGameOver(score: number, gameMode: GameMode = 'arena', lostWeapon?: string): void {
+export function showGameOver(score: number, gameMode: GameMode = 'arena', lostGear?: string): void {
   const titleEl = gameOverEl().querySelector('h1');
   if (titleEl) titleEl.textContent = gameMode === 'extraction' ? 'KILLED IN ACTION' : 'GAME OVER';
   finalScoreEl().textContent = `Score: ${score}`;
   const cashEl = finalCashEl();
-  if (gameMode === 'extraction' && lostWeapon && lostWeapon !== 'pistol') {
-    cashEl.textContent = `${lostWeapon.toUpperCase()} lost`;
+  if (lostGear) {
+    cashEl.textContent = `${lostGear.toUpperCase()} lost`;
   } else {
     cashEl.textContent = '';
   }

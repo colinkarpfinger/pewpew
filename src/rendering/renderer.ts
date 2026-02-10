@@ -1,8 +1,9 @@
 import * as THREE from 'three';
-import type { GameState, GameEvent, WeaponConfig, EnemyType } from '../simulation/types.ts';
+import type { GameState, GameEvent, WeaponConfig, EnemyType, ArmorType } from '../simulation/types.ts';
 import { ParticleSystem } from './particles.ts';
 import {
   createPlayerMesh,
+  createPlayerArmorMesh,
   createEnemyMesh,
   createProjectileMesh,
   createEnemyProjectileMesh,
@@ -30,6 +31,7 @@ export class Renderer {
   private playerCapsule: THREE.Mesh | null = null;
   private playerAim: THREE.Mesh | null = null;
   private playerReloadBar: THREE.Group | null = null;
+  private playerArmorMesh: THREE.Mesh | null = null;
   private playerRadius = 0.4;
   private dodgeDuration = 18;
   private weaponConfig: WeaponConfig | null = null;
@@ -177,6 +179,18 @@ export class Renderer {
   /** Store weapon config for reload bar calculations */
   setWeaponConfig(config: WeaponConfig): void {
     this.weaponConfig = config;
+  }
+
+  /** Attach or remove armor mesh on player capsule */
+  setPlayerArmor(armorTier: ArmorType | null): void {
+    if (this.playerArmorMesh && this.playerCapsule) {
+      this.playerCapsule.remove(this.playerArmorMesh);
+      this.playerArmorMesh = null;
+    }
+    if (armorTier && this.playerCapsule) {
+      this.playerArmorMesh = createPlayerArmorMesh(this.playerRadius, armorTier);
+      this.playerCapsule.add(this.playerArmorMesh);
+    }
   }
 
   /** Sync all dynamic visuals to match simulation state */
