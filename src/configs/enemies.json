@@ -1,13 +1,6 @@
 {
-  "rusher": {
-    "speed": 2.5,
-    "hp": 50,
-    "contactDamage": 15,
-    "radius": 0.4,
-    "scoreValue": 100
-  },
   "sprinter": {
-    "speed": 4.0,
+    "speed": 6.0,
     "hp": 75,
     "contactDamage": 20,
     "radius": 0.35,

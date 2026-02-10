@@ -8,7 +8,7 @@ import { updateSpawner } from './spawner.ts';
 import { tryThrowGrenade, updateGrenades } from './grenade.ts';
 import { spawnCrates, checkCratePickups, updateCrateLifetimes } from './crates.ts';
 import { spawnCash, checkCashPickups } from './cash.ts';
-import { createExtractionSpawner, updateExtractionSpawner } from './extraction-spawner.ts';
+import { createExtractionSpawner, updateExtractionSpawner, spawnInitialEnemies } from './extraction-spawner.ts';
 import { updateVisibility } from './line-of-sight.ts';
 import { isInExtractionZone } from './extraction-map.ts';
 
@@ -84,6 +84,11 @@ export function createGame(configs: GameConfigs, seed: number = 12345, gameMode:
   // Arena mode: aim right by default
   if (!extractionMap) {
     state.player.aimDir = { x: 1, y: 0 };
+  }
+
+  // Extraction mode: pre-spawn enemies across the map
+  if (extractionMap) {
+    spawnInitialEnemies(state, extractionMap, configs.enemies, rng);
   }
 
   return { state, rng };

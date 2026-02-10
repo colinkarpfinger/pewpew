@@ -99,15 +99,12 @@ export interface EnemyMeshGroup {
   headMesh: THREE.Mesh;
 }
 
-export function createEnemyMesh(radius: number, enemyType: EnemyType = 'rusher'): EnemyMeshGroup {
+export function createEnemyMesh(radius: number, enemyType: EnemyType = 'sprinter'): EnemyMeshGroup {
   const group = new THREE.Group();
 
-  let bodyColor = 0xff3333; // rusher
-  let headColor = 0xcc2222;
-  if (enemyType === 'sprinter') {
-    bodyColor = 0xff8800;
-    headColor = 0xcc6600;
-  } else if (enemyType === 'gunner') {
+  let bodyColor = 0xff8800; // sprinter
+  let headColor = 0xcc6600;
+  if (enemyType === 'gunner') {
     bodyColor = 0x8844cc;
     headColor = 0x6633aa;
   }

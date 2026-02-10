@@ -21,7 +21,6 @@ const weaponBase = {
 };
 
 const cashConfig = {
-  rusherAmount: [10, 20],
   sprinterAmount: [25, 40],
   gunnerAmount: [30, 50],
   pickupRadius: 1.0,
@@ -49,8 +48,7 @@ const configs: GameConfigs = {
     shotgun: { damage: 18, fireRate: 2, projectileSpeed: 20, projectileLifetime: 30, spread: 0.15, penetration: 1, knockback: 20, pelletsPerShot: 6, magazineSize: 6, reloadTime: 150, ...weaponBase },
   },
   enemies: {
-    rusher: { speed: 2.5, hp: 50, contactDamage: 15, radius: 0.4, scoreValue: 100 },
-    sprinter: { speed: 4.0, hp: 75, contactDamage: 20, radius: 0.35, scoreValue: 150 },
+    sprinter: { speed: 6.0, hp: 75, contactDamage: 20, radius: 0.35, scoreValue: 150 },
     gunner: { speed: 2.0, hp: 80, contactDamage: 10, radius: 0.4, scoreValue: 200 },
   },
   spawning: { initialInterval: 120, minimumInterval: 30, decayRate: 0.95, maxEnemies: 30 },
@@ -85,11 +83,13 @@ const testExtractionMapEarly: ExtractionMapConfig = {
   extractionZone: { x: 0, y: 55, width: 8, height: 6 },
   maxEnemies: 40,
   minSpawnDistFromPlayer: 15,
+  enemyDetectionRange: 18,
+  wanderSpeedMultiplier: 0.3,
   zones: [
-    { yMin: -60, yMax: -30, ambientInterval: 240, sprinterRatio: 0.05, gunnerRatio: 0 },
-    { yMin: -30, yMax: 0, ambientInterval: 120, sprinterRatio: 0.15, gunnerRatio: 0.1 },
-    { yMin: 0, yMax: 30, ambientInterval: 60, sprinterRatio: 0.3, gunnerRatio: 0.2 },
-    { yMin: 30, yMax: 60, ambientInterval: 45, sprinterRatio: 0.45, gunnerRatio: 0.25 },
+    { yMin: -60, yMax: -30, ambientInterval: 240, sprinterRatio: 0.05, gunnerRatio: 0, initialEnemyCount: 3 },
+    { yMin: -30, yMax: 0, ambientInterval: 120, sprinterRatio: 0.15, gunnerRatio: 0.1, initialEnemyCount: 4 },
+    { yMin: 0, yMax: 30, ambientInterval: 60, sprinterRatio: 0.3, gunnerRatio: 0.2, initialEnemyCount: 5 },
+    { yMin: 30, yMax: 60, ambientInterval: 45, sprinterRatio: 0.45, gunnerRatio: 0.25, initialEnemyCount: 6 },
   ],
   walls: [
     { pos: { x: -8, y: -48 }, width: 6, height: 1 },
@@ -335,7 +335,7 @@ for (let i = 0; i < sgA.state.projectiles.length; i++) {
 // ============================================================
 
 // Helper: inject an enemy at a specific position relative to player
-function injectEnemy(g: ReturnType<typeof createGame>, x: number, y: number, hp?: number, enemyType: 'rusher' | 'sprinter' | 'gunner' = 'rusher'): number {
+function injectEnemy(g: ReturnType<typeof createGame>, x: number, y: number, hp?: number, enemyType: 'sprinter' | 'gunner' = 'sprinter'): number {
   const id = g.state.nextEntityId++;
   const cfg = configs.enemies[enemyType];
   g.state.enemies.push({
@@ -349,6 +349,7 @@ function injectEnemy(g: ReturnType<typeof createGame>, x: number, y: number, hp?
     scoreValue: cfg.scoreValue,
     knockbackVel: { x: 0, y: 0 },
     visible: true,
+    stunTimer: 0,
   });
   return id;
 }
@@ -530,10 +531,10 @@ console.log('\n--- Test 19: All weapons kill in extended combat ---');
 
   for (const wt of weaponTypes) {
     const g = createGame(combatConfigs, 700 + weaponTypes.indexOf(wt), 'arena', wt);
-    // Place 3 enemies at moderate range
-    injectEnemy(g, 3, 0, 50);
-    injectEnemy(g, 3, 1, 50);
-    injectEnemy(g, 3, -1, 50);
+    // Place 3 enemies at moderate range (low HP since sprinters are fast)
+    injectEnemy(g, 3, 0, 25);
+    injectEnemy(g, 3, 1, 25);
+    injectEnemy(g, 3, -1, 25);
 
     // Fire at them for a long time (10 seconds of game time)
     // Re-aim at closest living enemy each tick
@@ -756,15 +757,17 @@ console.log('\n--- Test 26: Arena mode unchanged ---');
   assert(g.state.player.pos.x === 0 && g.state.player.pos.y === 0, 'Arena player spawns at origin');
 }
 
-// ---- Test 27: Extraction spawner — enemies spawn over time ----
-console.log('\n--- Test 27: Extraction spawner ---');
+// ---- Test 27: Extraction pre-spawns enemies at level start ----
+console.log('\n--- Test 27: Extraction pre-spawn ---');
 {
   const g = createGame(extractionConfigs, 42, 'extraction');
-  // Run enough ticks for ambient spawning (zone 0 interval = 240)
-  for (let i = 0; i < 500; i++) {
-    tick(g, noInput, extractionConfigs);
-  }
-  assert(g.state.enemies.length > 0, `Extraction enemies spawned: ${g.state.enemies.length}`);
+  // Enemies should already exist at tick 0 (pre-spawned)
+  assert(g.state.enemies.length > 0, `Extraction enemies pre-spawned: ${g.state.enemies.length}`);
+  // Total should be sum of initialEnemyCount: 3+4+5+6 = 18
+  assert(g.state.enemies.length === 18, `All zones spawned enemies: ${g.state.enemies.length}`);
+  // All pre-spawned enemies should be in wander state
+  const wandering = g.state.enemies.filter(e => e.aiState === 'wander');
+  assert(wandering.length === g.state.enemies.length, `All enemies wandering: ${wandering.length}/${g.state.enemies.length}`);
 }
 
 // ---- Test 28: Sprinter enemy stats ----
@@ -784,10 +787,11 @@ console.log('\n--- Test 28: Sprinter enemy ---');
     scoreValue: cfg.scoreValue,
     knockbackVel: { x: 0, y: 0 },
     visible: true,
+    stunTimer: 0,
   });
   assert(g.state.enemies[0].type === 'sprinter', 'Enemy type is sprinter');
   assert(g.state.enemies[0].hp === 75, 'Sprinter HP is 75');
-  assert(g.state.enemies[0].speed === 4.0, 'Sprinter speed is 4.0');
+  assert(g.state.enemies[0].speed === 6.0, 'Sprinter speed is 6.0');
   assert(g.state.enemies[0].radius === 0.35, 'Sprinter radius is 0.35');
 }
 
@@ -816,9 +820,9 @@ console.log('\n--- Test 30: LOS visibility ---');
   ];
   const enemies = [
     // Enemy behind wall (at x=8, wall at x=5 blocks LOS from origin)
-    { id: 1, type: 'rusher' as const, pos: { x: 8, y: 0 }, hp: 50, radius: 0.4, speed: 2.5, contactDamage: 15, scoreValue: 100, knockbackVel: { x: 0, y: 0 }, visible: true },
+    { id: 1, type: 'sprinter' as const, pos: { x: 8, y: 0 }, hp: 75, radius: 0.35, speed: 6.0, contactDamage: 20, scoreValue: 150, knockbackVel: { x: 0, y: 0 }, visible: true, stunTimer: 0 },
     // Enemy in the open (at y=5, no wall in the way)
-    { id: 2, type: 'rusher' as const, pos: { x: 3, y: 5 }, hp: 50, radius: 0.4, speed: 2.5, contactDamage: 15, scoreValue: 100, knockbackVel: { x: 0, y: 0 }, visible: true },
+    { id: 2, type: 'sprinter' as const, pos: { x: 3, y: 5 }, hp: 75, radius: 0.35, speed: 6.0, contactDamage: 20, scoreValue: 150, knockbackVel: { x: 0, y: 0 }, visible: true, stunTimer: 0 },
   ];
 
   updateVisibility({ x: 0, y: 0 }, enemies, walls);
@@ -1038,31 +1042,30 @@ console.log('\n--- Test 39: Cash amount ranges ---');
 {
   const g = createGame(extractionConfigs, 2200, 'extraction');
 
-  // Kill a rusher
-  injectEnemy(g, g.state.player.pos.x + 2, g.state.player.pos.y, 1, 'rusher');
+  // Kill a sprinter
+  injectEnemy(g, g.state.player.pos.x + 2, g.state.player.pos.y, 1, 'sprinter');
   const input = aimAt(g, g.state.player.pos.x + 2, g.state.player.pos.y);
   for (let i = 0; i < 20; i++) {
     tick(g, i === 0 ? input : { ...input, fire: false }, extractionConfigs);
   }
 
-  const rusherCash = g.state.cashPickups.find(c => c.amount >= 10 && c.amount <= 20);
-  assert(g.state.cashPickups.length > 0, 'Cash pickup from rusher exists');
+  assert(g.state.cashPickups.length > 0, 'Cash pickup from sprinter exists');
   if (g.state.cashPickups.length > 0) {
     const amt = g.state.cashPickups[0].amount;
-    assert(amt >= 10 && amt <= 20, `Rusher cash amount in range [10,20]: ${amt}`);
+    assert(amt >= 25 && amt <= 40, `Sprinter cash amount in range [25,40]: ${amt}`);
   }
 
-  // Kill a sprinter
-  injectEnemy(g, g.state.player.pos.x + 2, g.state.player.pos.y, 1, 'sprinter');
-  const input2 = aimAt(g, g.state.player.pos.x + 2, g.state.player.pos.y);
+  // Kill a gunner
   const prevCount = g.state.cashPickups.length;
+  injectGunner(g, g.state.player.pos.x + 2, g.state.player.pos.y, 1);
+  const input2 = aimAt(g, g.state.player.pos.x + 2, g.state.player.pos.y);
   for (let i = 0; i < 20; i++) {
     tick(g, i === 0 ? input2 : { ...input2, fire: false }, extractionConfigs);
   }
 
   if (g.state.cashPickups.length > prevCount) {
-    const sprinterPickup = g.state.cashPickups[g.state.cashPickups.length - 1];
-    assert(sprinterPickup.amount >= 25 && sprinterPickup.amount <= 40, `Sprinter cash amount in range [25,40]: ${sprinterPickup.amount}`);
+    const gunnerPickup = g.state.cashPickups[g.state.cashPickups.length - 1];
+    assert(gunnerPickup.amount >= 30 && gunnerPickup.amount <= 50, `Gunner cash amount in range [30,50]: ${gunnerPickup.amount}`);
   }
 }
 
@@ -1114,8 +1117,8 @@ console.log('\n--- Test 43: Cash determinism ---');
   const gB = createGame(extractionConfigs, 2600, 'extraction');
 
   // Inject same enemies and kill them
-  injectEnemy(gA, gA.state.player.pos.x + 2, gA.state.player.pos.y, 1, 'rusher');
-  injectEnemy(gB, gB.state.player.pos.x + 2, gB.state.player.pos.y, 1, 'rusher');
+  injectEnemy(gA, gA.state.player.pos.x + 2, gA.state.player.pos.y, 1, 'sprinter');
+  injectEnemy(gB, gB.state.player.pos.x + 2, gB.state.player.pos.y, 1, 'sprinter');
 
   const inputA = aimAt(gA, gA.state.player.pos.x + 2, gA.state.player.pos.y);
   const inputB = aimAt(gB, gB.state.player.pos.x + 2, gB.state.player.pos.y);
@@ -1212,6 +1215,7 @@ function injectGunner(g: ReturnType<typeof createGame>, x: number, y: number, hp
     scoreValue: cfg.scoreValue,
     knockbackVel: { x: 0, y: 0 },
     visible: true,
+    stunTimer: 0,
     aiPhase: 'advance',
     aiTimer: 0,
     fireCooldown: 0,

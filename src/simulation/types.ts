@@ -2,7 +2,7 @@
 
 export type WeaponType = 'pistol' | 'smg' | 'rifle' | 'shotgun';
 export type GameMode = 'arena' | 'extraction';
-export type EnemyType = 'rusher' | 'sprinter' | 'gunner';
+export type EnemyType = 'sprinter' | 'gunner';
 
 export interface PlayerConfig {
   speed: number;
@@ -47,7 +47,6 @@ export interface EnemyTypeConfig {
 }
 
 export interface EnemiesConfig {
-  rusher: EnemyTypeConfig;
   sprinter: EnemyTypeConfig;
   gunner: EnemyTypeConfig;
 }
@@ -106,7 +105,6 @@ export interface CrateConfig {
 }
 
 export interface CashConfig {
-  rusherAmount: number[]; // [min, max] inclusive
   sprinterAmount: number[];
   gunnerAmount: number[];
   pickupRadius: number;
@@ -176,6 +174,10 @@ export interface Enemy {
   scoreValue: number;
   knockbackVel: Vec2;
   visible: boolean;
+  stunTimer: number; // ticks remaining where enemy can't move
+  aiState?: 'wander' | 'chase'; // extraction mode: wander until player spotted
+  wanderDir?: Vec2; // current wander direction
+  wanderTimer?: number; // ticks remaining before picking new wander direction
   aiPhase?: 'advance' | 'retreat';
   aiTimer?: number;
   fireCooldown?: number;
@@ -259,6 +261,7 @@ export interface ZoneConfig {
   ambientInterval: number;
   sprinterRatio: number;
   gunnerRatio?: number;
+  initialEnemyCount?: number; // enemies pre-spawned in this zone at level start
 }
 
 export interface ExtractionMapConfig {
@@ -271,6 +274,8 @@ export interface ExtractionMapConfig {
   zones: ZoneConfig[];
   maxEnemies: number;
   minSpawnDistFromPlayer: number;
+  enemyDetectionRange?: number; // distance at which enemies with LOS will aggro
+  wanderSpeedMultiplier?: number; // fraction of normal speed while wandering
 }
 
 export interface ExtractionSpawnerState {

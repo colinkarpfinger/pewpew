@@ -12,9 +12,8 @@ export function spawnCash(state: GameState, config: CashConfig | undefined, rng:
     if (!d || typeof d.x !== 'number' || typeof d.y !== 'number') continue;
 
     const enemyType = d.enemyType as EnemyType | undefined;
-    let range = config.rusherAmount;
-    if (enemyType === 'sprinter') range = config.sprinterAmount;
-    else if (enemyType === 'gunner') range = config.gunnerAmount;
+    let range = config.sprinterAmount;
+    if (enemyType === 'gunner') range = config.gunnerAmount;
     const amount = rng.int(range[0], range[1]);
 
     const pickup = {

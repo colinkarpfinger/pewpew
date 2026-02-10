@@ -22,11 +22,11 @@ export function updateSpawner(
 
     // Pick spawn position at arena edge
     const pos = getEdgeSpawnPosition(state, rng);
-    const cfg = enemies.rusher;
+    const cfg = enemies.sprinter;
 
     const enemy: Enemy = {
       id: state.nextEntityId++,
-      type: 'rusher',
+      type: 'sprinter',
       pos,
       hp: cfg.hp,
       radius: cfg.radius,
@@ -35,6 +35,7 @@ export function updateSpawner(
       scoreValue: cfg.scoreValue,
       knockbackVel: { x: 0, y: 0 },
       visible: true,
+      stunTimer: 0,
     };
 
     state.enemies.push(enemy);

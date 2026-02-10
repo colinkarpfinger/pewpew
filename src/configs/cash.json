@@ -1,5 +1,4 @@
 {
-  "rusherAmount": [10, 20],
   "sprinterAmount": [25, 40],
   "gunnerAmount": [30, 50],
   "pickupRadius": 1.0
