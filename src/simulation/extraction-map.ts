@@ -15,7 +15,7 @@ export function getZone(map: ExtractionMapConfig, y: number): ZoneConfig | null 
   return idx >= 0 ? map.zones[idx] : null;
 }
 
-/** Check if a position is inside the extraction zone */
+/** Check if a position is inside an extraction zone */
 export function isInExtractionZone(pos: Vec2, zone: ExtractionZone): boolean {
   const halfW = zone.width / 2;
   const halfH = zone.height / 2;
@@ -25,6 +25,14 @@ export function isInExtractionZone(pos: Vec2, zone: ExtractionZone): boolean {
     pos.y >= zone.y - halfH &&
     pos.y <= zone.y + halfH
   );
+}
+
+/** Check if a position is inside any of the extraction zones */
+export function isInAnyExtractionZone(pos: Vec2, zones: ExtractionZone[]): boolean {
+  for (const zone of zones) {
+    if (isInExtractionZone(pos, zone)) return true;
+  }
+  return false;
 }
 
 /** Check if a position is inside a rectangular region */

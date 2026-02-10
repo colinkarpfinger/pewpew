@@ -380,6 +380,52 @@ export class ParticleSystem {
           });
           break;
 
+        case 'destructible_crate_hit':
+          this.emit({
+            x: d.x as number,
+            z: d.y as number,
+            count: 6 + Math.floor(Math.random() * 4), // 6-9
+            speed: [2, 5],
+            angle: 0,
+            spread: Math.PI,
+            lifetime: [0.1, 0.25],
+            size: [0.15, 0.3],
+            color: new THREE.Color(0.55, 0.4, 0.1), // wood brown
+            gravity: 5,
+            ySpeed: [1, 4],
+          });
+          break;
+
+        case 'destructible_crate_destroyed':
+          this.emit({
+            x: d.x as number,
+            z: d.y as number,
+            count: 30 + Math.floor(Math.random() * 16), // 30-45
+            speed: [4, 12],
+            angle: 0,
+            spread: Math.PI,
+            lifetime: [0.2, 0.5],
+            size: [0.25, 0.6],
+            color: new THREE.Color(0.55, 0.4, 0.1), // wood brown
+            gravity: 6,
+            ySpeed: [3, 8],
+          });
+          // Gold sparkle burst for loot
+          this.emit({
+            x: d.x as number,
+            z: d.y as number,
+            count: 15 + Math.floor(Math.random() * 10),
+            speed: [2, 6],
+            angle: 0,
+            spread: Math.PI,
+            lifetime: [0.3, 0.6],
+            size: [0.2, 0.4],
+            color: new THREE.Color(1.0, 0.85, 0.2), // gold
+            gravity: -1,
+            ySpeed: [2, 5],
+          });
+          break;
+
         case 'crate_picked_up': {
           const isHealth = d.crateType === 'health';
           this.emit({

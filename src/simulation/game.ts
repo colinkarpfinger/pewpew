@@ -10,7 +10,8 @@ import { spawnCrates, checkCratePickups, updateCrateLifetimes } from './crates.t
 import { spawnCash, checkCashPickups } from './cash.ts';
 import { createExtractionSpawner, updateExtractionSpawner, spawnInitialEnemies } from './extraction-spawner.ts';
 import { updateVisibility } from './line-of-sight.ts';
-import { isInExtractionZone } from './extraction-map.ts';
+import { isInAnyExtractionZone } from './extraction-map.ts';
+import { spawnInitialDestructibleCrates, checkProjectileVsCrates } from './destructible-crates.ts';
 
 export interface GameInstance {
   state: GameState;
@@ -64,6 +65,7 @@ export function createGame(configs: GameConfigs, seed: number = 12345, gameMode:
     grenades: [],
     crates: [],
     cashPickups: [],
+    destructibleCrates: [],
     obstacles,
     arena,
     grenadeAmmo: configs.grenade.startingAmmo,
@@ -89,6 +91,11 @@ export function createGame(configs: GameConfigs, seed: number = 12345, gameMode:
   // Extraction mode: pre-spawn enemies across the map
   if (extractionMap) {
     spawnInitialEnemies(state, extractionMap, configs.enemies, rng);
+  }
+
+  // Extraction mode: spawn destructible crates
+  if (extractionMap && configs.destructibleCrates) {
+    spawnInitialDestructibleCrates(state, extractionMap, configs.destructibleCrates, rng);
   }
 
   return { state, rng };
@@ -132,6 +139,11 @@ export function tick(game: GameInstance, input: InputState, configs: GameConfigs
 
   // 5. Projectile collisions (vs enemies, walls, obstacles)
   checkProjectileCollisions(state, configs.weapons);
+
+  // 5a. Projectile vs destructible crates
+  if (configs.destructibleCrates) {
+    checkProjectileVsCrates(state, rng, configs.destructibleCrates);
+  }
 
   // 5b. Multi-kill detection
   if (configs.multikill) {
@@ -180,7 +192,7 @@ export function tick(game: GameInstance, input: InputState, configs: GameConfigs
   }
 
   // 10. Extraction win condition
-  if (state.extractionMap && isInExtractionZone(state.player.pos, state.extractionMap.extractionZone)) {
+  if (state.extractionMap && isInAnyExtractionZone(state.player.pos, state.extractionMap.extractionZones)) {
     state.extracted = true;
     state.events.push({
       tick: state.tick,
@@ -262,6 +274,7 @@ export function restoreGame(stateSnapshot: GameState, rngState: number): GameIns
   state.cashPickups ??= [];
   state.grenadeAmmo ??= 3;
   state.runCash ??= 0;
+  state.destructibleCrates ??= [];
   // Backward-compat: old projectiles missing weaponType
   for (const proj of state.projectiles) {
     proj.weaponType ??= 'rifle';
@@ -272,6 +285,14 @@ export function restoreGame(stateSnapshot: GameState, rngState: number): GameIns
   state.extractionMap ??= null;
   state.extractionSpawner ??= null;
   state.extracted ??= false;
+  // Migrate old extractionZone → extractionZones
+  if (state.extractionMap) {
+    const em = state.extractionMap as unknown as Record<string, unknown>;
+    if (!em.extractionZones && em.extractionZone) {
+      em.extractionZones = [em.extractionZone];
+      delete em.extractionZone;
+    }
+  }
   // Backward-compat: enemy visible field
   for (const enemy of state.enemies) {
     enemy.visible ??= true;

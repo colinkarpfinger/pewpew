@@ -35,6 +35,7 @@ import cashConfig from './configs/cash.json';
 import gunnerConfig from './configs/gunner.json';
 import audioConfig from './configs/audio.json';
 import extractionMapConfig from './configs/extraction-map.json';
+import destructibleCratesConfig from './configs/destructible-crates.json';
 import { addCashToStash, removeWeapon } from './persistence.ts';
 import shopConfig from './configs/shop.json';
 
@@ -50,6 +51,7 @@ const configs: GameConfigs = {
   cash: cashConfig,
   gunner: gunnerConfig,
   extractionMap: extractionMapConfig,
+  destructibleCrates: destructibleCratesConfig,
 };
 const configsJson = JSON.stringify(configs);
 

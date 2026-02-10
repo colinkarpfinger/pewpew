@@ -233,6 +233,20 @@ export function createCashMesh(): THREE.Mesh {
   return mesh;
 }
 
+export function createDestructibleCrateMesh(width: number, height: number): THREE.Mesh {
+  const geometry = new THREE.BoxGeometry(width, 0.8, height);
+  const material = new THREE.MeshStandardMaterial({
+    color: 0x8B6914,
+    emissive: 0x443008,
+    emissiveIntensity: 0.2,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.position.y = 0.4;
+  return mesh;
+}
+
 export function createObstacleMesh(width: number, height: number): THREE.Mesh {
   const wallHeight = 1.5;
   const geometry = new THREE.BoxGeometry(width, wallHeight, height);
@@ -253,6 +267,33 @@ export function createGroundMesh(arenaWidth: number, arenaHeight: number): THREE
   const mesh = new THREE.Mesh(geometry, material);
   mesh.rotation.x = -Math.PI / 2;
   mesh.receiveShadow = true;
+  return mesh;
+}
+
+export function createZoneGroundMesh(arenaWidth: number, yMin: number, yMax: number, color: number): THREE.Mesh {
+  const zoneHeight = yMax - yMin;
+  const geometry = new THREE.PlaneGeometry(arenaWidth, zoneHeight);
+  const material = new THREE.MeshStandardMaterial({
+    color,
+    roughness: 0.8,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.receiveShadow = true;
+  // Position at center of zone (yMin and yMax are in simulation coords, Z in three.js)
+  const centerY = (yMin + yMax) / 2;
+  mesh.position.set(0, 0, centerY);
+  return mesh;
+}
+
+export function createObstacleMeshWithColor(width: number, height: number, color: number): THREE.Mesh {
+  const wallHeight = 1.5;
+  const geometry = new THREE.BoxGeometry(width, wallHeight, height);
+  const material = new THREE.MeshStandardMaterial({ color });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.position.y = wallHeight / 2;
   return mesh;
 }
 

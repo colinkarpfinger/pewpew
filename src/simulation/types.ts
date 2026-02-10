@@ -135,6 +135,7 @@ export interface GameConfigs {
   cash?: CashConfig;
   gunner?: GunnerConfig;
   extractionMap?: ExtractionMapConfig;
+  destructibleCrates?: DestructibleCrateConfig;
 }
 
 // ---- Entities ----
@@ -234,6 +235,31 @@ export interface CashPickup {
   amount: number;
 }
 
+// ---- Destructible Crates ----
+
+export interface DestructibleCrate {
+  id: number;
+  pos: Vec2;
+  hp: number;
+  maxHp: number;
+  lootTier: number; // 1-4
+}
+
+export interface DestructibleCrateLootTable {
+  cashMin: number;
+  cashMax: number;
+  healthChance: number;
+  grenadeChance: number;
+}
+
+export interface DestructibleCrateConfig {
+  hp: number;
+  width: number;
+  height: number;
+  lootTables: DestructibleCrateLootTable[];
+  proceduralCountPerZone: number[];
+}
+
 // ---- Extraction Map ----
 
 export interface ExtractionZone {
@@ -268,7 +294,7 @@ export interface ExtractionMapConfig {
   width: number;
   height: number;
   playerSpawn: Vec2;
-  extractionZone: ExtractionZone;
+  extractionZones: ExtractionZone[];
   walls: Obstacle[];
   triggerRegions: TriggerRegion[];
   zones: ZoneConfig[];
@@ -276,6 +302,7 @@ export interface ExtractionMapConfig {
   minSpawnDistFromPlayer: number;
   enemyDetectionRange?: number; // distance at which enemies with LOS will aggro
   wanderSpeedMultiplier?: number; // fraction of normal speed while wandering
+  destructibleCrates?: Vec2[]; // hand-placed crate positions
 }
 
 export interface ExtractionSpawnerState {
@@ -321,7 +348,9 @@ export type GameEventType =
   | 'cash_picked_up'
   | 'enemy_projectile_fired'
   | 'trigger_activated'
-  | 'extraction_success';
+  | 'extraction_success'
+  | 'destructible_crate_hit'
+  | 'destructible_crate_destroyed';
 
 export interface GameEvent {
   tick: number;
@@ -346,6 +375,7 @@ export interface GameState {
   grenades: Grenade[];
   crates: Crate[];
   cashPickups: CashPickup[];
+  destructibleCrates: DestructibleCrate[];
   obstacles: Obstacle[];
   arena: ArenaConfig;
   grenadeAmmo: number;

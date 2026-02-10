@@ -1,0 +1,12 @@
+{
+  "hp": 40,
+  "width": 1.0,
+  "height": 1.0,
+  "lootTables": [
+    { "cashMin": 15, "cashMax": 30, "healthChance": 0.10, "grenadeChance": 0.05 },
+    { "cashMin": 30, "cashMax": 50, "healthChance": 0.10, "grenadeChance": 0.10 },
+    { "cashMin": 50, "cashMax": 80, "healthChance": 0.15, "grenadeChance": 0.15 },
+    { "cashMin": 80, "cashMax": 120, "healthChance": 0.20, "grenadeChance": 0.20 }
+  ],
+  "proceduralCountPerZone": [2, 3, 3, 4]
+}

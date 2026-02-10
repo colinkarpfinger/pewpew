@@ -9,13 +9,17 @@ import {
   createGrenadeMesh,
   createCashMesh,
   createCrateMesh,
+  createDestructibleCrateMesh,
   createObstacleMesh,
+  createObstacleMeshWithColor,
   createGroundMesh,
+  createZoneGroundMesh,
   createWallMeshes,
   createExtractionZoneMesh,
   type EnemyMeshGroup,
 } from './entities.ts';
 import { createCamera, updateCamera } from './camera.ts';
+import { getZoneIndex } from '../simulation/extraction-map.ts';
 
 export class Renderer {
   readonly scene: THREE.Scene;
@@ -35,6 +39,7 @@ export class Renderer {
   private grenadeMeshes = new Map<number, THREE.Mesh>();
   private crateMeshes = new Map<number, THREE.Mesh>();
   private cashMeshes = new Map<number, THREE.Mesh>();
+  private destructibleCrateMeshes = new Map<number, THREE.Mesh>();
   private particles: ParticleSystem | null = null;
   private muzzleFlashes: { light: THREE.PointLight; timer: number }[] = [];
   private dirLight: THREE.DirectionalLight | null = null;
@@ -79,30 +84,59 @@ export class Renderer {
     this.grenadeMeshes.clear();
     this.crateMeshes.clear();
     this.cashMeshes.clear();
+    this.destructibleCrateMeshes.clear();
     this.enemyTypes.clear();
     this.playerGroup = null;
 
     // Ground
-    const ground = createGroundMesh(state.arena.width, state.arena.height);
-    this.scene.add(ground);
+    const isExtraction = !!state.extractionMap;
+    if (isExtraction && state.extractionMap) {
+      const floorColors = [0x333333, 0x3a3333, 0x4a2828, 0x5a2020];
+      for (let i = 0; i < state.extractionMap.zones.length; i++) {
+        const zone = state.extractionMap.zones[i];
+        const color = floorColors[i] ?? floorColors[floorColors.length - 1];
+        const zoneMesh = createZoneGroundMesh(state.arena.width, zone.yMin, zone.yMax, color);
+        this.scene.add(zoneMesh);
+      }
+    } else {
+      const ground = createGroundMesh(state.arena.width, state.arena.height);
+      this.scene.add(ground);
+    }
 
     // Walls
     const walls = createWallMeshes(state.arena.width, state.arena.height);
     this.scene.add(walls);
 
     // Obstacles
+    const obstacleColors = [0x666666, 0x6a5555, 0x7a4444, 0x8a3333];
     for (const obs of state.obstacles) {
-      const mesh = createObstacleMesh(obs.width, obs.height);
+      let mesh: THREE.Mesh;
+      if (isExtraction && state.extractionMap) {
+        const zi = getZoneIndex(state.extractionMap, obs.pos.y);
+        const color = zi >= 0 ? (obstacleColors[zi] ?? obstacleColors[obstacleColors.length - 1]) : 0x666666;
+        mesh = createObstacleMeshWithColor(obs.width, obs.height, color);
+      } else {
+        mesh = createObstacleMesh(obs.width, obs.height);
+      }
       mesh.position.set(obs.pos.x, mesh.position.y, obs.pos.y);
       this.scene.add(mesh);
     }
 
-    // Extraction zone marker
+    // Destructible crates (initial)
+    for (const dc of state.destructibleCrates) {
+      const mesh = createDestructibleCrateMesh(1.0, 1.0);
+      mesh.position.set(dc.pos.x, mesh.position.y, dc.pos.y);
+      this.scene.add(mesh);
+      this.destructibleCrateMeshes.set(dc.id, mesh);
+    }
+
+    // Extraction zone markers
     if (state.extractionMap) {
-      const ez = state.extractionMap.extractionZone;
-      const ezMesh = createExtractionZoneMesh(ez.width, ez.height);
-      ezMesh.position.set(ez.x, 0.02, ez.y);
-      this.scene.add(ezMesh);
+      for (const ez of state.extractionMap.extractionZones) {
+        const ezMesh = createExtractionZoneMesh(ez.width, ez.height);
+        ezMesh.position.set(ez.x, 0.02, ez.y);
+        this.scene.add(ezMesh);
+      }
     }
 
     // Find the directional light in the scene (created by rebuildScene) for shadow follow
@@ -374,6 +408,18 @@ export class Renderer {
       if (!currentCrateIds.has(id)) {
         this.scene.remove(mesh);
         this.crateMeshes.delete(id);
+      }
+    }
+
+    // Sync destructible crates (remove destroyed)
+    const currentDestructibleCrateIds = new Set<number>();
+    for (const dc of state.destructibleCrates) {
+      currentDestructibleCrateIds.add(dc.id);
+    }
+    for (const [id, mesh] of this.destructibleCrateMeshes) {
+      if (!currentDestructibleCrateIds.has(id)) {
+        this.scene.remove(mesh);
+        this.destructibleCrateMeshes.delete(id);
       }
     }
 

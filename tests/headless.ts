@@ -80,7 +80,10 @@ const testExtractionMapEarly: ExtractionMapConfig = {
   width: 40,
   height: 120,
   playerSpawn: { x: 0, y: -55 },
-  extractionZone: { x: 0, y: 55, width: 8, height: 6 },
+  extractionZones: [
+    { x: 0, y: -58, width: 8, height: 4 },
+    { x: 0, y: 55, width: 8, height: 6 },
+  ],
   maxEnemies: 40,
   minSpawnDistFromPlayer: 15,
   enemyDetectionRange: 18,
