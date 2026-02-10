@@ -15,6 +15,7 @@ import { RingRecorder } from './recording/ring-recorder.ts';
 import { saveReplay, loadReplay } from './recording/api.ts';
 import { ReplayViewer } from './replay/viewer.ts';
 import { showStartScreen, hideStartScreen, onStartGame } from './ui/start-screen.ts';
+import { showHubScreen, hideHubScreen, setupHubScreen } from './ui/hub-screen.ts';
 import { showEscapeMenu, hideEscapeMenu, setupEscapeMenu } from './ui/escape-menu.ts';
 import { showReplayBrowser } from './ui/replay-browser.ts';
 import { showReplayControls, hideReplayControls, onReplayExit } from './ui/replay-controls.ts';
@@ -33,7 +34,8 @@ import cratesConfig from './configs/crates.json';
 import cashConfig from './configs/cash.json';
 import audioConfig from './configs/audio.json';
 import extractionMapConfig from './configs/extraction-map.json';
-import { addCashToStash } from './persistence.ts';
+import { addCashToStash, removeWeapon } from './persistence.ts';
+import shopConfig from './configs/shop.json';
 
 const configs: GameConfigs = {
   player: playerConfig,
@@ -50,8 +52,9 @@ const configs: GameConfigs = {
 const configsJson = JSON.stringify(configs);
 
 // ---- App State ----
-type Screen = 'start' | 'playing' | 'paused' | 'gameOver' | 'replay';
+type Screen = 'start' | 'hub' | 'playing' | 'paused' | 'gameOver' | 'replay';
 let screen: Screen = 'start';
+let equippedWeapon: WeaponType = 'pistol';
 
 // ---- Core objects ----
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
@@ -153,9 +156,10 @@ function rebuildScene(): void {
 }
 
 // ---- Game lifecycle ----
-function startGame(mode: GameMode = 'arena'): void {
+function startGame(mode: GameMode = 'arena', weapon?: WeaponType): void {
   currentSeed = Date.now();
-  const activeWeapon: WeaponType = mode === 'extraction' ? 'pistol' : 'rifle';
+  const activeWeapon: WeaponType = weapon ?? (mode === 'extraction' ? 'pistol' : 'rifle');
+  equippedWeapon = activeWeapon;
   game = createGame(configs, currentSeed, mode, activeWeapon);
   fullRecorder = new FullRecorder(currentSeed, configsJson);
   ringRecorder = new RingRecorder(game);
@@ -172,6 +176,7 @@ function startGame(mode: GameMode = 'arena'): void {
   gameOverShown = false;
   hideGameOver();
   hideStartScreen();
+  hideHubScreen();
   hideEscapeMenu();
   hideReplayControls();
   if (mobile) {
@@ -308,17 +313,42 @@ onReplayExit(() => {
   exitReplay();
 });
 
+// ---- Hub screen ----
+setupHubScreen({
+  onStartRun: (weapon) => {
+    startGame('extraction', weapon);
+  },
+  onBack: () => {
+    hideHubScreen();
+    showStartScreen();
+    screen = 'start';
+  },
+}, shopConfig.prices, configs.weapons);
+
 // ---- Start screen ----
 onStartGame((mode) => {
   if (screen === 'start') {
-    startGame(mode);
+    if (mode === 'extraction') {
+      hideStartScreen();
+      showHubScreen();
+      screen = 'hub';
+    } else {
+      startGame('arena');
+    }
   }
 });
 
 // ---- Restart from game over ----
 onRestart(() => {
   if (screen === 'gameOver') {
-    startGame(game.state.gameMode);
+    if (game.state.gameMode === 'extraction') {
+      hideGameOver();
+      if (!mobile) hideCrosshair();
+      showHubScreen();
+      screen = 'hub';
+    } else {
+      startGame('arena');
+    }
   }
 });
 
@@ -390,13 +420,16 @@ function gameLoop(now: number): void {
     if (state.extracted && !gameOverShown) {
       gameOverShown = true;
       addCashToStash(state.runCash);
-      showExtractionSuccess(state.score);
+      showExtractionSuccess(state.score, state.runCash);
       if (mobile) (input as TouchInputHandler).setVisible(false);
       screen = 'gameOver';
     } else if (state.gameOver && !gameOverShown) {
       gameOverShown = true;
       // Cash is NOT added to stash on death — it's lost
-      showGameOver(state.score);
+      if (state.gameMode === 'extraction') {
+        removeWeapon(equippedWeapon);
+      }
+      showGameOver(state.score, state.gameMode, equippedWeapon);
       if (mobile) (input as TouchInputHandler).setVisible(false);
       screen = 'gameOver';
     }

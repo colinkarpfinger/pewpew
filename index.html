@@ -60,6 +60,7 @@
         <div id="game-over-content">
           <h1>GAME OVER</h1>
           <p id="final-score">Score: 0</p>
+          <p id="final-cash"></p>
           <button id="restart-btn">Play Again</button>
         </div>
       </div>
@@ -83,6 +84,24 @@
             <button class="menu-btn mode-btn" data-mode="extraction">Extraction</button>
           </div>
           <button id="fullscreen-btn" class="menu-btn" style="margin-top: 24px;">Fullscreen</button>
+        </div>
+      </div>
+
+      <!-- Hub Screen -->
+      <div id="hub-screen" class="hidden">
+        <div id="hub-screen-content">
+          <h1>EXTRACTION HUB</h1>
+          <div id="hub-stash">Stash: $0</div>
+          <div id="hub-shop">
+            <h2>SHOP</h2>
+            <div id="hub-shop-items"></div>
+          </div>
+          <div id="hub-loadout">
+            <h2>LOADOUT</h2>
+            <div id="hub-weapon-list"></div>
+          </div>
+          <button class="menu-btn" id="hub-start-run">Start Run</button>
+          <button class="menu-btn" id="hub-back">Back</button>
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-import type { GameState, WeaponConfig } from './simulation/types.ts';
+import type { GameState, GameMode, WeaponConfig } from './simulation/types.ts';
 
 const scoreEl = () => document.getElementById('hud-score')!;
 const hpBar = () => document.getElementById('hud-hp-bar')!;
@@ -8,6 +8,7 @@ const cashCounterEl = () => document.getElementById('cash-counter')!;
 const weaponNameEl = () => document.getElementById('weapon-name')!;
 const gameOverEl = () => document.getElementById('game-over')!;
 const finalScoreEl = () => document.getElementById('final-score')!;
+const finalCashEl = () => document.getElementById('final-cash')!;
 const restartBtn = () => document.getElementById('restart-btn')!;
 
 let _weaponConfig: WeaponConfig | null = null;
@@ -68,17 +69,26 @@ export function updateHUD(state: GameState): void {
   }
 }
 
-export function showGameOver(score: number): void {
+export function showGameOver(score: number, gameMode: GameMode = 'arena', lostWeapon?: string): void {
   const titleEl = gameOverEl().querySelector('h1');
-  if (titleEl) titleEl.textContent = 'GAME OVER';
+  if (titleEl) titleEl.textContent = gameMode === 'extraction' ? 'KILLED IN ACTION' : 'GAME OVER';
   finalScoreEl().textContent = `Score: ${score}`;
+  const cashEl = finalCashEl();
+  if (gameMode === 'extraction' && lostWeapon && lostWeapon !== 'pistol') {
+    cashEl.textContent = `${lostWeapon.toUpperCase()} lost`;
+  } else {
+    cashEl.textContent = '';
+  }
+  restartBtn().textContent = gameMode === 'extraction' ? 'Return to Hub' : 'Play Again';
   gameOverEl().classList.remove('hidden');
 }
 
-export function showExtractionSuccess(score: number): void {
+export function showExtractionSuccess(score: number, runCash: number): void {
   const titleEl = gameOverEl().querySelector('h1');
   if (titleEl) titleEl.textContent = 'EXTRACTED!';
   finalScoreEl().textContent = `Score: ${score}`;
+  finalCashEl().textContent = `+$${runCash}`;
+  restartBtn().textContent = 'Return to Hub';
   gameOverEl().classList.remove('hidden');
 }
 

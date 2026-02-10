@@ -418,6 +418,190 @@ html, body {
   50% { opacity: 0.3; }
 }
 
+/* ---- Hub Screen ---- */
+
+#hub-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 10;
+}
+
+#hub-screen.hidden {
+  display: none;
+}
+
+#hub-screen-content {
+  text-align: center;
+  color: #fff;
+  max-width: 600px;
+  width: 90%;
+}
+
+#hub-screen-content h1 {
+  font-size: 48px;
+  margin-bottom: 16px;
+  color: #4f4;
+}
+
+#hub-stash {
+  font-size: 28px;
+  font-weight: bold;
+  color: #ffd700;
+  margin-bottom: 24px;
+  font-family: monospace;
+}
+
+#hub-screen-content h2 {
+  font-size: 20px;
+  margin-bottom: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+#hub-shop {
+  margin-bottom: 24px;
+}
+
+#hub-shop-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.shop-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+}
+
+.shop-item-info {
+  text-align: left;
+}
+
+.shop-item-name {
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 16px;
+}
+
+.shop-item-stats {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: monospace;
+  margin-top: 2px;
+}
+
+.shop-item-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shop-buy-btn {
+  padding: 6px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  background: rgba(255, 215, 0, 0.2);
+  border: 1px solid rgba(255, 215, 0, 0.4);
+  border-radius: 4px;
+  color: #ffd700;
+  font-weight: bold;
+  transition: background 0.15s;
+}
+
+.shop-buy-btn:hover:not(:disabled) {
+  background: rgba(255, 215, 0, 0.35);
+}
+
+.shop-buy-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.shop-item-price {
+  color: #ffd700;
+  font-family: monospace;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.shop-item-owned {
+  color: #4f4;
+  font-weight: bold;
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+#hub-loadout {
+  margin-bottom: 24px;
+}
+
+#hub-weapon-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.loadout-btn {
+  padding: 10px 20px;
+  font-size: 14px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: #fff;
+  font-weight: bold;
+  text-transform: uppercase;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.loadout-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.loadout-btn.selected {
+  border-color: #4f4;
+  background: rgba(68, 255, 68, 0.15);
+  color: #4f4;
+}
+
+.loadout-btn-stats {
+  display: block;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+  font-family: monospace;
+  font-weight: normal;
+  margin-top: 4px;
+}
+
+.loadout-btn.selected .loadout-btn-stats {
+  color: rgba(68, 255, 68, 0.5);
+}
+
+#hub-start-run {
+  margin-bottom: 8px;
+}
+
+#final-cash {
+  font-size: 24px;
+  color: #ffd700;
+  margin-bottom: 16px;
+}
+
+#final-cash:empty {
+  display: none;
+}
+
 /* ---- Escape / Pause Menu ---- */
 
 #escape-menu {
