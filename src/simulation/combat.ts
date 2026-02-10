@@ -64,6 +64,7 @@ function startReload(state: GameState, weapons: WeaponsConfig): void {
   const weapon = getWeapon(state, weapons);
   if (state.player.ammo >= weapon.magazineSize) return; // full mag
   state.player.reloadTimer = 1;
+  state.player.reloadFumbled = false;
   state.player.damageBonusMultiplier = 1.0; // reset bonus on reload start
   state.events.push({
     tick: state.tick,
@@ -76,6 +77,7 @@ function completeReload(state: GameState, weapons: WeaponsConfig, reloadType: 'n
   const weapon = getWeapon(state, weapons);
   state.player.ammo = weapon.magazineSize;
   state.player.reloadTimer = 0;
+  state.player.reloadFumbled = false;
 
   if (reloadType === 'perfect') {
     state.player.damageBonusMultiplier = weapon.perfectReloadDamageBonus;
@@ -104,8 +106,8 @@ export function updateReload(state: GameState, input: InputState, weapons: Weapo
 
   const progress = state.player.reloadTimer / weapon.reloadTime;
 
-  // R pressed during reload: attempt active reload
-  if (input.reload) {
+  // R pressed during reload: attempt active reload (ignored if already fumbled)
+  if (input.reload && !state.player.reloadFumbled) {
     if (progress >= weapon.perfectReloadStart && progress <= weapon.perfectReloadEnd) {
       completeReload(state, weapons, 'perfect');
       return;
@@ -113,8 +115,8 @@ export function updateReload(state: GameState, input: InputState, weapons: Weapo
       completeReload(state, weapons, 'active');
       return;
     }
-    // Missed the window — penalty: set progress back by 25% of total reload time
-    state.player.reloadTimer = Math.max(1, state.player.reloadTimer - Math.floor(weapon.reloadTime * 0.25));
+    // Missed the window — lock out further attempts for this reload cycle
+    state.player.reloadFumbled = true;
     state.events.push({
       tick: state.tick,
       type: 'reload_fumbled',

@@ -158,6 +158,7 @@ export interface Player {
   dodgeDir: Vec2; // locked movement direction during dodge
   ammo: number;
   reloadTimer: number; // 0 = not reloading, >0 = ticks elapsed since reload started
+  reloadFumbled: boolean; // true = fumbled this cycle, ignore further reload input
   damageBonusMultiplier: number; // from active/perfect reload, resets on next reload
   speedBoostTimer: number; // ticks remaining for multi-kill speed boost
   speedBoostMultiplier: number; // current speed multiplier from multi-kill

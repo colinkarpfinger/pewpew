@@ -54,6 +54,7 @@ export function createGame(configs: GameConfigs, seed: number = 12345, gameMode:
       dodgeDir: { x: 0, y: 0 },
       ammo: configs.weapons[weapon].magazineSize,
       reloadTimer: 0,
+      reloadFumbled: false,
       damageBonusMultiplier: 1.0,
       speedBoostTimer: 0,
       speedBoostMultiplier: 1.0,
