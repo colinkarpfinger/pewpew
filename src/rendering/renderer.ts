@@ -5,6 +5,7 @@ import {
   createPlayerMesh,
   createEnemyMesh,
   createProjectileMesh,
+  createEnemyProjectileMesh,
   createGrenadeMesh,
   createCashMesh,
   createCrateMesh,
@@ -30,6 +31,7 @@ export class Renderer {
   private weaponConfig: WeaponConfig | null = null;
   private enemyGroups = new Map<number, EnemyMeshGroup>();
   private projectileMeshes = new Map<number, THREE.Mesh>();
+  private enemyProjectileMeshes = new Map<number, THREE.Mesh>();
   private grenadeMeshes = new Map<number, THREE.Mesh>();
   private crateMeshes = new Map<number, THREE.Mesh>();
   private cashMeshes = new Map<number, THREE.Mesh>();
@@ -73,6 +75,7 @@ export class Renderer {
     // Clear stale refs from previous game
     this.enemyGroups.clear();
     this.projectileMeshes.clear();
+    this.enemyProjectileMeshes.clear();
     this.grenadeMeshes.clear();
     this.crateMeshes.clear();
     this.cashMeshes.clear();
@@ -304,6 +307,26 @@ export class Renderer {
       }
     }
 
+    // Sync enemy projectiles
+    const currentEnemyProjIds = new Set<number>();
+    for (const proj of state.enemyProjectiles) {
+      currentEnemyProjIds.add(proj.id);
+      let mesh = this.enemyProjectileMeshes.get(proj.id);
+      if (!mesh) {
+        mesh = createEnemyProjectileMesh();
+        this.enemyProjectileMeshes.set(proj.id, mesh);
+        this.scene.add(mesh);
+      }
+      mesh.position.set(proj.pos.x, mesh.position.y, proj.pos.y);
+    }
+    // Remove dead enemy projectile meshes
+    for (const [id, mesh] of this.enemyProjectileMeshes) {
+      if (!currentEnemyProjIds.has(id)) {
+        this.scene.remove(mesh);
+        this.enemyProjectileMeshes.delete(id);
+      }
+    }
+
     // Sync grenades
     const currentGrenadeIds = new Set<number>();
     for (const grenade of state.grenades) {
@@ -387,9 +410,10 @@ export class Renderer {
   }
 
   private updateMuzzleFlashes(dt: number, events: GameEvent[]): void {
-    // Spawn new flashes from projectile_fired events
+    // Spawn one flash per shot (not per pellet) from projectile_fired events
+    let shotFlashAdded = false;
     for (const ev of events) {
-      if (ev.type === 'projectile_fired') {
+      if (ev.type === 'projectile_fired' && !shotFlashAdded) {
         const d = ev.data;
         if (!d || typeof d.x !== 'number' || typeof d.y !== 'number') continue;
 
@@ -398,6 +422,15 @@ export class Renderer {
         this.scene.add(light);
         // Random duration between 60-80ms
         this.muzzleFlashes.push({ light, timer: 0.06 + Math.random() * 0.02 });
+        shotFlashAdded = true;
+      } else if (ev.type === 'enemy_projectile_fired') {
+        const d = ev.data;
+        if (!d || typeof d.x !== 'number' || typeof d.y !== 'number') continue;
+
+        const light = new THREE.PointLight(0xff2200, 2, 6);
+        light.position.set(d.x as number, 0.5, d.y as number);
+        this.scene.add(light);
+        this.muzzleFlashes.push({ light, timer: 0.05 + Math.random() * 0.02 });
       } else if (ev.type === 'grenade_exploded') {
         const d = ev.data;
         if (!d || typeof d.x !== 'number' || typeof d.y !== 'number') continue;

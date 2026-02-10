@@ -32,6 +32,7 @@ import multikillConfig from './configs/multikill.json';
 import grenadeConfig from './configs/grenade.json';
 import cratesConfig from './configs/crates.json';
 import cashConfig from './configs/cash.json';
+import gunnerConfig from './configs/gunner.json';
 import audioConfig from './configs/audio.json';
 import extractionMapConfig from './configs/extraction-map.json';
 import { addCashToStash, removeWeapon } from './persistence.ts';
@@ -47,6 +48,7 @@ const configs: GameConfigs = {
   grenade: grenadeConfig,
   crates: cratesConfig,
   cash: cashConfig,
+  gunner: gunnerConfig,
   extractionMap: extractionMapConfig,
 };
 const configsJson = JSON.stringify(configs);

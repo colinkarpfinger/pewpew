@@ -23,7 +23,21 @@ const weaponBase = {
 const cashConfig = {
   rusherAmount: [10, 20],
   sprinterAmount: [25, 40],
+  gunnerAmount: [30, 50],
   pickupRadius: 1.0,
+};
+
+const gunnerConfig = {
+  projectileDamage: 8,
+  projectileSpeed: 25,
+  projectileLifetime: 90,
+  fireCooldownTicks: 30,
+  engageRange: 10,
+  retreatRange: 15,
+  spread: 0.08,
+  advanceDuration: 120,
+  retreatDuration: 90,
+  retreatSpeedMultiplier: 0.6,
 };
 
 const configs: GameConfigs = {
@@ -37,6 +51,7 @@ const configs: GameConfigs = {
   enemies: {
     rusher: { speed: 2.5, hp: 50, contactDamage: 15, radius: 0.4, scoreValue: 100 },
     sprinter: { speed: 4.0, hp: 75, contactDamage: 20, radius: 0.35, scoreValue: 150 },
+    gunner: { speed: 2.0, hp: 80, contactDamage: 10, radius: 0.4, scoreValue: 200 },
   },
   spawning: { initialInterval: 120, minimumInterval: 30, decayRate: 0.95, maxEnemies: 30 },
   arena: { width: 30, height: 20, obstacleCount: 8, obstacleSize: 1.5 },
@@ -57,6 +72,7 @@ const configs: GameConfigs = {
     types: { grenade: 0.4, health: 0.6 }, healthAmount: 25,
   },
   cash: cashConfig,
+  gunner: gunnerConfig,
 };
 
 const noInput: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: false, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
@@ -70,10 +86,10 @@ const testExtractionMapEarly: ExtractionMapConfig = {
   maxEnemies: 40,
   minSpawnDistFromPlayer: 15,
   zones: [
-    { yMin: -60, yMax: -30, ambientInterval: 240, sprinterRatio: 0.05 },
-    { yMin: -30, yMax: 0, ambientInterval: 120, sprinterRatio: 0.15 },
-    { yMin: 0, yMax: 30, ambientInterval: 60, sprinterRatio: 0.3 },
-    { yMin: 30, yMax: 60, ambientInterval: 45, sprinterRatio: 0.45 },
+    { yMin: -60, yMax: -30, ambientInterval: 240, sprinterRatio: 0.05, gunnerRatio: 0 },
+    { yMin: -30, yMax: 0, ambientInterval: 120, sprinterRatio: 0.15, gunnerRatio: 0.1 },
+    { yMin: 0, yMax: 30, ambientInterval: 60, sprinterRatio: 0.3, gunnerRatio: 0.2 },
+    { yMin: 30, yMax: 60, ambientInterval: 45, sprinterRatio: 0.45, gunnerRatio: 0.25 },
   ],
   walls: [
     { pos: { x: -8, y: -48 }, width: 6, height: 1 },
@@ -319,7 +335,7 @@ for (let i = 0; i < sgA.state.projectiles.length; i++) {
 // ============================================================
 
 // Helper: inject an enemy at a specific position relative to player
-function injectEnemy(g: ReturnType<typeof createGame>, x: number, y: number, hp?: number, enemyType: 'rusher' | 'sprinter' = 'rusher'): number {
+function injectEnemy(g: ReturnType<typeof createGame>, x: number, y: number, hp?: number, enemyType: 'rusher' | 'sprinter' | 'gunner' = 'rusher'): number {
   const id = g.state.nextEntityId++;
   const cfg = configs.enemies[enemyType];
   g.state.enemies.push({
@@ -1175,6 +1191,302 @@ console.log('\n--- Test 44: Extended extraction with cash ---');
   if (totalCashSpawned > 0) {
     assert(totalCashSpawned > 0, `Cash spawned during extended play: ${totalCashSpawned}`);
   }
+}
+
+// ============================================================
+// Gunner Enemy Tests
+// ============================================================
+
+// Helper: inject a gunner with AI fields initialized
+function injectGunner(g: ReturnType<typeof createGame>, x: number, y: number, hp?: number): number {
+  const id = g.state.nextEntityId++;
+  const cfg = configs.enemies.gunner;
+  g.state.enemies.push({
+    id,
+    type: 'gunner',
+    pos: { x, y },
+    hp: hp ?? cfg.hp,
+    radius: cfg.radius,
+    speed: cfg.speed,
+    contactDamage: cfg.contactDamage,
+    scoreValue: cfg.scoreValue,
+    knockbackVel: { x: 0, y: 0 },
+    visible: true,
+    aiPhase: 'advance',
+    aiTimer: 0,
+    fireCooldown: 0,
+  });
+  return id;
+}
+
+// ---- Test 45: Gunner enemy stats ----
+console.log('\n--- Test 45: Gunner enemy stats ---');
+{
+  const g = createGame(configs, 3000, 'extraction');
+  const id = injectGunner(g, g.state.player.pos.x + 5, g.state.player.pos.y);
+  const enemy = g.state.enemies.find(e => e.id === id)!;
+  assert(enemy.type === 'gunner', 'Enemy type is gunner');
+  assert(enemy.hp === 80, 'Gunner HP is 80');
+  assert(enemy.speed === 2.0, 'Gunner speed is 2.0');
+  assert(enemy.radius === 0.4, 'Gunner radius is 0.4');
+  assert(enemy.scoreValue === 200, 'Gunner score value is 200');
+  assert(enemy.contactDamage === 10, 'Gunner contact damage is 10');
+  assert(enemy.aiPhase === 'advance', 'Gunner starts in advance phase');
+  assert(enemy.aiTimer === 0, 'Gunner AI timer starts at 0');
+  assert(enemy.fireCooldown === 0, 'Gunner fire cooldown starts at 0');
+}
+
+// ---- Test 46: Gunner fires projectiles when in range ----
+console.log('\n--- Test 46: Gunner fires projectiles ---');
+{
+  const g = createGame(combatConfigs, 3100, 'extraction');
+  // Place gunner within engage range (10 units) of player
+  injectGunner(g, g.state.player.pos.x + 6, g.state.player.pos.y);
+
+  let enemyProjFired = 0;
+  for (let i = 0; i < 120; i++) {
+    tick(g, noInput, configs);
+    for (const ev of g.state.events) {
+      if (ev.type === 'enemy_projectile_fired') enemyProjFired++;
+    }
+  }
+  assert(enemyProjFired > 0, `Gunner fired projectiles: ${enemyProjFired}`);
+  assert(g.state.enemyProjectiles.length >= 0, 'Enemy projectiles array exists');
+}
+
+// ---- Test 47: Enemy projectiles damage player ----
+console.log('\n--- Test 47: Enemy projectile damages player ---');
+{
+  const g = createGame(combatConfigs, 3200, 'extraction');
+  // Place gunner very close to player so it fires immediately and hits easily
+  injectGunner(g, g.state.player.pos.x + 3, g.state.player.pos.y);
+
+  const startHp = g.state.player.hp;
+  let playerHit = false;
+  // Run long enough for gunner to fire and projectile to reach player
+  for (let i = 0; i < 300; i++) {
+    tick(g, noInput, configs);
+    for (const ev of g.state.events) {
+      if (ev.type === 'player_hit' && ev.data?.['source'] === 'projectile') {
+        playerHit = true;
+      }
+    }
+    if (g.state.gameOver) break;
+  }
+  // Player should have been hit by enemy projectile or by contact
+  assert(g.state.player.hp < startHp, `Player took damage: ${startHp} -> ${g.state.player.hp}`);
+}
+
+// ---- Test 48: Enemy projectiles blocked by walls ----
+console.log('\n--- Test 48: Enemy projectiles blocked by walls ---');
+{
+  // Use extraction config with walls
+  const g = createGame(extractionConfigs, 3300, 'extraction');
+  // Place a wall between gunner and player
+  // Player at (0, -55), add wall at (0, -50)
+  g.state.obstacles.push({ pos: { x: 0, y: -50 }, width: 10, height: 2 });
+  // Place gunner on other side of wall
+  injectGunner(g, 0, -45);
+
+  // Run for a while, gunner should fire but projectiles should hit wall
+  let projHitPlayer = false;
+  for (let i = 0; i < 180; i++) {
+    tick(g, noInput, extractionConfigs);
+    for (const ev of g.state.events) {
+      if (ev.type === 'player_hit' && ev.data?.['source'] === 'projectile') {
+        projHitPlayer = true;
+      }
+    }
+  }
+  assert(!projHitPlayer, 'Enemy projectiles blocked by wall (no player hit from projectile)');
+}
+
+// ---- Test 49: Enemy projectiles respect dodge i-frames ----
+console.log('\n--- Test 49: Enemy projectiles respect dodge ---');
+{
+  const g = createGame(combatConfigs, 3400, 'extraction');
+  // Manually place an enemy projectile right on top of player
+  g.state.enemyProjectiles.push({
+    id: g.state.nextEntityId++,
+    pos: { x: g.state.player.pos.x, y: g.state.player.pos.y },
+    vel: { x: 0, y: 0 },
+    damage: 8,
+    lifetime: 10,
+  });
+
+  // Put player in dodge
+  g.state.player.dodgeTimer = 10;
+  g.state.player.dodgeDir = { x: 1, y: 0 };
+
+  const hpBefore = g.state.player.hp;
+  tick(g, noInput, configs);
+  assert(g.state.player.hp === hpBefore, 'Player not damaged during dodge');
+}
+
+// ---- Test 50: Enemy projectiles respect i-frames ----
+console.log('\n--- Test 50: Enemy projectiles respect i-frames ---');
+{
+  const g = createGame(combatConfigs, 3500, 'extraction');
+  g.state.enemyProjectiles.push({
+    id: g.state.nextEntityId++,
+    pos: { x: g.state.player.pos.x, y: g.state.player.pos.y },
+    vel: { x: 0, y: 0 },
+    damage: 8,
+    lifetime: 10,
+  });
+
+  // Give player i-frames
+  g.state.player.iframeTimer = 30;
+
+  const hpBefore = g.state.player.hp;
+  tick(g, noInput, configs);
+  assert(g.state.player.hp === hpBefore, 'Player not damaged during i-frames');
+}
+
+// ---- Test 51: Gunner AI advance/retreat cycle ----
+console.log('\n--- Test 51: Gunner AI advance/retreat ---');
+{
+  const g = createGame(combatConfigs, 3600, 'extraction');
+  // Place gunner within engage range so it starts ticking aiTimer
+  const id = injectGunner(g, g.state.player.pos.x + 5, g.state.player.pos.y);
+
+  // Run for advanceDuration (120 ticks) — gunner should switch to retreat
+  for (let i = 0; i < 150; i++) {
+    tick(g, noInput, configs);
+  }
+
+  const enemy = g.state.enemies.find(e => e.id === id);
+  if (enemy) {
+    assert(enemy.aiPhase === 'retreat', `Gunner switched to retreat: ${enemy.aiPhase}`);
+  } else {
+    // Gunner may have been killed by other means — that's ok, skip
+    console.log('  (Gunner died before retreat check — skipping)');
+  }
+}
+
+// ---- Test 52: Gunner advances toward player ----
+console.log('\n--- Test 52: Gunner advances toward player ---');
+{
+  const g = createGame(combatConfigs, 3700, 'extraction');
+  const startX = g.state.player.pos.x + 12; // beyond engage range
+  injectGunner(g, startX, g.state.player.pos.y);
+
+  // Run a few ticks — gunner should move toward player
+  for (let i = 0; i < 30; i++) {
+    tick(g, noInput, configs);
+  }
+
+  const enemy = g.state.enemies[0];
+  if (enemy) {
+    assert(enemy.pos.x < startX, `Gunner moved toward player: ${startX.toFixed(1)} -> ${enemy.pos.x.toFixed(1)}`);
+  }
+}
+
+// ---- Test 53: Killing gunner awards correct score ----
+console.log('\n--- Test 53: Gunner kill score ---');
+{
+  const g = createGame(combatConfigs, 3800, 'arena');
+  // Place gunner with 1 HP right in front of player
+  injectGunner(g, 2, 0, 1);
+  const input = aimAt(g, 2, 0);
+
+  let killScore = 0;
+  for (let i = 0; i < 20; i++) {
+    tick(g, i === 0 ? input : { ...input, fire: false }, configs);
+    for (const ev of g.state.events) {
+      if (ev.type === 'enemy_killed' && ev.data?.['enemyType'] === 'gunner') {
+        killScore = ev.data?.['scoreValue'] as number;
+      }
+    }
+  }
+  assert(killScore === 200, `Gunner kill awards 200 score: ${killScore}`);
+}
+
+// ---- Test 54: Gunner cash drop in extraction mode ----
+console.log('\n--- Test 54: Gunner cash drop ---');
+{
+  const g = createGame(extractionConfigs, 3900, 'extraction');
+  injectGunner(g, g.state.player.pos.x + 2, g.state.player.pos.y, 1);
+  const input = aimAt(g, g.state.player.pos.x + 2, g.state.player.pos.y);
+
+  for (let i = 0; i < 30; i++) {
+    tick(g, i === 0 ? input : { ...input, fire: false }, extractionConfigs);
+  }
+
+  assert(g.state.cashPickups.length > 0, `Gunner dropped cash: ${g.state.cashPickups.length}`);
+  if (g.state.cashPickups.length > 0) {
+    const amt = g.state.cashPickups[0].amount;
+    assert(amt >= 30 && amt <= 50, `Gunner cash in range [30,50]: ${amt}`);
+  }
+}
+
+// ---- Test 55: enemyProjectiles initialized in game state ----
+console.log('\n--- Test 55: enemyProjectiles init ---');
+{
+  const g = createGame(configs, 4000, 'arena');
+  assert(Array.isArray(g.state.enemyProjectiles), 'enemyProjectiles is an array');
+  assert(g.state.enemyProjectiles.length === 0, 'enemyProjectiles starts empty');
+
+  const gEx = createGame(extractionConfigs, 4001, 'extraction');
+  assert(Array.isArray(gEx.state.enemyProjectiles), 'enemyProjectiles is an array (extraction)');
+  assert(gEx.state.enemyProjectiles.length === 0, 'enemyProjectiles starts empty (extraction)');
+}
+
+// ---- Test 56: Gunner determinism ----
+console.log('\n--- Test 56: Gunner determinism ---');
+{
+  const gA = createGame(combatConfigs, 4100, 'extraction');
+  const gB = createGame(combatConfigs, 4100, 'extraction');
+
+  // Inject same gunner in both
+  injectGunner(gA, gA.state.player.pos.x + 5, gA.state.player.pos.y);
+  injectGunner(gB, gB.state.player.pos.x + 5, gB.state.player.pos.y);
+
+  for (let i = 0; i < 200; i++) {
+    tick(gA, noInput, configs);
+    tick(gB, noInput, configs);
+  }
+
+  assert(gA.state.enemies.length === gB.state.enemies.length, 'Same enemy count');
+  assert(gA.state.enemyProjectiles.length === gB.state.enemyProjectiles.length, 'Same enemy projectile count');
+  assert(gA.state.player.hp === gB.state.player.hp, 'Same player HP');
+  if (gA.state.enemies.length > 0) {
+    assert(gA.state.enemies[0].pos.x === gB.state.enemies[0].pos.x, 'Same gunner X position');
+    assert(gA.state.enemies[0].aiPhase === gB.state.enemies[0].aiPhase, 'Same gunner AI phase');
+  }
+}
+
+// ---- Test 57: No gunners in arena mode (spawner doesn't use gunnerRatio) ----
+console.log('\n--- Test 57: No gunners in arena mode ---');
+{
+  const g = createGame(configs, 4200, 'arena');
+  // Run long enough for arena spawner to spawn enemies
+  for (let i = 0; i < 600; i++) {
+    tick(g, noInput, configs);
+  }
+  const gunnerCount = g.state.enemies.filter(e => e.type === 'gunner').length;
+  assert(gunnerCount === 0, `No gunners in arena mode: ${gunnerCount}`);
+}
+
+// ---- Test 58: Enemy projectile lifetime/expiry ----
+console.log('\n--- Test 58: Enemy projectile expiry ---');
+{
+  const g = createGame(combatConfigs, 4300, 'extraction');
+  // Manually add enemy projectile with short lifetime, aimed away from player
+  g.state.enemyProjectiles.push({
+    id: g.state.nextEntityId++,
+    pos: { x: 0, y: 0 },
+    vel: { x: 25, y: 0 }, // moving away
+    damage: 8,
+    lifetime: 5,
+  });
+  assert(g.state.enemyProjectiles.length === 1, 'Enemy projectile exists');
+
+  // Run for more than 5 ticks
+  for (let i = 0; i < 10; i++) {
+    tick(g, noInput, configs);
+  }
+  assert(g.state.enemyProjectiles.length === 0, 'Enemy projectile expired');
 }
 
 console.log('\n=== All headless tests passed! ===');

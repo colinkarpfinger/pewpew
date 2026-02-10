@@ -164,6 +164,19 @@
       "maxInstances": 2,
       "cooldown": 0.1,
       "spatial": true
+    },
+    "enemy_fire": {
+      "files": [
+        "assets/audio/weapons/m4_rifle/shoot/sfx_weapon_M4_shot_1.wav",
+        "assets/audio/weapons/m4_rifle/shoot/sfx_weapon_M4_shot_2.wav",
+        "assets/audio/weapons/m4_rifle/shoot/sfx_weapon_M4_shot_3.wav",
+        "assets/audio/weapons/m4_rifle/shoot/sfx_weapon_M4_shot_4.wav"
+      ],
+      "volume": 0.25,
+      "pitchRange": [0.6, 0.75],
+      "maxInstances": 3,
+      "cooldown": 0.08,
+      "spatial": true
     }
   }
 }

@@ -1,7 +1,9 @@
-import type { GameState, InputState, WeaponsConfig, WeaponConfig, Projectile } from './types.ts';
+import type { GameState, InputState, WeaponsConfig, WeaponConfig, Projectile, PlayerConfig } from './types.ts';
 import { TICK_RATE } from './types.ts';
 import { circleCircle, circleAABB, isOutOfBounds, pointToLineDist, normalize } from './collision.ts';
 import type { SeededRNG } from './rng.ts';
+
+const ENEMY_PROJ_RADIUS = 0.15;
 
 function getWeapon(state: GameState, weapons: WeaponsConfig): WeaponConfig {
   return weapons[state.player.activeWeapon];
@@ -248,4 +250,58 @@ export function checkProjectileCollisions(state: GameState, weapons: WeaponsConf
   // Remove dead projectiles and enemies
   state.projectiles = state.projectiles.filter(p => !toRemove.has(p.id));
   state.enemies = state.enemies.filter(e => !deadEnemies.has(e.id));
+}
+
+export function updateEnemyProjectiles(state: GameState): void {
+  const dt = 1 / TICK_RATE;
+
+  for (const proj of state.enemyProjectiles) {
+    proj.pos.x += proj.vel.x * dt;
+    proj.pos.y += proj.vel.y * dt;
+    proj.lifetime--;
+  }
+
+  // Remove expired or out-of-bounds
+  state.enemyProjectiles = state.enemyProjectiles.filter(p => {
+    if (p.lifetime <= 0) return false;
+    if (isOutOfBounds(p.pos, ENEMY_PROJ_RADIUS, state.arena.width, state.arena.height)) return false;
+    // Check obstacle collision
+    for (const obs of state.obstacles) {
+      if (circleAABB(p.pos, ENEMY_PROJ_RADIUS, obs)) return false;
+    }
+    return true;
+  });
+}
+
+export function checkEnemyProjectileHits(state: GameState, playerConfig: PlayerConfig): void {
+  if (state.player.dodgeTimer > 0) return;
+  if (state.player.iframeTimer > 0) return;
+
+  for (let i = state.enemyProjectiles.length - 1; i >= 0; i--) {
+    const proj = state.enemyProjectiles[i];
+    if (circleCircle(proj.pos, ENEMY_PROJ_RADIUS, state.player.pos, state.player.radius)) {
+      state.player.hp -= proj.damage;
+      state.player.iframeTimer = playerConfig.iframeDuration;
+
+      state.events.push({
+        tick: state.tick,
+        type: 'player_hit',
+        data: { damage: proj.damage, remainingHp: state.player.hp, x: state.player.pos.x, y: state.player.pos.y, source: 'projectile' },
+      });
+
+      if (state.player.hp <= 0) {
+        state.player.hp = 0;
+        state.gameOver = true;
+        state.events.push({
+          tick: state.tick,
+          type: 'player_death',
+          data: { finalScore: state.score },
+        });
+      }
+
+      state.enemyProjectiles.splice(i, 1);
+      // Only take one projectile hit per tick
+      return;
+    }
+  }
 }

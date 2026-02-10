@@ -12,5 +12,12 @@
     "contactDamage": 20,
     "radius": 0.35,
     "scoreValue": 150
+  },
+  "gunner": {
+    "speed": 2.0,
+    "hp": 80,
+    "contactDamage": 10,
+    "radius": 0.4,
+    "scoreValue": 200
   }
 }

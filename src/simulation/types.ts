@@ -2,7 +2,7 @@
 
 export type WeaponType = 'pistol' | 'smg' | 'rifle' | 'shotgun';
 export type GameMode = 'arena' | 'extraction';
-export type EnemyType = 'rusher' | 'sprinter';
+export type EnemyType = 'rusher' | 'sprinter' | 'gunner';
 
 export interface PlayerConfig {
   speed: number;
@@ -49,6 +49,7 @@ export interface EnemyTypeConfig {
 export interface EnemiesConfig {
   rusher: EnemyTypeConfig;
   sprinter: EnemyTypeConfig;
+  gunner: EnemyTypeConfig;
 }
 
 export interface SpawningConfig {
@@ -107,7 +108,21 @@ export interface CrateConfig {
 export interface CashConfig {
   rusherAmount: number[]; // [min, max] inclusive
   sprinterAmount: number[];
+  gunnerAmount: number[];
   pickupRadius: number;
+}
+
+export interface GunnerConfig {
+  projectileDamage: number;
+  projectileSpeed: number;
+  projectileLifetime: number; // ticks
+  fireCooldownTicks: number;
+  engageRange: number;
+  retreatRange: number;
+  spread: number; // radians
+  advanceDuration: number; // ticks
+  retreatDuration: number; // ticks
+  retreatSpeedMultiplier: number;
 }
 
 export interface GameConfigs {
@@ -120,6 +135,7 @@ export interface GameConfigs {
   grenade: GrenadeConfig;
   crates: CrateConfig;
   cash?: CashConfig;
+  gunner?: GunnerConfig;
   extractionMap?: ExtractionMapConfig;
 }
 
@@ -160,6 +176,9 @@ export interface Enemy {
   scoreValue: number;
   knockbackVel: Vec2;
   visible: boolean;
+  aiPhase?: 'advance' | 'retreat';
+  aiTimer?: number;
+  fireCooldown?: number;
 }
 
 export interface Projectile {
@@ -173,6 +192,14 @@ export interface Projectile {
   hitEnemyIds: number[]; // enemies already hit (to avoid double-hits)
   killCount: number; // accumulated kills by this bullet (for multi-kill detection)
   weaponType: WeaponType;
+}
+
+export interface EnemyProjectile {
+  id: number;
+  pos: Vec2;
+  vel: Vec2;
+  damage: number;
+  lifetime: number; // ticks remaining
 }
 
 export interface Obstacle {
@@ -223,6 +250,7 @@ export interface TriggerRegion {
   spawnPoints: Vec2[];
   enemyCount: number;
   sprinterRatio: number;
+  gunnerRatio?: number;
 }
 
 export interface ZoneConfig {
@@ -230,6 +258,7 @@ export interface ZoneConfig {
   yMax: number;
   ambientInterval: number;
   sprinterRatio: number;
+  gunnerRatio?: number;
 }
 
 export interface ExtractionMapConfig {
@@ -285,6 +314,7 @@ export type GameEventType =
   | 'crate_expired'
   | 'cash_spawned'
   | 'cash_picked_up'
+  | 'enemy_projectile_fired'
   | 'trigger_activated'
   | 'extraction_success';
 
@@ -307,6 +337,7 @@ export interface GameState {
   player: Player;
   enemies: Enemy[];
   projectiles: Projectile[];
+  enemyProjectiles: EnemyProjectile[];
   grenades: Grenade[];
   crates: Crate[];
   cashPickups: CashPickup[];

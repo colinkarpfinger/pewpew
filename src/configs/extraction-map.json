@@ -6,10 +6,10 @@
   "maxEnemies": 40,
   "minSpawnDistFromPlayer": 15,
   "zones": [
-    { "yMin": -60, "yMax": -30, "ambientInterval": 240, "sprinterRatio": 0.05 },
-    { "yMin": -30, "yMax": 0, "ambientInterval": 120, "sprinterRatio": 0.15 },
-    { "yMin": 0, "yMax": 30, "ambientInterval": 60, "sprinterRatio": 0.3 },
-    { "yMin": 30, "yMax": 60, "ambientInterval": 45, "sprinterRatio": 0.45 }
+    { "yMin": -60, "yMax": -30, "ambientInterval": 240, "sprinterRatio": 0.05, "gunnerRatio": 0 },
+    { "yMin": -30, "yMax": 0, "ambientInterval": 120, "sprinterRatio": 0.15, "gunnerRatio": 0.1 },
+    { "yMin": 0, "yMax": 30, "ambientInterval": 60, "sprinterRatio": 0.3, "gunnerRatio": 0.2 },
+    { "yMin": 30, "yMax": 60, "ambientInterval": 45, "sprinterRatio": 0.45, "gunnerRatio": 0.25 }
   ],
   "walls": [
     { "pos": { "x": -8, "y": -48 }, "width": 6, "height": 1 },
@@ -63,7 +63,8 @@
         { "x": -8, "y": -32 }, { "x": 8, "y": -32 }
       ],
       "enemyCount": 5,
-      "sprinterRatio": 0.2
+      "sprinterRatio": 0.2,
+      "gunnerRatio": 0
     },
     {
       "id": 2,
@@ -74,7 +75,8 @@
         { "x": -10, "y": -18 }, { "x": 10, "y": -18 }
       ],
       "enemyCount": 6,
-      "sprinterRatio": 0.2
+      "sprinterRatio": 0.2,
+      "gunnerRatio": 0.1
     },
     {
       "id": 3,
@@ -86,7 +88,8 @@
         { "x": 0, "y": 4 }
       ],
       "enemyCount": 8,
-      "sprinterRatio": 0.3
+      "sprinterRatio": 0.3,
+      "gunnerRatio": 0.15
     },
     {
       "id": 4,
@@ -97,7 +100,8 @@
         { "x": -10, "y": 12 }, { "x": 10, "y": 12 }
       ],
       "enemyCount": 7,
-      "sprinterRatio": 0.3
+      "sprinterRatio": 0.3,
+      "gunnerRatio": 0.15
     },
     {
       "id": 5,
@@ -109,7 +113,8 @@
         { "x": 0, "y": 32 }
       ],
       "enemyCount": 8,
-      "sprinterRatio": 0.35
+      "sprinterRatio": 0.35,
+      "gunnerRatio": 0.2
     },
     {
       "id": 6,
@@ -121,7 +126,8 @@
         { "x": -6, "y": 44 }, { "x": 6, "y": 44 }
       ],
       "enemyCount": 10,
-      "sprinterRatio": 0.4
+      "sprinterRatio": 0.4,
+      "gunnerRatio": 0.2
     },
     {
       "id": 7,
@@ -133,7 +139,8 @@
         { "x": -8, "y": 54 }, { "x": 8, "y": 54 }
       ],
       "enemyCount": 10,
-      "sprinterRatio": 0.45
+      "sprinterRatio": 0.45,
+      "gunnerRatio": 0.25
     }
   ]
 }

@@ -40,7 +40,7 @@ export function updateExtractionSpawner(
       if (state.enemies.length >= map.maxEnemies) break;
 
       const spawnPoint = region.spawnPoints[i % region.spawnPoints.length];
-      const enemyType: EnemyType = rng.next() < region.sprinterRatio ? 'sprinter' : 'rusher';
+      const enemyType: EnemyType = pickEnemyType(rng, region.sprinterRatio, region.gunnerRatio ?? 0);
       const enemy = createEnemy(state, spawnPoint.x, spawnPoint.y, enemyType, enemies);
       state.enemies.push(enemy);
       state.events.push({
@@ -69,7 +69,7 @@ export function updateExtractionSpawner(
       const spawnPos = findAmbientSpawnPos(map, zone, playerPos, rng);
       if (!spawnPos) continue;
 
-      const enemyType: EnemyType = rng.next() < zone.sprinterRatio ? 'sprinter' : 'rusher';
+      const enemyType: EnemyType = pickEnemyType(rng, zone.sprinterRatio, zone.gunnerRatio ?? 0);
       const enemy = createEnemy(state, spawnPos.x, spawnPos.y, enemyType, enemies);
       state.enemies.push(enemy);
       state.events.push({
@@ -101,6 +101,13 @@ function findAmbientSpawnPos(
   return null;
 }
 
+function pickEnemyType(rng: SeededRNG, sprinterRatio: number, gunnerRatio: number): EnemyType {
+  const roll = rng.next();
+  if (roll < gunnerRatio) return 'gunner';
+  if (roll < gunnerRatio + sprinterRatio) return 'sprinter';
+  return 'rusher';
+}
+
 function createEnemy(
   state: GameState,
   x: number,
@@ -109,7 +116,7 @@ function createEnemy(
   enemies: EnemiesConfig,
 ): Enemy {
   const cfg = enemies[enemyType];
-  return {
+  const enemy: Enemy = {
     id: state.nextEntityId++,
     type: enemyType,
     pos: { x, y },
@@ -121,4 +128,12 @@ function createEnemy(
     knockbackVel: { x: 0, y: 0 },
     visible: true,
   };
+
+  if (enemyType === 'gunner') {
+    enemy.aiPhase = 'advance';
+    enemy.aiTimer = 0;
+    enemy.fireCooldown = 0;
+  }
+
+  return enemy;
 }

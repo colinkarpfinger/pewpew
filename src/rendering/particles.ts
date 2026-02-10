@@ -231,6 +231,22 @@ export class ParticleSystem {
           });
           break;
 
+        case 'enemy_projectile_fired':
+          this.emit({
+            x: d.x as number,
+            z: d.y as number,
+            count: 3 + Math.floor(Math.random() * 3), // 3-5
+            speed: [3, 7],
+            angle: d.angle as number,
+            spread: 0.3,
+            lifetime: [0.03, 0.1],
+            size: [0.15, 0.3],
+            color: new THREE.Color(1, 0.15, 0.05), // red
+            gravity: 4,
+            ySpeed: [0.5, 2],
+          });
+          break;
+
         case 'projectile_destroyed':
           this.emit({
             x: d.x as number,

@@ -2,7 +2,7 @@ import type { GameState, GameConfigs, InputState, MultiKillConfig, GameMode, Wea
 import { SeededRNG } from './rng.ts';
 import { createArena } from './arena.ts';
 import { updatePlayer } from './player.ts';
-import { tryFire, updateProjectiles, checkProjectileCollisions, updateReload } from './combat.ts';
+import { tryFire, updateProjectiles, checkProjectileCollisions, updateReload, updateEnemyProjectiles, checkEnemyProjectileHits } from './combat.ts';
 import { updateEnemies, checkContactDamage } from './enemies.ts';
 import { updateSpawner } from './spawner.ts';
 import { tryThrowGrenade, updateGrenades } from './grenade.ts';
@@ -60,6 +60,7 @@ export function createGame(configs: GameConfigs, seed: number = 12345, gameMode:
     },
     enemies: [],
     projectiles: [],
+    enemyProjectiles: [],
     grenades: [],
     crates: [],
     cashPickups: [],
@@ -153,7 +154,11 @@ export function tick(game: GameInstance, input: InputState, configs: GameConfigs
   }
 
   // 7. Enemy AI
-  updateEnemies(state, configs.enemies);
+  updateEnemies(state, configs.enemies, configs.gunner, rng);
+
+  // 7b. Enemy projectiles
+  updateEnemyProjectiles(state);
+  checkEnemyProjectileHits(state, configs.player);
 
   // 8. Contact damage
   const savedIframe = state.player.iframeTimer;
@@ -256,6 +261,8 @@ export function restoreGame(stateSnapshot: GameState, rngState: number): GameIns
   for (const proj of state.projectiles) {
     proj.weaponType ??= 'rifle';
   }
+  // Backward-compat: enemy projectiles
+  state.enemyProjectiles ??= [];
   // Backward-compat: extraction fields
   state.extractionMap ??= null;
   state.extractionSpawner ??= null;

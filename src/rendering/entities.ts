@@ -102,9 +102,15 @@ export interface EnemyMeshGroup {
 export function createEnemyMesh(radius: number, enemyType: EnemyType = 'rusher'): EnemyMeshGroup {
   const group = new THREE.Group();
 
-  const isSprinter = enemyType === 'sprinter';
-  const bodyColor = isSprinter ? 0xff8800 : 0xff3333;
-  const headColor = isSprinter ? 0xcc6600 : 0xcc2222;
+  let bodyColor = 0xff3333; // rusher
+  let headColor = 0xcc2222;
+  if (enemyType === 'sprinter') {
+    bodyColor = 0xff8800;
+    headColor = 0xcc6600;
+  } else if (enemyType === 'gunner') {
+    bodyColor = 0x8844cc;
+    headColor = 0x6633aa;
+  }
 
   // Body cube
   const bodyGeo = new THREE.BoxGeometry(radius * 2, radius * 2, radius * 2);
@@ -171,6 +177,18 @@ export function createProjectileMesh(weaponType: WeaponType = 'rifle'): THREE.Me
   const material = new THREE.MeshStandardMaterial({
     color,
     emissive,
+    emissiveIntensity: 1.0,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.y = 0.5;
+  return mesh;
+}
+
+export function createEnemyProjectileMesh(): THREE.Mesh {
+  const geometry = new THREE.SphereGeometry(0.08, 6, 6);
+  const material = new THREE.MeshStandardMaterial({
+    color: 0xff2222,
+    emissive: 0xcc0000,
     emissiveIntensity: 1.0,
   });
   const mesh = new THREE.Mesh(geometry, material);
