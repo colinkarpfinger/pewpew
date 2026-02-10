@@ -7,6 +7,9 @@ import { updateEnemies, checkContactDamage } from './enemies.ts';
 import { updateSpawner } from './spawner.ts';
 import { tryThrowGrenade, updateGrenades } from './grenade.ts';
 import { spawnCrates, checkCratePickups, updateCrateLifetimes } from './crates.ts';
+import { createExtractionSpawner, updateExtractionSpawner } from './extraction-spawner.ts';
+import { updateVisibility } from './line-of-sight.ts';
+import { isInExtractionZone } from './extraction-map.ts';
 
 export interface GameInstance {
   state: GameState;
@@ -15,19 +18,33 @@ export interface GameInstance {
 
 export function createGame(configs: GameConfigs, seed: number = 12345, gameMode: GameMode = 'arena', activeWeapon?: WeaponType): GameInstance {
   const rng = new SeededRNG(seed);
-  const obstacles = createArena(configs.arena, rng);
 
   const weapon: WeaponType = activeWeapon ?? (gameMode === 'extraction' ? 'pistol' : 'rifle');
+
+  const isExtraction = gameMode === 'extraction' && configs.extractionMap;
+  const extractionMap = isExtraction ? configs.extractionMap! : null;
+
+  // For extraction mode: use the map's walls as obstacles, set arena to map dimensions
+  const arena = extractionMap
+    ? { width: extractionMap.width, height: extractionMap.height, obstacleCount: 0, obstacleSize: 0 }
+    : configs.arena;
+  const obstacles = extractionMap
+    ? [...extractionMap.walls]
+    : createArena(configs.arena, rng);
+
+  const playerSpawn = extractionMap
+    ? { x: extractionMap.playerSpawn.x, y: extractionMap.playerSpawn.y }
+    : { x: 0, y: 0 };
 
   const state: GameState = {
     tick: 0,
     gameMode,
     player: {
-      pos: { x: 0, y: 0 },
+      pos: playerSpawn,
       hp: configs.player.hp,
       maxHp: configs.player.hp,
       radius: configs.player.radius,
-      aimDir: { x: 1, y: 0 },
+      aimDir: { x: 0, y: 1 },
       iframeTimer: 0,
       fireCooldown: 0,
       dodgeTimer: 0,
@@ -45,7 +62,7 @@ export function createGame(configs: GameConfigs, seed: number = 12345, gameMode:
     grenades: [],
     crates: [],
     obstacles,
-    arena: configs.arena,
+    arena,
     grenadeAmmo: configs.grenade.startingAmmo,
     score: 0,
     gameOver: false,
@@ -55,14 +72,22 @@ export function createGame(configs: GameConfigs, seed: number = 12345, gameMode:
       currentInterval: configs.spawning.initialInterval,
     },
     events: [],
+    extractionMap,
+    extractionSpawner: extractionMap ? createExtractionSpawner(extractionMap) : null,
+    extracted: false,
   };
+
+  // Arena mode: aim right by default
+  if (!extractionMap) {
+    state.player.aimDir = { x: 1, y: 0 };
+  }
 
   return { state, rng };
 }
 
 export function tick(game: GameInstance, input: InputState, configs: GameConfigs): void {
   const { state, rng } = game;
-  if (state.gameOver) return;
+  if (state.gameOver || state.extracted) return;
 
   // Clear per-tick events
   state.events = [];
@@ -113,18 +138,36 @@ export function tick(game: GameInstance, input: InputState, configs: GameConfigs
   // 5e. Crate lifetime expiration
   updateCrateLifetimes(state);
 
-  // 6. Enemy AI
+  // 6. Line of sight (extraction mode only — arena enemies always visible)
+  if (state.extractionMap) {
+    updateVisibility(state.player.pos, state.enemies, state.obstacles);
+  }
+
+  // 7. Enemy AI
   updateEnemies(state, configs.enemies);
 
-  // 7. Contact damage
+  // 8. Contact damage
   const savedIframe = state.player.iframeTimer;
   checkContactDamage(state, configs.enemies);
   if (state.player.iframeTimer > 0 && savedIframe === 0) {
     state.player.iframeTimer = configs.player.iframeDuration;
   }
 
-  // 7. Spawner
-  updateSpawner(state, configs.spawning, configs.enemies, rng);
+  // 9. Spawner
+  if (state.extractionMap && state.extractionSpawner) {
+    updateExtractionSpawner(state, state.extractionMap, configs.enemies, rng);
+  } else {
+    updateSpawner(state, configs.spawning, configs.enemies, rng);
+  }
+
+  // 10. Extraction win condition
+  if (state.extractionMap && isInExtractionZone(state.player.pos, state.extractionMap.extractionZone)) {
+    state.extracted = true;
+    state.events.push({
+      tick: state.tick,
+      type: 'extraction_success',
+    });
+  }
 }
 
 function detectMultiKills(state: GameState, config: MultiKillConfig): void {
@@ -201,6 +244,14 @@ export function restoreGame(stateSnapshot: GameState, rngState: number): GameIns
   // Backward-compat: old projectiles missing weaponType
   for (const proj of state.projectiles) {
     proj.weaponType ??= 'rifle';
+  }
+  // Backward-compat: extraction fields
+  state.extractionMap ??= null;
+  state.extractionSpawner ??= null;
+  state.extracted ??= false;
+  // Backward-compat: enemy visible field
+  for (const enemy of state.enemies) {
+    enemy.visible ??= true;
   }
   const rng = new SeededRNG(0);
   rng.setState(rngState);

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { GameState, GameEvent, WeaponConfig } from '../simulation/types.ts';
+import type { GameState, GameEvent, WeaponConfig, EnemyType } from '../simulation/types.ts';
 import { ParticleSystem } from './particles.ts';
 import {
   createPlayerMesh,
@@ -10,6 +10,7 @@ import {
   createObstacleMesh,
   createGroundMesh,
   createWallMeshes,
+  createExtractionZoneMesh,
   type EnemyMeshGroup,
 } from './entities.ts';
 import { createCamera, updateCamera } from './camera.ts';
@@ -32,6 +33,8 @@ export class Renderer {
   private crateMeshes = new Map<number, THREE.Mesh>();
   private particles: ParticleSystem | null = null;
   private muzzleFlashes: { light: THREE.PointLight; timer: number }[] = [];
+  private dirLight: THREE.DirectionalLight | null = null;
+  private enemyTypes = new Map<number, EnemyType>();
 
   constructor(canvas: HTMLCanvasElement) {
     this.scene = new THREE.Scene();
@@ -70,6 +73,7 @@ export class Renderer {
     this.projectileMeshes.clear();
     this.grenadeMeshes.clear();
     this.crateMeshes.clear();
+    this.enemyTypes.clear();
     this.playerGroup = null;
 
     // Ground
@@ -85,6 +89,23 @@ export class Renderer {
       const mesh = createObstacleMesh(obs.width, obs.height);
       mesh.position.set(obs.pos.x, mesh.position.y, obs.pos.y);
       this.scene.add(mesh);
+    }
+
+    // Extraction zone marker
+    if (state.extractionMap) {
+      const ez = state.extractionMap.extractionZone;
+      const ezMesh = createExtractionZoneMesh(ez.width, ez.height);
+      ezMesh.position.set(ez.x, 0.02, ez.y);
+      this.scene.add(ezMesh);
+    }
+
+    // Find the directional light in the scene (created by rebuildScene) for shadow follow
+    this.dirLight = null;
+    for (const child of this.scene.children) {
+      if (child instanceof THREE.DirectionalLight) {
+        this.dirLight = child;
+        break;
+      }
     }
 
     // Clean up muzzle flashes
@@ -232,18 +253,32 @@ export class Renderer {
       currentEnemyIds.add(enemy.id);
       let entry = this.enemyGroups.get(enemy.id);
       if (!entry) {
-        entry = createEnemyMesh(enemy.radius);
+        entry = createEnemyMesh(enemy.radius, enemy.type);
         this.enemyGroups.set(enemy.id, entry);
+        this.enemyTypes.set(enemy.id, enemy.type);
         this.scene.add(entry.group);
       }
       entry.group.position.set(enemy.pos.x, 0, enemy.pos.y);
+      entry.group.visible = enemy.visible;
     }
     // Remove dead enemy meshes
     for (const [id, entry] of this.enemyGroups) {
       if (!currentEnemyIds.has(id)) {
         this.scene.remove(entry.group);
         this.enemyGroups.delete(id);
+        this.enemyTypes.delete(id);
       }
+    }
+
+    // Update directional light to follow player (for shadow coverage on large maps)
+    if (this.dirLight) {
+      this.dirLight.position.set(
+        state.player.pos.x + 10,
+        20,
+        state.player.pos.y + 10,
+      );
+      this.dirLight.target.position.set(state.player.pos.x, 0, state.player.pos.y);
+      this.dirLight.target.updateMatrixWorld();
     }
 
     // Sync projectiles

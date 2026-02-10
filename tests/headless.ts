@@ -3,8 +3,10 @@
  * Usage: npx tsx tests/headless.ts
  */
 
-import type { GameConfigs, InputState } from '../src/simulation/types.ts';
+import type { GameConfigs, InputState, ExtractionMapConfig } from '../src/simulation/types.ts';
 import { createGame, tick, getSnapshot } from '../src/simulation/game.ts';
+import { rayIntersectsAABB, updateVisibility } from '../src/simulation/line-of-sight.ts';
+import { isInExtractionZone } from '../src/simulation/extraction-map.ts';
 
 const weaponBase = {
   movingSpreadMultiplier: 3.0,
@@ -28,6 +30,7 @@ const configs: GameConfigs = {
   },
   enemies: {
     rusher: { speed: 2.5, hp: 50, contactDamage: 15, radius: 0.4, scoreValue: 100 },
+    sprinter: { speed: 4.0, hp: 75, contactDamage: 20, radius: 0.35, scoreValue: 150 },
   },
   spawning: { initialInterval: 120, minimumInterval: 30, decayRate: 0.95, maxEnemies: 30 },
   arena: { width: 30, height: 20, obstacleCount: 8, obstacleSize: 1.5 },
@@ -50,6 +53,55 @@ const configs: GameConfigs = {
 };
 
 const noInput: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: false, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
+
+// Extraction map for tests
+const testExtractionMapEarly: ExtractionMapConfig = {
+  width: 40,
+  height: 120,
+  playerSpawn: { x: 0, y: -55 },
+  extractionZone: { x: 0, y: 55, width: 8, height: 6 },
+  maxEnemies: 40,
+  minSpawnDistFromPlayer: 15,
+  zones: [
+    { yMin: -60, yMax: -30, ambientInterval: 240, sprinterRatio: 0.05 },
+    { yMin: -30, yMax: 0, ambientInterval: 120, sprinterRatio: 0.15 },
+    { yMin: 0, yMax: 30, ambientInterval: 60, sprinterRatio: 0.3 },
+    { yMin: 30, yMax: 60, ambientInterval: 45, sprinterRatio: 0.45 },
+  ],
+  walls: [
+    { pos: { x: -8, y: -48 }, width: 6, height: 1 },
+    { pos: { x: 10, y: -46 }, width: 1, height: 8 },
+    { pos: { x: 5, y: -40 }, width: 8, height: 1 },
+    { pos: { x: -5, y: -10 }, width: 1, height: 6 },
+    { pos: { x: 6, y: 0 }, width: 8, height: 1 },
+    { pos: { x: 0, y: 28 }, width: 12, height: 1 },
+  ],
+  triggerRegions: [
+    {
+      id: 1,
+      x: 0, y: -30,
+      width: 12, height: 6,
+      spawnPoints: [
+        { x: -10, y: -28 }, { x: 10, y: -28 },
+        { x: -8, y: -32 }, { x: 8, y: -32 },
+      ],
+      enemyCount: 4,
+      sprinterRatio: 0.2,
+    },
+    {
+      id: 2,
+      x: 0, y: 0,
+      width: 14, height: 6,
+      spawnPoints: [
+        { x: -14, y: 2 }, { x: 14, y: 2 },
+        { x: -12, y: -2 }, { x: 12, y: -2 },
+      ],
+      enemyCount: 6,
+      sprinterRatio: 0.3,
+    },
+  ],
+};
+const extractionConfigs: GameConfigs = { ...configs, extractionMap: testExtractionMapEarly };
 
 function assert(condition: boolean, msg: string): void {
   if (!condition) {
@@ -214,12 +266,18 @@ const dodgeFireInput: InputState = {
 tick(dodgeFireGame, dodgeFireInput, configs);
 assert(dodgeFireGame.state.projectiles.length === 0, 'Cannot fire during dodge');
 
-// Test 10: Pistol initialization (extraction mode)
-console.log('\n--- Test 10: Pistol / Extraction Mode ---');
-const pistolGame = createGame(configs, 42, 'extraction');
+// Test 10: Extraction mode initialization
+console.log('\n--- Test 10: Extraction Mode Init ---');
+const pistolGame = createGame(extractionConfigs, 42, 'extraction');
 assert(pistolGame.state.gameMode === 'extraction', 'Game mode is extraction');
 assert(pistolGame.state.player.activeWeapon === 'pistol', 'Extraction default weapon is pistol');
 assert(pistolGame.state.player.ammo === 12, 'Pistol starts with 12 ammo');
+assert(pistolGame.state.extractionMap !== null, 'Extraction map is set');
+assert(pistolGame.state.extractionSpawner !== null, 'Extraction spawner is set');
+assert(pistolGame.state.player.pos.x === 0 && pistolGame.state.player.pos.y === -55, 'Player spawns at south');
+assert(pistolGame.state.arena.width === 40 && pistolGame.state.arena.height === 120, 'Arena dimensions match map');
+assert(pistolGame.state.obstacles.length === testExtractionMapEarly.walls.length, `Walls as obstacles: ${pistolGame.state.obstacles.length}`);
+assert(pistolGame.state.extracted === false, 'Not extracted at start');
 
 // Test 11: Shotgun fires 6 projectiles per shot
 console.log('\n--- Test 11: Shotgun pellets ---');
@@ -267,6 +325,7 @@ function injectEnemy(g: ReturnType<typeof createGame>, x: number, y: number, hp?
     contactDamage: cfg.contactDamage,
     scoreValue: cfg.scoreValue,
     knockbackVel: { x: 0, y: 0 },
+    visible: true,
   });
   return id;
 }
@@ -304,6 +363,7 @@ function collectEvents(g: ReturnType<typeof createGame>, input: InputState, tick
 
 // No obstacles config for cleaner combat tests
 const combatConfigs: GameConfigs = { ...configs, arena: { width: 30, height: 20, obstacleCount: 0, obstacleSize: 0 } };
+
 
 // ---- Test 13: Rifle kills enemy at range ----
 console.log('\n--- Test 13: Rifle kills enemy at range ---');
@@ -657,6 +717,260 @@ console.log('\n--- Test 25: Full determinism with combat (all weapons) ---');
     assert(gA.state.player.hp === gB.state.player.hp, `${wt}: same player HP`);
     assert(gA.state.projectiles.length === gB.state.projectiles.length, `${wt}: same projectile count`);
   }
+}
+
+// ============================================================
+// Extraction Mode Tests
+// ============================================================
+
+// ---- Test 26: Arena mode unchanged — no extraction state ----
+console.log('\n--- Test 26: Arena mode unchanged ---');
+{
+  const g = createGame(extractionConfigs, 42, 'arena');
+  assert(g.state.extractionMap === null, 'Arena mode has no extractionMap');
+  assert(g.state.extractionSpawner === null, 'Arena mode has no extractionSpawner');
+  assert(g.state.extracted === false, 'Arena mode not extracted');
+  assert(g.state.player.pos.x === 0 && g.state.player.pos.y === 0, 'Arena player spawns at origin');
+}
+
+// ---- Test 27: Extraction spawner — enemies spawn over time ----
+console.log('\n--- Test 27: Extraction spawner ---');
+{
+  const g = createGame(extractionConfigs, 42, 'extraction');
+  // Run enough ticks for ambient spawning (zone 0 interval = 240)
+  for (let i = 0; i < 500; i++) {
+    tick(g, noInput, extractionConfigs);
+  }
+  assert(g.state.enemies.length > 0, `Extraction enemies spawned: ${g.state.enemies.length}`);
+}
+
+// ---- Test 28: Sprinter enemy stats ----
+console.log('\n--- Test 28: Sprinter enemy ---');
+{
+  const g = createGame(extractionConfigs, 42, 'extraction');
+  // Inject a sprinter manually
+  const cfg = extractionConfigs.enemies.sprinter;
+  g.state.enemies.push({
+    id: g.state.nextEntityId++,
+    type: 'sprinter',
+    pos: { x: 3, y: -55 },
+    hp: cfg.hp,
+    radius: cfg.radius,
+    speed: cfg.speed,
+    contactDamage: cfg.contactDamage,
+    scoreValue: cfg.scoreValue,
+    knockbackVel: { x: 0, y: 0 },
+    visible: true,
+  });
+  assert(g.state.enemies[0].type === 'sprinter', 'Enemy type is sprinter');
+  assert(g.state.enemies[0].hp === 75, 'Sprinter HP is 75');
+  assert(g.state.enemies[0].speed === 4.0, 'Sprinter speed is 4.0');
+  assert(g.state.enemies[0].radius === 0.35, 'Sprinter radius is 0.35');
+}
+
+// ---- Test 29: LOS — ray-AABB intersection ----
+console.log('\n--- Test 29: Ray-AABB intersection ---');
+{
+  const wall = { pos: { x: 5, y: 0 }, width: 2, height: 2 };
+
+  // Ray pointing right directly at the wall
+  assert(rayIntersectsAABB({ x: 0, y: 0 }, { x: 1, y: 0 }, 10, wall) === true, 'Ray hits wall directly');
+  // Ray pointing right but max dist too short
+  assert(rayIntersectsAABB({ x: 0, y: 0 }, { x: 1, y: 0 }, 3, wall) === false, 'Ray too short to reach wall');
+  // Ray pointing left (away from wall)
+  assert(rayIntersectsAABB({ x: 0, y: 0 }, { x: -1, y: 0 }, 10, wall) === false, 'Ray aimed away from wall');
+  // Ray pointing up (parallel, misses wall)
+  assert(rayIntersectsAABB({ x: 0, y: 0 }, { x: 0, y: 1 }, 10, wall) === false, 'Ray misses wall (parallel)');
+  // Ray that passes above the wall
+  assert(rayIntersectsAABB({ x: 0, y: 5 }, { x: 1, y: 0 }, 10, wall) === false, 'Ray passes above wall');
+}
+
+// ---- Test 30: LOS — visibility with walls ----
+console.log('\n--- Test 30: LOS visibility ---');
+{
+  const walls = [
+    { pos: { x: 5, y: 0 }, width: 2, height: 2 },
+  ];
+  const enemies = [
+    // Enemy behind wall (at x=8, wall at x=5 blocks LOS from origin)
+    { id: 1, type: 'rusher' as const, pos: { x: 8, y: 0 }, hp: 50, radius: 0.4, speed: 2.5, contactDamage: 15, scoreValue: 100, knockbackVel: { x: 0, y: 0 }, visible: true },
+    // Enemy in the open (at y=5, no wall in the way)
+    { id: 2, type: 'rusher' as const, pos: { x: 3, y: 5 }, hp: 50, radius: 0.4, speed: 2.5, contactDamage: 15, scoreValue: 100, knockbackVel: { x: 0, y: 0 }, visible: true },
+  ];
+
+  updateVisibility({ x: 0, y: 0 }, enemies, walls);
+  assert(enemies[0].visible === false, 'Enemy behind wall is not visible');
+  assert(enemies[1].visible === true, 'Enemy in the open is visible');
+}
+
+// ---- Test 31: Trigger regions ----
+console.log('\n--- Test 31: Trigger regions ---');
+{
+  const g = createGame(extractionConfigs, 42, 'extraction');
+  assert(g.state.extractionSpawner!.triggeredRegionIds.length === 0, 'No triggers at start');
+
+  // Move player to trigger region 1 (x:0, y:-30, width:12, height:6)
+  g.state.player.pos = { x: 0, y: -30 };
+  const enemiesBefore = g.state.enemies.length;
+  tick(g, noInput, extractionConfigs);
+
+  assert(g.state.extractionSpawner!.triggeredRegionIds.includes(1), 'Trigger region 1 activated');
+  assert(g.state.enemies.length > enemiesBefore, `Enemies spawned from trigger: ${g.state.enemies.length}`);
+
+  // Check trigger_activated event
+  const triggerEvents = g.state.events.filter(e => e.type === 'trigger_activated');
+  assert(triggerEvents.length > 0, 'trigger_activated event emitted');
+
+  // Re-entering same region should NOT re-trigger
+  const enemiesAfter = g.state.enemies.length;
+  tick(g, noInput, extractionConfigs);
+  const triggerEventsAfter = g.state.events.filter(e => e.type === 'trigger_activated');
+  assert(triggerEventsAfter.length === 0, 'Re-entering trigger region does not re-trigger');
+}
+
+// ---- Test 32: Extraction win condition ----
+console.log('\n--- Test 32: Extraction win ---');
+{
+  const g = createGame(extractionConfigs, 42, 'extraction');
+  assert(g.state.extracted === false, 'Not extracted at start');
+
+  // Move player to extraction zone (x:0, y:55, width:8, height:6)
+  g.state.player.pos = { x: 0, y: 55 };
+  tick(g, noInput, extractionConfigs);
+
+  assert(g.state.extracted === true, 'Player extracted');
+  const successEvents = g.state.events.filter(e => e.type === 'extraction_success');
+  assert(successEvents.length > 0, 'extraction_success event emitted');
+
+  // Ticking after extraction does nothing
+  const tickBefore = g.state.tick;
+  tick(g, noInput, extractionConfigs);
+  assert(g.state.tick === tickBefore, 'No more ticks after extraction');
+}
+
+// ---- Test 33: isInExtractionZone helper ----
+console.log('\n--- Test 33: isInExtractionZone ---');
+{
+  const zone = { x: 0, y: 55, width: 8, height: 6 };
+  assert(isInExtractionZone({ x: 0, y: 55 }, zone) === true, 'Center is in zone');
+  assert(isInExtractionZone({ x: 3, y: 57 }, zone) === true, 'Inside corner is in zone');
+  assert(isInExtractionZone({ x: 10, y: 55 }, zone) === false, 'Outside X is not in zone');
+  assert(isInExtractionZone({ x: 0, y: 60 }, zone) === false, 'Outside Y is not in zone');
+}
+
+// ---- Test 34: Walls block player/projectiles (same as obstacle collision) ----
+console.log('\n--- Test 34: Walls as obstacles ---');
+{
+  const g = createGame(extractionConfigs, 42, 'extraction');
+  // The map has walls that act as obstacles — existing collision should work
+  // Fire a projectile toward a wall and check that it gets destroyed
+  // Wall at { x: -8, y: -48, width: 6, height: 1 }
+  // Player at (0, -55), aim towards the wall
+  g.state.player.pos = { x: -8, y: -52 };
+  const fireUp: InputState = {
+    moveDir: { x: 0, y: 0 },
+    aimDir: { x: 0, y: 1 },
+    fire: true,
+    headshotTargetId: null,
+    dodge: false,
+    reload: false,
+    throwGrenade: false,
+    throwPower: 0,
+  };
+  tick(g, fireUp, extractionConfigs);
+  assert(g.state.projectiles.length > 0, 'Projectile created');
+
+  // Advance until projectile either hits wall or expires
+  let projDestroyed = false;
+  for (let i = 0; i < 30; i++) {
+    tick(g, { ...fireUp, fire: false }, extractionConfigs);
+    if (g.state.events.some(e => e.type === 'projectile_destroyed')) {
+      projDestroyed = true;
+      break;
+    }
+  }
+  assert(projDestroyed || g.state.projectiles.length === 0, 'Projectile stopped by wall');
+}
+
+// ---- Test 35: Extraction determinism ----
+console.log('\n--- Test 35: Extraction determinism ---');
+{
+  const gA = createGame(extractionConfigs, 99, 'extraction');
+  const gB = createGame(extractionConfigs, 99, 'extraction');
+
+  // Move both players the same way
+  const moveUp: InputState = { moveDir: { x: 0, y: 1 }, aimDir: { x: 0, y: 1 }, fire: false, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
+
+  for (let i = 0; i < 600; i++) {
+    tick(gA, moveUp, extractionConfigs);
+    tick(gB, moveUp, extractionConfigs);
+  }
+
+  assert(gA.state.tick === gB.state.tick, 'Same tick count');
+  assert(gA.state.enemies.length === gB.state.enemies.length, 'Same enemy count');
+  assert(gA.state.player.pos.x === gB.state.player.pos.x, 'Same player X');
+  assert(gA.state.player.pos.y === gB.state.player.pos.y, 'Same player Y');
+  assert(gA.state.extractionSpawner!.triggeredRegionIds.length === gB.state.extractionSpawner!.triggeredRegionIds.length, 'Same triggered regions');
+}
+
+// ---- Test 36: Extended extraction gameplay ----
+console.log('\n--- Test 36: Extended extraction gameplay (30s+) ---');
+{
+  const g = createGame(extractionConfigs, 555, 'extraction');
+
+  let totalKills = 0;
+  let totalShots = 0;
+  let totalTriggers = 0;
+
+  // Move north and fight for 30+ seconds
+  for (let i = 0; i < 1800; i++) {
+    let inp: InputState;
+    if (g.state.enemies.length > 0) {
+      const closest = g.state.enemies.reduce((a, b) => {
+        const da = Math.hypot(a.pos.x - g.state.player.pos.x, a.pos.y - g.state.player.pos.y);
+        const db = Math.hypot(b.pos.x - g.state.player.pos.x, b.pos.y - g.state.player.pos.y);
+        return da < db ? a : b;
+      });
+      const dx = closest.pos.x - g.state.player.pos.x;
+      const dy = closest.pos.y - g.state.player.pos.y;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      inp = {
+        moveDir: { x: 0, y: 1 }, // always moving north
+        aimDir: len > 0 ? { x: dx / len, y: dy / len } : { x: 0, y: 1 },
+        fire: true,
+        headshotTargetId: null,
+        dodge: false,
+        reload: false,
+        throwGrenade: false,
+        throwPower: 0,
+      };
+    } else {
+      inp = {
+        moveDir: { x: 0, y: 1 },
+        aimDir: { x: 0, y: 1 },
+        fire: false,
+        headshotTargetId: null,
+        dodge: false,
+        reload: false,
+        throwGrenade: false,
+        throwPower: 0,
+      };
+    }
+
+    tick(g, inp, extractionConfigs);
+
+    for (const ev of g.state.events) {
+      if (ev.type === 'enemy_killed') totalKills++;
+      if (ev.type === 'projectile_fired') totalShots++;
+      if (ev.type === 'trigger_activated') totalTriggers++;
+    }
+
+    if (g.state.gameOver || g.state.extracted) break;
+  }
+
+  console.log(`  ${g.state.tick} ticks, ${totalKills} kills, ${totalShots} shots, ${totalTriggers} triggers, HP=${g.state.player.hp.toFixed(0)}, pos=(${g.state.player.pos.x.toFixed(1)}, ${g.state.player.pos.y.toFixed(1)}), enemies=${g.state.enemies.length}, extracted=${g.state.extracted}`);
+  assert(g.state.tick > 300, `Ran for meaningful duration: ${g.state.tick} ticks`);
+  assert(totalShots > 0 || g.state.extracted, 'Fired shots or extracted');
 }
 
 console.log('\n=== All headless tests passed! ===');

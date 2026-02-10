@@ -59,6 +59,15 @@ export function updateHUD(state: GameState): void {
 }
 
 export function showGameOver(score: number): void {
+  const titleEl = gameOverEl().querySelector('h1');
+  if (titleEl) titleEl.textContent = 'GAME OVER';
+  finalScoreEl().textContent = `Score: ${score}`;
+  gameOverEl().classList.remove('hidden');
+}
+
+export function showExtractionSuccess(score: number): void {
+  const titleEl = gameOverEl().querySelector('h1');
+  if (titleEl) titleEl.textContent = 'EXTRACTED!';
   finalScoreEl().textContent = `Score: ${score}`;
   gameOverEl().classList.remove('hidden');
 }

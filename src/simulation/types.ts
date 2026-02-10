@@ -2,6 +2,7 @@
 
 export type WeaponType = 'pistol' | 'smg' | 'rifle' | 'shotgun';
 export type GameMode = 'arena' | 'extraction';
+export type EnemyType = 'rusher' | 'sprinter';
 
 export interface PlayerConfig {
   speed: number;
@@ -47,6 +48,7 @@ export interface EnemyTypeConfig {
 
 export interface EnemiesConfig {
   rusher: EnemyTypeConfig;
+  sprinter: EnemyTypeConfig;
 }
 
 export interface SpawningConfig {
@@ -111,6 +113,7 @@ export interface GameConfigs {
   multikill: MultiKillConfig;
   grenade: GrenadeConfig;
   crates: CrateConfig;
+  extractionMap?: ExtractionMapConfig;
 }
 
 // ---- Entities ----
@@ -141,7 +144,7 @@ export interface Player {
 
 export interface Enemy {
   id: number;
-  type: 'rusher';
+  type: EnemyType;
   pos: Vec2;
   hp: number;
   radius: number;
@@ -149,6 +152,7 @@ export interface Enemy {
   contactDamage: number;
   scoreValue: number;
   knockbackVel: Vec2;
+  visible: boolean;
 }
 
 export interface Projectile {
@@ -188,6 +192,50 @@ export interface Crate {
   lifetime: number; // ticks remaining
 }
 
+// ---- Extraction Map ----
+
+export interface ExtractionZone {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface TriggerRegion {
+  id: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  spawnPoints: Vec2[];
+  enemyCount: number;
+  sprinterRatio: number;
+}
+
+export interface ZoneConfig {
+  yMin: number;
+  yMax: number;
+  ambientInterval: number;
+  sprinterRatio: number;
+}
+
+export interface ExtractionMapConfig {
+  width: number;
+  height: number;
+  playerSpawn: Vec2;
+  extractionZone: ExtractionZone;
+  walls: Obstacle[];
+  triggerRegions: TriggerRegion[];
+  zones: ZoneConfig[];
+  maxEnemies: number;
+  minSpawnDistFromPlayer: number;
+}
+
+export interface ExtractionSpawnerState {
+  ambientTimers: number[];
+  triggeredRegionIds: number[];
+}
+
 // ---- Input ----
 
 export interface InputState {
@@ -221,7 +269,9 @@ export type GameEventType =
   | 'grenade_exploded'
   | 'crate_spawned'
   | 'crate_picked_up'
-  | 'crate_expired';
+  | 'crate_expired'
+  | 'trigger_activated'
+  | 'extraction_success';
 
 export interface GameEvent {
   tick: number;
@@ -252,6 +302,9 @@ export interface GameState {
   nextEntityId: number;
   spawner: SpawnerState;
   events: GameEvent[];
+  extractionMap: ExtractionMapConfig | null;
+  extractionSpawner: ExtractionSpawnerState | null;
+  extracted: boolean;
 }
 
 export const TICK_RATE = 60;

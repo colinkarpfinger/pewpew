@@ -9,7 +9,7 @@ import { InputHandler } from './input.ts';
 import type { IInputHandler } from './input-interface.ts';
 import { TouchInputHandler } from './touch-input.ts';
 import { isMobile } from './platform.ts';
-import { updateHUD, showGameOver, hideGameOver, onRestart, setWeaponConfig, setActiveWeaponName } from './ui.ts';
+import { updateHUD, showGameOver, hideGameOver, showExtractionSuccess, onRestart, setWeaponConfig, setActiveWeaponName } from './ui.ts';
 import { FullRecorder } from './recording/full-recorder.ts';
 import { RingRecorder } from './recording/ring-recorder.ts';
 import { saveReplay, loadReplay } from './recording/api.ts';
@@ -31,6 +31,7 @@ import multikillConfig from './configs/multikill.json';
 import grenadeConfig from './configs/grenade.json';
 import cratesConfig from './configs/crates.json';
 import audioConfig from './configs/audio.json';
+import extractionMapConfig from './configs/extraction-map.json';
 
 const configs: GameConfigs = {
   player: playerConfig,
@@ -41,6 +42,7 @@ const configs: GameConfigs = {
   multikill: multikillConfig,
   grenade: grenadeConfig,
   crates: cratesConfig,
+  extractionMap: extractionMapConfig,
 };
 const configsJson = JSON.stringify(configs);
 
@@ -382,7 +384,12 @@ function gameLoop(now: number): void {
       }
     }
 
-    if (state.gameOver && !gameOverShown) {
+    if (state.extracted && !gameOverShown) {
+      gameOverShown = true;
+      showExtractionSuccess(state.score);
+      if (mobile) (input as TouchInputHandler).setVisible(false);
+      screen = 'gameOver';
+    } else if (state.gameOver && !gameOverShown) {
       gameOverShown = true;
       showGameOver(state.score);
       if (mobile) (input as TouchInputHandler).setVisible(false);

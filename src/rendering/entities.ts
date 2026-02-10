@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { WeaponType } from '../simulation/types.ts';
+import type { WeaponType, EnemyType } from '../simulation/types.ts';
 
 export function createPlayerMesh(radius: number): THREE.Group {
   const group = new THREE.Group();
@@ -99,12 +99,16 @@ export interface EnemyMeshGroup {
   headMesh: THREE.Mesh;
 }
 
-export function createEnemyMesh(radius: number): EnemyMeshGroup {
+export function createEnemyMesh(radius: number, enemyType: EnemyType = 'rusher'): EnemyMeshGroup {
   const group = new THREE.Group();
+
+  const isSprinter = enemyType === 'sprinter';
+  const bodyColor = isSprinter ? 0xff8800 : 0xff3333;
+  const headColor = isSprinter ? 0xcc6600 : 0xcc2222;
 
   // Body cube
   const bodyGeo = new THREE.BoxGeometry(radius * 2, radius * 2, radius * 2);
-  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xff3333 });
+  const bodyMat = new THREE.MeshStandardMaterial({ color: bodyColor });
   const body = new THREE.Mesh(bodyGeo, bodyMat);
   body.castShadow = true;
   body.position.y = radius;
@@ -113,13 +117,28 @@ export function createEnemyMesh(radius: number): EnemyMeshGroup {
   // Head sphere — sits on top of body
   const headRadius = radius * 0.8;
   const headGeo = new THREE.SphereGeometry(headRadius, 10, 10);
-  const headMat = new THREE.MeshStandardMaterial({ color: 0xcc2222 });
+  const headMat = new THREE.MeshStandardMaterial({ color: headColor });
   const head = new THREE.Mesh(headGeo, headMat);
   head.castShadow = true;
   head.position.y = radius * 2 + headRadius; // top of body cube + head radius
   group.add(head);
 
   return { group, headMesh: head };
+}
+
+export function createExtractionZoneMesh(width: number, height: number): THREE.Mesh {
+  const geometry = new THREE.PlaneGeometry(width, height);
+  const material = new THREE.MeshStandardMaterial({
+    color: 0x00ff44,
+    emissive: 0x00aa22,
+    emissiveIntensity: 0.5,
+    transparent: true,
+    opacity: 0.4,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.position.y = 0.02; // slightly above ground to avoid z-fighting
+  return mesh;
 }
 
 export function createProjectileMesh(weaponType: WeaponType = 'rifle'): THREE.Mesh {
