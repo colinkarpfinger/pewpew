@@ -369,10 +369,29 @@ html, body {
   white-space: pre;
 }
 
-#start-prompt {
-  font-size: 24px;
-  color: #fff;
-  animation: blink 1.2s ease-in-out infinite;
+#mode-buttons {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  justify-content: center;
+}
+
+#mode-buttons .mode-btn {
+  min-width: 200px;
+}
+
+#weapon-name {
+  position: absolute;
+  bottom: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 14px;
+  font-family: monospace;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  pointer-events: none;
+  z-index: 40;
 }
 
 @keyframes blink {

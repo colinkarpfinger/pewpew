@@ -1,3 +1,5 @@
+import type { GameMode } from '../simulation/types.ts';
+
 const el = () => document.getElementById('start-screen')!;
 
 export function showStartScreen(): void {
@@ -8,18 +10,13 @@ export function hideStartScreen(): void {
   el().classList.add('hidden');
 }
 
-export function onStartGame(callback: () => void): void {
-  let started = false;
-  const handler = (e: Event) => {
-    // Ignore Escape key on start screen
-    if (e instanceof KeyboardEvent && e.key === 'Escape') return;
-    if (started) return;
-    started = true;
-    callback();
-    // Re-arm after a delay so we can return to the start screen
-    setTimeout(() => { started = false; }, 500);
-  };
-
-  window.addEventListener('keydown', handler);
-  el().addEventListener('click', handler);
+export function onStartGame(callback: (mode: GameMode) => void): void {
+  const buttons = document.querySelectorAll('.mode-btn');
+  for (const btn of buttons) {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const mode = (btn as HTMLElement).dataset.mode as GameMode;
+      callback(mode);
+    });
+  }
 }

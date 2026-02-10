@@ -4,6 +4,7 @@ const scoreEl = () => document.getElementById('hud-score')!;
 const hpBar = () => document.getElementById('hud-hp-bar')!;
 const grenadeCounterEl = () => document.getElementById('grenade-counter')!;
 const ammoCounterEl = () => document.getElementById('ammo-counter')!;
+const weaponNameEl = () => document.getElementById('weapon-name')!;
 const gameOverEl = () => document.getElementById('game-over')!;
 const finalScoreEl = () => document.getElementById('final-score')!;
 const restartBtn = () => document.getElementById('restart-btn')!;
@@ -12,6 +13,10 @@ let _weaponConfig: WeaponConfig | null = null;
 
 export function setWeaponConfig(config: WeaponConfig): void {
   _weaponConfig = config;
+}
+
+export function setActiveWeaponName(name: string): void {
+  weaponNameEl().textContent = name;
 }
 
 export function updateHUD(state: GameState): void {

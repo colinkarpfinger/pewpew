@@ -252,7 +252,7 @@ export class Renderer {
       currentProjIds.add(proj.id);
       let mesh = this.projectileMeshes.get(proj.id);
       if (!mesh) {
-        mesh = createProjectileMesh();
+        mesh = createProjectileMesh(proj.weaponType);
         this.projectileMeshes.set(proj.id, mesh);
         this.scene.add(mesh);
       }

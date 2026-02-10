@@ -47,6 +47,7 @@
           <div id="hud-hp-bar"></div>
         </div>
       </div>
+      <div id="weapon-name"></div>
       <div id="ammo-counter">30 / 30</div>
       <div id="grenade-counter">Grenades: 3</div>
       <div id="reload-popup" class="hidden">
@@ -76,7 +77,10 @@
      \__ \ __ | (_) (_) || | | _||   /
      |___/_||_|\___/\___/ |_| |___|_|_\
           </pre>
-          <p id="start-prompt">Press any key or click to start</p>
+          <div id="mode-buttons">
+            <button class="menu-btn mode-btn" data-mode="arena">Arena Survival</button>
+            <button class="menu-btn mode-btn" data-mode="extraction">Extraction</button>
+          </div>
           <button id="fullscreen-btn" class="menu-btn" style="margin-top: 24px;">Fullscreen</button>
         </div>
       </div>

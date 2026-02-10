@@ -1,4 +1,4 @@
-import type { GameState, GameConfigs, InputState, MultiKillConfig } from './types.ts';
+import type { GameState, GameConfigs, InputState, MultiKillConfig, GameMode, WeaponType } from './types.ts';
 import { SeededRNG } from './rng.ts';
 import { createArena } from './arena.ts';
 import { updatePlayer } from './player.ts';
@@ -13,12 +13,15 @@ export interface GameInstance {
   rng: SeededRNG;
 }
 
-export function createGame(configs: GameConfigs, seed: number = 12345): GameInstance {
+export function createGame(configs: GameConfigs, seed: number = 12345, gameMode: GameMode = 'arena', activeWeapon?: WeaponType): GameInstance {
   const rng = new SeededRNG(seed);
   const obstacles = createArena(configs.arena, rng);
 
+  const weapon: WeaponType = activeWeapon ?? (gameMode === 'extraction' ? 'pistol' : 'rifle');
+
   const state: GameState = {
     tick: 0,
+    gameMode,
     player: {
       pos: { x: 0, y: 0 },
       hp: configs.player.hp,
@@ -30,11 +33,12 @@ export function createGame(configs: GameConfigs, seed: number = 12345): GameInst
       dodgeTimer: 0,
       dodgeCooldown: 0,
       dodgeDir: { x: 0, y: 0 },
-      ammo: configs.weapons.rifle.magazineSize,
+      ammo: configs.weapons[weapon].magazineSize,
       reloadTimer: 0,
       damageBonusMultiplier: 1.0,
       speedBoostTimer: 0,
       speedBoostMultiplier: 1.0,
+      activeWeapon: weapon,
     },
     enemies: [],
     projectiles: [],
@@ -189,9 +193,15 @@ export function restoreGame(stateSnapshot: GameState, rngState: number): GameIns
   state.player.damageBonusMultiplier ??= 1.0;
   state.player.speedBoostTimer ??= 0;
   state.player.speedBoostMultiplier ??= 1.0;
+  state.player.activeWeapon ??= 'rifle';
+  state.gameMode ??= 'arena';
   state.grenades ??= [];
   state.crates ??= [];
   state.grenadeAmmo ??= 3;
+  // Backward-compat: old projectiles missing weaponType
+  for (const proj of state.projectiles) {
+    proj.weaponType ??= 'rifle';
+  }
   const rng = new SeededRNG(0);
   rng.setState(rngState);
   return { state, rng };

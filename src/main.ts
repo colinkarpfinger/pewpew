@@ -1,6 +1,6 @@
 import './style.css';
 import * as THREE from 'three';
-import type { GameConfigs, GameEvent } from './simulation/types.ts';
+import type { GameConfigs, GameEvent, GameMode, WeaponType } from './simulation/types.ts';
 import { TICK_DURATION } from './simulation/types.ts';
 import { createGame, tick } from './simulation/game.ts';
 import type { GameInstance } from './simulation/game.ts';
@@ -9,7 +9,7 @@ import { InputHandler } from './input.ts';
 import type { IInputHandler } from './input-interface.ts';
 import { TouchInputHandler } from './touch-input.ts';
 import { isMobile } from './platform.ts';
-import { updateHUD, showGameOver, hideGameOver, onRestart, setWeaponConfig } from './ui.ts';
+import { updateHUD, showGameOver, hideGameOver, onRestart, setWeaponConfig, setActiveWeaponName } from './ui.ts';
 import { FullRecorder } from './recording/full-recorder.ts';
 import { RingRecorder } from './recording/ring-recorder.ts';
 import { saveReplay, loadReplay } from './recording/api.ts';
@@ -43,7 +43,6 @@ const configs: GameConfigs = {
   crates: cratesConfig,
 };
 const configsJson = JSON.stringify(configs);
-setWeaponConfig(configs.weapons.rifle);
 
 // ---- App State ----
 type Screen = 'start' | 'playing' | 'paused' | 'gameOver' | 'replay';
@@ -75,7 +74,7 @@ initDevConsole();
 registerCommand('state', () => {
   if (!game) return 'No active game';
   const s = game.state;
-  return `tick:${s.tick} hp:${s.player.hp.toFixed(0)}/${s.player.maxHp} score:${s.score} enemies:${s.enemies.length} grenades:${s.grenadeAmmo}`;
+  return `tick:${s.tick} hp:${s.player.hp.toFixed(0)}/${s.player.maxHp} score:${s.score} enemies:${s.enemies.length} grenades:${s.grenadeAmmo} weapon:${s.player.activeWeapon} mode:${s.gameMode}`;
 });
 
 registerCommand('hp', (args) => {
@@ -100,6 +99,25 @@ registerCommand('grenades', (args) => {
   if (isNaN(val)) return `Grenades: ${game.state.grenadeAmmo}`;
   game.state.grenadeAmmo = val;
   return `Grenades set to ${val}`;
+});
+
+registerCommand('weapon', (args) => {
+  if (!game) return 'No active game';
+  const valid = ['pistol', 'smg', 'rifle', 'shotgun'] as const;
+  if (!args) return `Weapon: ${game.state.player.activeWeapon}  (options: ${valid.join(', ')})`;
+  const wt = args.trim().toLowerCase();
+  if (!valid.includes(wt as typeof valid[number])) return `Unknown weapon. Options: ${valid.join(', ')}`;
+  const weaponType = wt as typeof valid[number];
+  game.state.player.activeWeapon = weaponType;
+  const wc = configs.weapons[weaponType];
+  game.state.player.ammo = wc.magazineSize;
+  game.state.player.reloadTimer = 0;
+  game.state.player.fireCooldown = 0;
+  game.state.player.damageBonusMultiplier = 1.0;
+  setWeaponConfig(wc);
+  setActiveWeaponName(weaponType);
+  renderer.setWeaponConfig(wc);
+  return `Switched to ${weaponType} (${wc.magazineSize} rounds, ${wc.damage} dmg)`;
 });
 
 registerCommand('kill', () => {
@@ -130,16 +148,21 @@ function rebuildScene(): void {
 }
 
 // ---- Game lifecycle ----
-function startGame(): void {
+function startGame(mode: GameMode = 'arena'): void {
   currentSeed = Date.now();
-  game = createGame(configs, currentSeed);
+  const activeWeapon: WeaponType = mode === 'extraction' ? 'pistol' : 'rifle';
+  game = createGame(configs, currentSeed, mode, activeWeapon);
   fullRecorder = new FullRecorder(currentSeed, configsJson);
   ringRecorder = new RingRecorder(game);
+
+  const weaponConfig = configs.weapons[activeWeapon];
+  setWeaponConfig(weaponConfig);
+  setActiveWeaponName(activeWeapon);
 
   rebuildScene();
   renderer.initArena(game.state);
   renderer.setDodgeDuration(configs.player.dodgeDuration);
-  renderer.setWeaponConfig(configs.weapons.rifle);
+  renderer.setWeaponConfig(weaponConfig);
   audioSystem.init();
   gameOverShown = false;
   hideGameOver();
@@ -281,16 +304,16 @@ onReplayExit(() => {
 });
 
 // ---- Start screen ----
-onStartGame(() => {
+onStartGame((mode) => {
   if (screen === 'start') {
-    startGame();
+    startGame(mode);
   }
 });
 
 // ---- Restart from game over ----
 onRestart(() => {
   if (screen === 'gameOver') {
-    startGame();
+    startGame(game.state.gameMode);
   }
 });
 
@@ -324,19 +347,19 @@ function gameLoop(now: number): void {
       // Update dynamic crosshair based on effective spread
       const isDodging = state.player.dodgeTimer > 0;
       const isMoving = currentInput.moveDir.x !== 0 || currentInput.moveDir.y !== 0;
-      const rifle = configs.weapons.rifle;
+      const weapon = configs.weapons[state.player.activeWeapon];
       const effectiveSpread = isDodging
-        ? rifle.spread * rifle.movingSpreadMultiplier * 3.0
-        : rifle.spread * (isMoving ? rifle.movingSpreadMultiplier : 1.0);
+        ? weapon.spread * weapon.movingSpreadMultiplier * 3.0
+        : weapon.spread * (isMoving ? weapon.movingSpreadMultiplier : 1.0);
       updateCrosshairSpread(effectiveSpread);
 
       // Update ammo arc
       const isReloading = state.player.reloadTimer > 0;
       updateAmmoArc({
         ammo: state.player.ammo,
-        maxAmmo: rifle.magazineSize,
+        maxAmmo: weapon.magazineSize,
         reloading: isReloading,
-        reloadProgress: isReloading ? state.player.reloadTimer / rifle.reloadTime : 0,
+        reloadProgress: isReloading ? state.player.reloadTimer / weapon.reloadTime : 0,
         damageBonusMultiplier: state.player.damageBonusMultiplier,
       });
     }
@@ -388,10 +411,6 @@ function gameLoop(now: number): void {
 }
 
 // ---- Boot ----
-if (mobile) {
-  const prompt = document.getElementById('start-prompt');
-  if (prompt) prompt.textContent = 'Tap to start';
-}
 
 // Fullscreen button on start screen
 const fullscreenBtn = document.getElementById('fullscreen-btn');

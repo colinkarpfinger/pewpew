@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { WeaponType } from '../simulation/types.ts';
 
 export function createPlayerMesh(radius: number): THREE.Group {
   const group = new THREE.Group();
@@ -121,11 +122,36 @@ export function createEnemyMesh(radius: number): EnemyMeshGroup {
   return { group, headMesh: head };
 }
 
-export function createProjectileMesh(): THREE.Mesh {
-  const geometry = new THREE.SphereGeometry(0.04, 6, 6);
+export function createProjectileMesh(weaponType: WeaponType = 'rifle'): THREE.Mesh {
+  let radius = 0.04;
+  let color = 0xffff00;
+  let emissive = 0xffaa00;
+
+  switch (weaponType) {
+    case 'pistol':
+      radius = 0.03;
+      color = 0xffffcc;
+      emissive = 0xccaa66;
+      break;
+    case 'smg':
+      radius = 0.03;
+      color = 0xff8800;
+      emissive = 0xcc6600;
+      break;
+    case 'rifle':
+      // defaults
+      break;
+    case 'shotgun':
+      radius = 0.05;
+      color = 0xff4400;
+      emissive = 0xcc3300;
+      break;
+  }
+
+  const geometry = new THREE.SphereGeometry(radius, 6, 6);
   const material = new THREE.MeshStandardMaterial({
-    color: 0xffff00,
-    emissive: 0xffaa00,
+    color,
+    emissive,
     emissiveIntensity: 1.0,
   });
   const mesh = new THREE.Mesh(geometry, material);

@@ -1,5 +1,8 @@
 // ---- Configs ----
 
+export type WeaponType = 'pistol' | 'smg' | 'rifle' | 'shotgun';
+export type GameMode = 'arena' | 'extraction';
+
 export interface PlayerConfig {
   speed: number;
   hp: number;
@@ -21,6 +24,7 @@ export interface WeaponConfig {
   penetration: number; // max enemies a bullet can hit (requires first-hit headshot)
   knockback: number; // knockback speed applied to enemies on hit
   headshotKnockbackMultiplier: number;
+  pelletsPerShot?: number; // for shotgun; defaults to 1
   magazineSize: number;
   reloadTime: number; // ticks
   activeReloadStart: number; // fraction 0-1
@@ -31,9 +35,7 @@ export interface WeaponConfig {
   perfectReloadDamageBonus: number;
 }
 
-export interface WeaponsConfig {
-  rifle: WeaponConfig;
-}
+export type WeaponsConfig = Record<WeaponType, WeaponConfig>;
 
 export interface EnemyTypeConfig {
   speed: number;
@@ -134,6 +136,7 @@ export interface Player {
   damageBonusMultiplier: number; // from active/perfect reload, resets on next reload
   speedBoostTimer: number; // ticks remaining for multi-kill speed boost
   speedBoostMultiplier: number; // current speed multiplier from multi-kill
+  activeWeapon: WeaponType;
 }
 
 export interface Enemy {
@@ -158,6 +161,7 @@ export interface Projectile {
   penetrationLeft: number; // how many more enemies this bullet can hit
   hitEnemyIds: number[]; // enemies already hit (to avoid double-hits)
   killCount: number; // accumulated kills by this bullet (for multi-kill detection)
+  weaponType: WeaponType;
 }
 
 export interface Obstacle {
@@ -234,6 +238,7 @@ export interface SpawnerState {
 
 export interface GameState {
   tick: number;
+  gameMode: GameMode;
   player: Player;
   enemies: Enemy[];
   projectiles: Projectile[];
