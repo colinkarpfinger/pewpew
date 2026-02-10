@@ -205,6 +205,19 @@ export function createCrateMesh(crateType: string): THREE.Mesh {
   return mesh;
 }
 
+export function createCashMesh(): THREE.Mesh {
+  const geometry = new THREE.OctahedronGeometry(0.2, 0);
+  const material = new THREE.MeshStandardMaterial({
+    color: 0xffd700,
+    emissive: 0xcc9900,
+    emissiveIntensity: 0.8,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.castShadow = true;
+  mesh.position.y = 0.3;
+  return mesh;
+}
+
 export function createObstacleMesh(width: number, height: number): THREE.Mesh {
   const wallHeight = 1.5;
   const geometry = new THREE.BoxGeometry(width, wallHeight, height);

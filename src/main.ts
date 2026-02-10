@@ -30,8 +30,10 @@ import arenaConfig from './configs/arena.json';
 import multikillConfig from './configs/multikill.json';
 import grenadeConfig from './configs/grenade.json';
 import cratesConfig from './configs/crates.json';
+import cashConfig from './configs/cash.json';
 import audioConfig from './configs/audio.json';
 import extractionMapConfig from './configs/extraction-map.json';
+import { addCashToStash } from './persistence.ts';
 
 const configs: GameConfigs = {
   player: playerConfig,
@@ -42,6 +44,7 @@ const configs: GameConfigs = {
   multikill: multikillConfig,
   grenade: grenadeConfig,
   crates: cratesConfig,
+  cash: cashConfig,
   extractionMap: extractionMapConfig,
 };
 const configsJson = JSON.stringify(configs);
@@ -386,11 +389,13 @@ function gameLoop(now: number): void {
 
     if (state.extracted && !gameOverShown) {
       gameOverShown = true;
+      addCashToStash(state.runCash);
       showExtractionSuccess(state.score);
       if (mobile) (input as TouchInputHandler).setVisible(false);
       screen = 'gameOver';
     } else if (state.gameOver && !gameOverShown) {
       gameOverShown = true;
+      // Cash is NOT added to stash on death — it's lost
       showGameOver(state.score);
       if (mobile) (input as TouchInputHandler).setVisible(false);
       screen = 'gameOver';

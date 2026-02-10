@@ -7,6 +7,7 @@ import { updateEnemies, checkContactDamage } from './enemies.ts';
 import { updateSpawner } from './spawner.ts';
 import { tryThrowGrenade, updateGrenades } from './grenade.ts';
 import { spawnCrates, checkCratePickups, updateCrateLifetimes } from './crates.ts';
+import { spawnCash, checkCashPickups } from './cash.ts';
 import { createExtractionSpawner, updateExtractionSpawner } from './extraction-spawner.ts';
 import { updateVisibility } from './line-of-sight.ts';
 import { isInExtractionZone } from './extraction-map.ts';
@@ -61,9 +62,11 @@ export function createGame(configs: GameConfigs, seed: number = 12345, gameMode:
     projectiles: [],
     grenades: [],
     crates: [],
+    cashPickups: [],
     obstacles,
     arena,
     grenadeAmmo: configs.grenade.startingAmmo,
+    runCash: 0,
     score: 0,
     gameOver: false,
     nextEntityId: 1,
@@ -137,6 +140,12 @@ export function tick(game: GameInstance, input: InputState, configs: GameConfigs
 
   // 5e. Crate lifetime expiration
   updateCrateLifetimes(state);
+
+  // 5f. Cash drops from killed enemies (extraction mode only)
+  spawnCash(state, configs.cash, rng);
+
+  // 5g. Cash pickups (player collision)
+  checkCashPickups(state, configs.cash);
 
   // 6. Line of sight (extraction mode only — arena enemies always visible)
   if (state.extractionMap) {
@@ -240,7 +249,9 @@ export function restoreGame(stateSnapshot: GameState, rngState: number): GameIns
   state.gameMode ??= 'arena';
   state.grenades ??= [];
   state.crates ??= [];
+  state.cashPickups ??= [];
   state.grenadeAmmo ??= 3;
+  state.runCash ??= 0;
   // Backward-compat: old projectiles missing weaponType
   for (const proj of state.projectiles) {
     proj.weaponType ??= 'rifle';

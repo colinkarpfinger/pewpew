@@ -189,7 +189,7 @@ function explodeGrenade(state: GameState, grenade: Grenade, config: GrenadeConfi
         state.events.push({
           tick: state.tick,
           type: 'enemy_killed',
-          data: { enemyId: enemy.id, scoreValue: enemy.scoreValue, x: enemy.pos.x, y: enemy.pos.y, headshot: false, bulletKillCount: 0 },
+          data: { enemyId: enemy.id, enemyType: enemy.type, scoreValue: enemy.scoreValue, x: enemy.pos.x, y: enemy.pos.y, headshot: false, bulletKillCount: 0 },
         });
       }
     }

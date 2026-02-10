@@ -104,6 +104,12 @@ export interface CrateConfig {
   healthAmount: number;
 }
 
+export interface CashConfig {
+  rusherAmount: number[]; // [min, max] inclusive
+  sprinterAmount: number[];
+  pickupRadius: number;
+}
+
 export interface GameConfigs {
   player: PlayerConfig;
   weapons: WeaponsConfig;
@@ -113,6 +119,7 @@ export interface GameConfigs {
   multikill: MultiKillConfig;
   grenade: GrenadeConfig;
   crates: CrateConfig;
+  cash?: CashConfig;
   extractionMap?: ExtractionMapConfig;
 }
 
@@ -190,6 +197,12 @@ export interface Crate {
   pos: Vec2;
   crateType: CrateType;
   lifetime: number; // ticks remaining
+}
+
+export interface CashPickup {
+  id: number;
+  pos: Vec2;
+  amount: number;
 }
 
 // ---- Extraction Map ----
@@ -270,6 +283,8 @@ export type GameEventType =
   | 'crate_spawned'
   | 'crate_picked_up'
   | 'crate_expired'
+  | 'cash_spawned'
+  | 'cash_picked_up'
   | 'trigger_activated'
   | 'extraction_success';
 
@@ -294,9 +309,11 @@ export interface GameState {
   projectiles: Projectile[];
   grenades: Grenade[];
   crates: Crate[];
+  cashPickups: CashPickup[];
   obstacles: Obstacle[];
   arena: ArenaConfig;
   grenadeAmmo: number;
+  runCash: number;
   score: number;
   gameOver: boolean;
   nextEntityId: number;

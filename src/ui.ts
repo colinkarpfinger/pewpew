@@ -4,6 +4,7 @@ const scoreEl = () => document.getElementById('hud-score')!;
 const hpBar = () => document.getElementById('hud-hp-bar')!;
 const grenadeCounterEl = () => document.getElementById('grenade-counter')!;
 const ammoCounterEl = () => document.getElementById('ammo-counter')!;
+const cashCounterEl = () => document.getElementById('cash-counter')!;
 const weaponNameEl = () => document.getElementById('weapon-name')!;
 const gameOverEl = () => document.getElementById('game-over')!;
 const finalScoreEl = () => document.getElementById('final-score')!;
@@ -46,6 +47,15 @@ export function updateHUD(state: GameState): void {
         counter.classList.remove('bonus-active', 'bonus-perfect');
       }
     }
+  }
+
+  // Cash counter (extraction mode only)
+  const cashEl = cashCounterEl();
+  if (state.gameMode === 'extraction') {
+    cashEl.classList.remove('hidden');
+    cashEl.textContent = `$${state.runCash}`;
+  } else {
+    cashEl.classList.add('hidden');
   }
 
   // Change HP bar color based on health

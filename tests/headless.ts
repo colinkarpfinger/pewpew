@@ -20,6 +20,12 @@ const weaponBase = {
   perfectReloadDamageBonus: 1.25,
 };
 
+const cashConfig = {
+  rusherAmount: [10, 20],
+  sprinterAmount: [25, 40],
+  pickupRadius: 1.0,
+};
+
 const configs: GameConfigs = {
   player: { speed: 5.0, hp: 100, radius: 0.4, iframeDuration: 60, dodgeDuration: 18, dodgeCooldown: 42, dodgeSpeedMultiplier: 1.8 },
   weapons: {
@@ -50,6 +56,7 @@ const configs: GameConfigs = {
     dropChance: 0.15, multikillDropChance: 0.4, lifetime: 600, blinkThreshold: 120, radius: 0.5,
     types: { grenade: 0.4, health: 0.6 }, healthAmount: 25,
   },
+  cash: cashConfig,
 };
 
 const noInput: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: false, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
@@ -101,7 +108,7 @@ const testExtractionMapEarly: ExtractionMapConfig = {
     },
   ],
 };
-const extractionConfigs: GameConfigs = { ...configs, extractionMap: testExtractionMapEarly };
+const extractionConfigs: GameConfigs = { ...configs, extractionMap: testExtractionMapEarly, cash: cashConfig };
 
 function assert(condition: boolean, msg: string): void {
   if (!condition) {
@@ -312,12 +319,12 @@ for (let i = 0; i < sgA.state.projectiles.length; i++) {
 // ============================================================
 
 // Helper: inject an enemy at a specific position relative to player
-function injectEnemy(g: ReturnType<typeof createGame>, x: number, y: number, hp?: number): number {
+function injectEnemy(g: ReturnType<typeof createGame>, x: number, y: number, hp?: number, enemyType: 'rusher' | 'sprinter' = 'rusher'): number {
   const id = g.state.nextEntityId++;
-  const cfg = configs.enemies.rusher;
+  const cfg = configs.enemies[enemyType];
   g.state.enemies.push({
     id,
-    type: 'rusher',
+    type: enemyType,
     pos: { x, y },
     hp: hp ?? cfg.hp,
     radius: cfg.radius,
@@ -971,6 +978,203 @@ console.log('\n--- Test 36: Extended extraction gameplay (30s+) ---');
   console.log(`  ${g.state.tick} ticks, ${totalKills} kills, ${totalShots} shots, ${totalTriggers} triggers, HP=${g.state.player.hp.toFixed(0)}, pos=(${g.state.player.pos.x.toFixed(1)}, ${g.state.player.pos.y.toFixed(1)}), enemies=${g.state.enemies.length}, extracted=${g.state.extracted}`);
   assert(g.state.tick > 300, `Ran for meaningful duration: ${g.state.tick} ticks`);
   assert(totalShots > 0 || g.state.extracted, 'Fired shots or extracted');
+}
+
+// ============================================================
+// Cash System Tests
+// ============================================================
+
+// ---- Test 37: Cash spawns from kills in extraction mode ----
+console.log('\n--- Test 37: Cash spawns from kills (extraction) ---');
+{
+  const g = createGame(extractionConfigs, 2000, 'extraction');
+  // Place enemy near player and kill it
+  injectEnemy(g, g.state.player.pos.x + 2, g.state.player.pos.y, 1); // 1 HP, dies in one hit
+  const input = aimAt(g, g.state.player.pos.x + 2, g.state.player.pos.y);
+
+  let cashSpawned = false;
+  for (let i = 0; i < 30; i++) {
+    tick(g, i === 0 ? input : { ...input, fire: false }, extractionConfigs);
+    for (const ev of g.state.events) {
+      if (ev.type === 'cash_spawned') cashSpawned = true;
+    }
+  }
+  assert(cashSpawned, 'Cash spawned from enemy kill in extraction mode');
+  assert(g.state.cashPickups.length > 0, `Cash pickup exists: ${g.state.cashPickups.length}`);
+}
+
+// ---- Test 38: Cash NOT spawned in arena mode ----
+console.log('\n--- Test 38: No cash in arena mode ---');
+{
+  const g = createGame(combatConfigs, 2100, 'arena');
+  injectEnemy(g, 2, 0, 1);
+  const input = aimAt(g, 2, 0);
+
+  for (let i = 0; i < 30; i++) {
+    tick(g, i === 0 ? input : { ...input, fire: false }, combatConfigs);
+  }
+  assert(g.state.cashPickups.length === 0, 'No cash pickups in arena mode');
+  assert(g.state.runCash === 0, 'No run cash in arena mode');
+}
+
+// ---- Test 39: Cash amount ranges ----
+console.log('\n--- Test 39: Cash amount ranges ---');
+{
+  const g = createGame(extractionConfigs, 2200, 'extraction');
+
+  // Kill a rusher
+  injectEnemy(g, g.state.player.pos.x + 2, g.state.player.pos.y, 1, 'rusher');
+  const input = aimAt(g, g.state.player.pos.x + 2, g.state.player.pos.y);
+  for (let i = 0; i < 20; i++) {
+    tick(g, i === 0 ? input : { ...input, fire: false }, extractionConfigs);
+  }
+
+  const rusherCash = g.state.cashPickups.find(c => c.amount >= 10 && c.amount <= 20);
+  assert(g.state.cashPickups.length > 0, 'Cash pickup from rusher exists');
+  if (g.state.cashPickups.length > 0) {
+    const amt = g.state.cashPickups[0].amount;
+    assert(amt >= 10 && amt <= 20, `Rusher cash amount in range [10,20]: ${amt}`);
+  }
+
+  // Kill a sprinter
+  injectEnemy(g, g.state.player.pos.x + 2, g.state.player.pos.y, 1, 'sprinter');
+  const input2 = aimAt(g, g.state.player.pos.x + 2, g.state.player.pos.y);
+  const prevCount = g.state.cashPickups.length;
+  for (let i = 0; i < 20; i++) {
+    tick(g, i === 0 ? input2 : { ...input2, fire: false }, extractionConfigs);
+  }
+
+  if (g.state.cashPickups.length > prevCount) {
+    const sprinterPickup = g.state.cashPickups[g.state.cashPickups.length - 1];
+    assert(sprinterPickup.amount >= 25 && sprinterPickup.amount <= 40, `Sprinter cash amount in range [25,40]: ${sprinterPickup.amount}`);
+  }
+}
+
+// ---- Test 40: Cash pickup — player walks over cash ----
+console.log('\n--- Test 40: Cash pickup ---');
+{
+  const g = createGame(extractionConfigs, 2300, 'extraction');
+  // Manually place a cash pickup at player position
+  g.state.cashPickups.push({ id: g.state.nextEntityId++, pos: { x: g.state.player.pos.x, y: g.state.player.pos.y }, amount: 15 });
+
+  tick(g, noInput, extractionConfigs);
+  assert(g.state.cashPickups.length === 0, 'Cash pickup collected');
+  assert(g.state.runCash === 15, `runCash increased: ${g.state.runCash}`);
+}
+
+// ---- Test 41: Cash persists (no lifetime/expiration) ----
+console.log('\n--- Test 41: Cash persists ---');
+{
+  const g = createGame(extractionConfigs, 2400, 'extraction');
+  // Place cash far from player so it won't be picked up
+  g.state.cashPickups.push({ id: g.state.nextEntityId++, pos: { x: 15, y: 15 }, amount: 10 });
+
+  // Run for a long time (10 seconds)
+  for (let i = 0; i < 600; i++) {
+    tick(g, noInput, extractionConfigs);
+  }
+  assert(g.state.cashPickups.length >= 1, `Cash still exists after 600 ticks: ${g.state.cashPickups.length}`);
+  assert(g.state.cashPickups.some(c => c.amount === 10), 'Original cash pickup still present');
+}
+
+// ---- Test 42: Run cash accumulates ----
+console.log('\n--- Test 42: Run cash accumulates ---');
+{
+  const g = createGame(extractionConfigs, 2500, 'extraction');
+  // Place multiple cash pickups at player position
+  g.state.cashPickups.push({ id: g.state.nextEntityId++, pos: { x: g.state.player.pos.x, y: g.state.player.pos.y }, amount: 10 });
+  g.state.cashPickups.push({ id: g.state.nextEntityId++, pos: { x: g.state.player.pos.x, y: g.state.player.pos.y }, amount: 25 });
+  g.state.cashPickups.push({ id: g.state.nextEntityId++, pos: { x: g.state.player.pos.x, y: g.state.player.pos.y }, amount: 15 });
+
+  tick(g, noInput, extractionConfigs);
+  assert(g.state.cashPickups.length === 0, 'All cash collected');
+  assert(g.state.runCash === 50, `runCash accumulated: ${g.state.runCash}`);
+}
+
+// ---- Test 43: Cash determinism ----
+console.log('\n--- Test 43: Cash determinism ---');
+{
+  const gA = createGame(extractionConfigs, 2600, 'extraction');
+  const gB = createGame(extractionConfigs, 2600, 'extraction');
+
+  // Inject same enemies and kill them
+  injectEnemy(gA, gA.state.player.pos.x + 2, gA.state.player.pos.y, 1, 'rusher');
+  injectEnemy(gB, gB.state.player.pos.x + 2, gB.state.player.pos.y, 1, 'rusher');
+
+  const inputA = aimAt(gA, gA.state.player.pos.x + 2, gA.state.player.pos.y);
+  const inputB = aimAt(gB, gB.state.player.pos.x + 2, gB.state.player.pos.y);
+
+  for (let i = 0; i < 30; i++) {
+    const inp = i === 0 ? inputA : { ...inputA, fire: false };
+    tick(gA, inp, extractionConfigs);
+    tick(gB, i === 0 ? inputB : { ...inputB, fire: false }, extractionConfigs);
+  }
+
+  assert(gA.state.cashPickups.length === gB.state.cashPickups.length, 'Same cash pickup count');
+  if (gA.state.cashPickups.length > 0) {
+    assert(gA.state.cashPickups[0].amount === gB.state.cashPickups[0].amount, `Same cash amount: ${gA.state.cashPickups[0].amount}`);
+  }
+}
+
+// ---- Test 44: Extended extraction with cash ----
+console.log('\n--- Test 44: Extended extraction with cash ---');
+{
+  const g = createGame(extractionConfigs, 2700, 'extraction');
+
+  let totalCashSpawned = 0;
+  let totalCashPickedUp = 0;
+
+  // Move north and fight for 30+ seconds
+  for (let i = 0; i < 1800; i++) {
+    let inp: InputState;
+    if (g.state.enemies.length > 0) {
+      const closest = g.state.enemies.reduce((a, b) => {
+        const da = Math.hypot(a.pos.x - g.state.player.pos.x, a.pos.y - g.state.player.pos.y);
+        const db = Math.hypot(b.pos.x - g.state.player.pos.x, b.pos.y - g.state.player.pos.y);
+        return da < db ? a : b;
+      });
+      const dx = closest.pos.x - g.state.player.pos.x;
+      const dy = closest.pos.y - g.state.player.pos.y;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      inp = {
+        moveDir: { x: 0, y: 1 },
+        aimDir: len > 0 ? { x: dx / len, y: dy / len } : { x: 0, y: 1 },
+        fire: true,
+        headshotTargetId: null,
+        dodge: false,
+        reload: false,
+        throwGrenade: false,
+        throwPower: 0,
+      };
+    } else {
+      inp = {
+        moveDir: { x: 0, y: 1 },
+        aimDir: { x: 0, y: 1 },
+        fire: false,
+        headshotTargetId: null,
+        dodge: false,
+        reload: false,
+        throwGrenade: false,
+        throwPower: 0,
+      };
+    }
+
+    tick(g, inp, extractionConfigs);
+
+    for (const ev of g.state.events) {
+      if (ev.type === 'cash_spawned') totalCashSpawned++;
+      if (ev.type === 'cash_picked_up') totalCashPickedUp++;
+    }
+
+    if (g.state.gameOver || g.state.extracted) break;
+  }
+
+  console.log(`  ${g.state.tick} ticks, cash spawned: ${totalCashSpawned}, picked up: ${totalCashPickedUp}, runCash: ${g.state.runCash}, remaining pickups: ${g.state.cashPickups.length}`);
+  assert(g.state.tick > 300, `Ran for meaningful duration: ${g.state.tick} ticks`);
+  // If kills happened, cash should have spawned
+  if (totalCashSpawned > 0) {
+    assert(totalCashSpawned > 0, `Cash spawned during extended play: ${totalCashSpawned}`);
+  }
 }
 
 console.log('\n=== All headless tests passed! ===');

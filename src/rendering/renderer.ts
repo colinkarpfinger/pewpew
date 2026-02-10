@@ -6,6 +6,7 @@ import {
   createEnemyMesh,
   createProjectileMesh,
   createGrenadeMesh,
+  createCashMesh,
   createCrateMesh,
   createObstacleMesh,
   createGroundMesh,
@@ -31,6 +32,7 @@ export class Renderer {
   private projectileMeshes = new Map<number, THREE.Mesh>();
   private grenadeMeshes = new Map<number, THREE.Mesh>();
   private crateMeshes = new Map<number, THREE.Mesh>();
+  private cashMeshes = new Map<number, THREE.Mesh>();
   private particles: ParticleSystem | null = null;
   private muzzleFlashes: { light: THREE.PointLight; timer: number }[] = [];
   private dirLight: THREE.DirectionalLight | null = null;
@@ -73,6 +75,7 @@ export class Renderer {
     this.projectileMeshes.clear();
     this.grenadeMeshes.clear();
     this.crateMeshes.clear();
+    this.cashMeshes.clear();
     this.enemyTypes.clear();
     this.playerGroup = null;
 
@@ -348,6 +351,29 @@ export class Renderer {
       if (!currentCrateIds.has(id)) {
         this.scene.remove(mesh);
         this.crateMeshes.delete(id);
+      }
+    }
+
+    // Sync cash pickups
+    const currentCashIds = new Set<number>();
+    for (const cash of state.cashPickups) {
+      currentCashIds.add(cash.id);
+      let mesh = this.cashMeshes.get(cash.id);
+      if (!mesh) {
+        mesh = createCashMesh();
+        this.cashMeshes.set(cash.id, mesh);
+        this.scene.add(mesh);
+      }
+      // Bob and spin animation
+      const bobY = 0.3 + Math.sin(state.tick * 0.06) * 0.1;
+      mesh.position.set(cash.pos.x, bobY, cash.pos.y);
+      mesh.rotation.y = state.tick * 0.03;
+    }
+    // Remove picked up cash meshes
+    for (const [id, mesh] of this.cashMeshes) {
+      if (!currentCashIds.has(id)) {
+        this.scene.remove(mesh);
+        this.cashMeshes.delete(id);
       }
     }
   }

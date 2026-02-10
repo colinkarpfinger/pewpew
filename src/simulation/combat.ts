@@ -225,7 +225,7 @@ export function checkProjectileCollisions(state: GameState, weapons: WeaponsConf
         state.events.push({
           tick: state.tick,
           type: 'enemy_killed',
-          data: { enemyId: enemy.id, scoreValue: enemy.scoreValue, x: enemy.pos.x, y: enemy.pos.y, headshot: isHeadshot, bulletKillCount: proj.killCount },
+          data: { enemyId: enemy.id, enemyType: enemy.type, scoreValue: enemy.scoreValue, x: enemy.pos.x, y: enemy.pos.y, headshot: isHeadshot, bulletKillCount: proj.killCount },
         });
       }
 

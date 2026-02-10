@@ -120,6 +120,25 @@ html, body {
   z-index: 40;
 }
 
+/* ---- Cash Counter ---- */
+
+#cash-counter {
+  position: absolute;
+  top: 16px;
+  right: 240px;
+  color: #ffd700;
+  font-size: 22px;
+  font-family: monospace;
+  font-weight: bold;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+  z-index: 40;
+}
+
+#cash-counter.hidden {
+  display: none;
+}
+
 /* ---- Reload Popup ---- */
 
 #reload-popup {
