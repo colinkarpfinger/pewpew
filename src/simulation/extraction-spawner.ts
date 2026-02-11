@@ -1,7 +1,6 @@
 import type { GameState, ExtractionMapConfig, ExtractionSpawnerState, Enemy, EnemyType } from './types.ts';
 import type { SeededRNG } from './rng.ts';
 import type { EnemiesConfig } from './types.ts';
-import { isInRegion } from './extraction-map.ts';
 import { circleAABB } from './collision.ts';
 
 /** Create initial extraction spawner state from map config */
@@ -67,44 +66,14 @@ export function spawnInitialEnemies(
   }
 }
 
-/** Update extraction spawner: handle trigger regions */
+/** Update extraction spawner (trigger regions removed — all enemies pre-populated) */
 export function updateExtractionSpawner(
-  state: GameState,
-  map: ExtractionMapConfig,
-  enemies: EnemiesConfig,
-  rng: SeededRNG,
+  _state: GameState,
+  _map: ExtractionMapConfig,
+  _enemies: EnemiesConfig,
+  _rng: SeededRNG,
 ): void {
-  const spawner = state.extractionSpawner!;
-  const playerPos = state.player.pos;
-
-  // Check trigger regions
-  for (const region of map.triggerRegions) {
-    if (spawner.triggeredRegionIds.includes(region.id)) continue;
-    if (!isInRegion(playerPos, region.x, region.y, region.width, region.height)) continue;
-
-    // Trigger this region
-    spawner.triggeredRegionIds.push(region.id);
-    state.events.push({
-      tick: state.tick,
-      type: 'trigger_activated',
-      data: { regionId: region.id },
-    });
-
-    // Spawn pack at designated spawn points
-    for (let i = 0; i < region.enemyCount; i++) {
-      if (state.enemies.length >= map.maxEnemies) break;
-
-      const spawnPoint = region.spawnPoints[i % region.spawnPoints.length];
-      const enemyType: EnemyType = pickEnemyType(rng, region.sprinterRatio, region.gunnerRatio ?? 0, region.shotgunnerRatio ?? 0, region.sniperRatio ?? 0);
-      const enemy = createEnemy(state, spawnPoint.x, spawnPoint.y, enemyType, enemies, rng);
-      state.enemies.push(enemy);
-      state.events.push({
-        tick: state.tick,
-        type: 'enemy_spawned',
-        data: { enemyId: enemy.id, pos: { ...enemy.pos } },
-      });
-    }
-  }
+  // No-op: trigger regions removed. All enemies are pre-spawned via spawnInitialEnemies().
 }
 
 function pickEnemyType(rng: SeededRNG, _sprinterRatio: number, gunnerRatio: number, shotgunnerRatio: number, sniperRatio: number): EnemyType {

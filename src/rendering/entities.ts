@@ -96,6 +96,7 @@ export function createReloadBar(playerRadius: number): THREE.Group {
 
 export interface EnemyMeshGroup {
   group: THREE.Group;
+  bodyMesh: THREE.Mesh;
   headMesh: THREE.Mesh;
   hasArmor: boolean;
   hasHelmet: boolean;
@@ -162,7 +163,7 @@ export function createEnemyMesh(radius: number, enemyType: EnemyType = 'sprinter
     group.add(helmetMesh);
   }
 
-  return { group, headMesh: head, hasArmor, hasHelmet };
+  return { group, bodyMesh: body, headMesh: head, hasArmor, hasHelmet };
 }
 
 export function createPlayerArmorMesh(playerRadius: number, armorTier: ArmorType): THREE.Mesh {

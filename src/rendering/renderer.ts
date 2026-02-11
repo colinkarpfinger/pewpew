@@ -20,7 +20,7 @@ import {
   createWeaponMesh,
   type EnemyMeshGroup,
 } from './entities.ts';
-import { createCamera, updateCamera } from './camera.ts';
+import { createCamera, updateCamera, triggerScreenShake, triggerZoomPunch, triggerWeaponKick } from './camera.ts';
 import { getZoneIndex } from '../simulation/extraction-map.ts';
 
 export class Renderer {
@@ -50,6 +50,15 @@ export class Renderer {
   private dirLight: THREE.DirectionalLight | null = null;
   private enemyTypes = new Map<number, EnemyType>();
   private sniperLaserMeshes = new Map<number, THREE.Mesh>();
+  private hitFlashTimers = new Map<number, number>();
+
+  // Damage vignette
+  private vignetteScene: THREE.Scene | null = null;
+  private vignetteCamera: THREE.OrthographicCamera | null = null;
+  private vignetteMesh: THREE.Mesh | null = null;
+  private vignetteOpacity = 0;
+  private vignetteDecayTimer = 0;
+  private vignetteBaseOpacity = 0; // sustained low-HP vignette
 
   constructor(canvas: HTMLCanvasElement) {
     this.scene = new THREE.Scene();
@@ -78,6 +87,29 @@ export class Renderer {
     dirLight.shadow.camera.bottom = -20;
     this.scene.add(dirLight);
 
+    // Damage vignette overlay
+    this.vignetteScene = new THREE.Scene();
+    this.vignetteCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const vignetteMat = new THREE.ShaderMaterial({
+      uniforms: { uOpacity: { value: 0 } },
+      vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position, 1.0); }`,
+      fragmentShader: `
+        uniform float uOpacity;
+        varying vec2 vUv;
+        void main() {
+          vec2 center = vUv - 0.5;
+          float dist = length(center) * 2.0;
+          float vignette = smoothstep(0.3, 1.2, dist);
+          gl_FragColor = vec4(0.6, 0.0, 0.0, vignette * uOpacity);
+        }
+      `,
+      transparent: true,
+      depthTest: false,
+      depthWrite: false,
+    });
+    this.vignetteMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), vignetteMat);
+    this.vignetteScene.add(this.vignetteMesh);
+
     window.addEventListener('resize', () => this.onResize());
   }
 
@@ -93,6 +125,7 @@ export class Renderer {
     this.destructibleCrateMeshes.clear();
     this.enemyTypes.clear();
     this.sniperLaserMeshes.clear();
+    this.hitFlashTimers.clear();
     this.playerGroup = null;
 
     // Ground
@@ -219,7 +252,7 @@ export class Renderer {
   }
 
   /** Sync all dynamic visuals to match simulation state */
-  syncState(state: GameState): void {
+  syncState(state: GameState, dt: number = 1 / 60): void {
     // Player position and rotation
     if (this.playerGroup && this.playerCapsule && this.playerAim) {
       this.playerGroup.position.set(state.player.pos.x, 0, state.player.pos.y);
@@ -357,7 +390,7 @@ export class Renderer {
     }
 
     // Update camera
-    updateCamera(this.camera, state.player.pos.x, state.player.pos.y);
+    updateCamera(this.camera, state.player.pos.x, state.player.pos.y, dt);
 
     // Sync enemies
     const currentEnemyIds = new Set<number>();
@@ -372,6 +405,15 @@ export class Renderer {
       }
       entry.group.position.set(enemy.pos.x, 0, enemy.pos.y);
       entry.group.visible = enemy.visible;
+
+      // Hit flash: set emissive white when recently hit
+      const flashTime = this.hitFlashTimers.get(enemy.id);
+      const emissiveColor = (flashTime && flashTime > 0) ? 0xffffff : 0x000000;
+      const emissiveIntensity = (flashTime && flashTime > 0) ? 0.8 : 0;
+      (entry.bodyMesh.material as THREE.MeshStandardMaterial).emissive.setHex(emissiveColor);
+      (entry.bodyMesh.material as THREE.MeshStandardMaterial).emissiveIntensity = emissiveIntensity;
+      (entry.headMesh.material as THREE.MeshStandardMaterial).emissive.setHex(emissiveColor);
+      (entry.headMesh.material as THREE.MeshStandardMaterial).emissiveIntensity = emissiveIntensity;
     }
     // Remove dead enemy meshes
     for (const [id, entry] of this.enemyGroups) {
@@ -379,6 +421,7 @@ export class Renderer {
         this.scene.remove(entry.group);
         this.enemyGroups.delete(id);
         this.enemyTypes.delete(id);
+        this.hitFlashTimers.delete(id);
       }
     }
 
@@ -574,6 +617,9 @@ export class Renderer {
     this.particles.processEvents(events, state);
     this.particles.update(dt);
     this.updateMuzzleFlashes(dt, events);
+    this.processJuiceEvents(events, state);
+    this.updateHitFlashTimers(dt);
+    this.updateVignette(dt, state);
   }
 
   private updateMuzzleFlashes(dt: number, events: GameEvent[]): void {
@@ -625,8 +671,82 @@ export class Renderer {
     }
   }
 
+  private processJuiceEvents(events: GameEvent[], _state: GameState): void {
+    for (const ev of events) {
+      if (ev.type === 'player_hit') {
+        triggerScreenShake(0.4, 0.2);
+        this.vignetteOpacity = 0.6;
+        this.vignetteDecayTimer = 0.4;
+      } else if (ev.type === 'grenade_exploded') {
+        triggerScreenShake(0.6, 0.3);
+        triggerZoomPunch(2.0, 0.3);
+      } else if (ev.type === 'enemy_killed') {
+        const headshot = ev.data?.headshot === true;
+        if (headshot) {
+          triggerScreenShake(0.2, 0.1);
+          triggerZoomPunch(1.0, 0.15);
+        }
+      } else if (ev.type === 'multikill') {
+        triggerScreenShake(0.5, 0.25);
+        triggerZoomPunch(1.5, 0.25);
+      } else if (ev.type === 'armor_broken') {
+        triggerScreenShake(0.3, 0.15);
+      } else if (ev.type === 'enemy_hit') {
+        const enemyId = ev.data?.enemyId;
+        if (typeof enemyId === 'number') {
+          this.hitFlashTimers.set(enemyId, 0.08);
+        }
+      } else if (ev.type === 'projectile_fired') {
+        const d = ev.data;
+        if (d && typeof d.angle === 'number') {
+          triggerWeaponKick(d.angle as number, 0.015);
+        }
+      }
+    }
+  }
+
+  private updateHitFlashTimers(dt: number): void {
+    for (const [id, timer] of this.hitFlashTimers) {
+      const newTimer = timer - dt;
+      if (newTimer <= 0) {
+        this.hitFlashTimers.delete(id);
+      } else {
+        this.hitFlashTimers.set(id, newTimer);
+      }
+    }
+  }
+
+  private updateVignette(dt: number, state: GameState): void {
+    // Sustain vignette at low HP
+    const hpRatio = state.player.hp / state.player.maxHp;
+    this.vignetteBaseOpacity = hpRatio <= 0.3 ? 0.2 : 0;
+
+    // Decay hit vignette
+    if (this.vignetteDecayTimer > 0) {
+      this.vignetteDecayTimer -= dt;
+      if (this.vignetteDecayTimer <= 0) {
+        this.vignetteOpacity = 0;
+      }
+    }
+
+    // Effective opacity is max of hit flash and sustained
+    const effectiveOpacity = Math.max(this.vignetteOpacity, this.vignetteBaseOpacity);
+    if (this.vignetteMesh) {
+      (this.vignetteMesh.material as THREE.ShaderMaterial).uniforms.uOpacity.value = effectiveOpacity;
+    }
+  }
+
   render(): void {
     this.webglRenderer.render(this.scene, this.camera);
+    // Render vignette overlay on top
+    if (this.vignetteScene && this.vignetteCamera) {
+      const effectiveOpacity = Math.max(this.vignetteOpacity, this.vignetteBaseOpacity);
+      if (effectiveOpacity > 0) {
+        this.webglRenderer.autoClear = false;
+        this.webglRenderer.render(this.vignetteScene, this.vignetteCamera);
+        this.webglRenderer.autoClear = true;
+      }
+    }
   }
 
   private onResize(): void {

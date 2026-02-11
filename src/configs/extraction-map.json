@@ -6,15 +6,15 @@
     { "x": 0, "y": -58, "width": 8, "height": 4 },
     { "x": 0, "y": 55, "width": 8, "height": 6 }
   ],
-  "maxEnemies": 40,
+  "maxEnemies": 45,
   "minSpawnDistFromPlayer": 20,
   "enemyDetectionRange": 18,
   "wanderSpeedMultiplier": 0.3,
   "zones": [
-    { "yMin": -60, "yMax": -30, "ambientInterval": 360, "sprinterRatio": 1.0, "gunnerRatio": 0, "shotgunnerRatio": 0, "sniperRatio": 0, "initialEnemyCount": 0 },
-    { "yMin": -30, "yMax": 0, "ambientInterval": 210, "sprinterRatio": 0.6, "gunnerRatio": 0.2, "shotgunnerRatio": 0.1, "sniperRatio": 0.1, "initialEnemyCount": 4 },
-    { "yMin": 0, "yMax": 30, "ambientInterval": 140, "sprinterRatio": 0.45, "gunnerRatio": 0.2, "shotgunnerRatio": 0.15, "sniperRatio": 0.2, "initialEnemyCount": 6 },
-    { "yMin": 30, "yMax": 60, "ambientInterval": 90, "sprinterRatio": 0.35, "gunnerRatio": 0.2, "shotgunnerRatio": 0.2, "sniperRatio": 0.25, "initialEnemyCount": 8 }
+    { "yMin": -60, "yMax": -30, "ambientInterval": 360, "sprinterRatio": 1.0, "gunnerRatio": 0, "shotgunnerRatio": 0, "sniperRatio": 0, "initialEnemyCount": 3 },
+    { "yMin": -30, "yMax": 0, "ambientInterval": 210, "sprinterRatio": 0.6, "gunnerRatio": 0.2, "shotgunnerRatio": 0.1, "sniperRatio": 0.1, "initialEnemyCount": 8 },
+    { "yMin": 0, "yMax": 30, "ambientInterval": 140, "sprinterRatio": 0.45, "gunnerRatio": 0.2, "shotgunnerRatio": 0.15, "sniperRatio": 0.2, "initialEnemyCount": 12 },
+    { "yMin": 30, "yMax": 60, "ambientInterval": 90, "sprinterRatio": 0.35, "gunnerRatio": 0.2, "shotgunnerRatio": 0.2, "sniperRatio": 0.25, "initialEnemyCount": 14 }
   ],
   "walls": [
     { "pos": { "x": -8, "y": -48 }, "width": 6, "height": 1 },
@@ -68,94 +68,5 @@
     { "x": -12, "y": 38 },
     { "x": 6, "y": 48 }
   ],
-  "triggerRegions": [
-    {
-      "id": 1,
-      "x": 0, "y": -30,
-      "width": 12, "height": 6,
-      "spawnPoints": [
-        { "x": -10, "y": -28 }, { "x": 10, "y": -28 },
-        { "x": -8, "y": -32 }, { "x": 8, "y": -32 }
-      ],
-      "enemyCount": 2,
-      "sprinterRatio": 1.0,
-      "gunnerRatio": 0
-    },
-    {
-      "id": 2,
-      "x": 0, "y": -15,
-      "width": 10, "height": 6,
-      "spawnPoints": [
-        { "x": -12, "y": -14 }, { "x": 12, "y": -14 },
-        { "x": -10, "y": -18 }, { "x": 10, "y": -18 }
-      ],
-      "enemyCount": 3,
-      "sprinterRatio": 0.75,
-      "gunnerRatio": 0.25
-    },
-    {
-      "id": 3,
-      "x": 0, "y": 0,
-      "width": 14, "height": 6,
-      "spawnPoints": [
-        { "x": -14, "y": 2 }, { "x": 14, "y": 2 },
-        { "x": -12, "y": -2 }, { "x": 12, "y": -2 },
-        { "x": 0, "y": 4 }
-      ],
-      "enemyCount": 3,
-      "sprinterRatio": 0.7,
-      "gunnerRatio": 0.3
-    },
-    {
-      "id": 4,
-      "x": 0, "y": 15,
-      "width": 10, "height": 6,
-      "spawnPoints": [
-        { "x": -12, "y": 16 }, { "x": 12, "y": 16 },
-        { "x": -10, "y": 12 }, { "x": 10, "y": 12 }
-      ],
-      "enemyCount": 3,
-      "sprinterRatio": 0.7,
-      "gunnerRatio": 0.3
-    },
-    {
-      "id": 5,
-      "x": 0, "y": 28,
-      "width": 12, "height": 6,
-      "spawnPoints": [
-        { "x": -14, "y": 30 }, { "x": 14, "y": 30 },
-        { "x": -10, "y": 26 }, { "x": 10, "y": 26 },
-        { "x": 0, "y": 32 }
-      ],
-      "enemyCount": 4,
-      "sprinterRatio": 0.6,
-      "gunnerRatio": 0.4
-    },
-    {
-      "id": 6,
-      "x": 0, "y": 40,
-      "width": 14, "height": 6,
-      "spawnPoints": [
-        { "x": -16, "y": 42 }, { "x": 16, "y": 42 },
-        { "x": -12, "y": 38 }, { "x": 12, "y": 38 },
-        { "x": -6, "y": 44 }, { "x": 6, "y": 44 }
-      ],
-      "enemyCount": 4,
-      "sprinterRatio": 0.55,
-      "gunnerRatio": 0.45
-    },
-    {
-      "id": 7,
-      "x": 0, "y": 50,
-      "width": 16, "height": 6,
-      "spawnPoints": [
-        { "x": -16, "y": 52 }, { "x": 16, "y": 52 },
-        { "x": -14, "y": 48 }, { "x": 14, "y": 48 },
-        { "x": -8, "y": 54 }, { "x": 8, "y": 54 }
-      ],
-      "enemyCount": 5,
-      "sprinterRatio": 0.5,
-      "gunnerRatio": 0.5
-    }
-  ]
+  "triggerRegions": []
 }

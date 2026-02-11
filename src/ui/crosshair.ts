@@ -14,6 +14,14 @@ const LERP_SPEED = 0.15;  // interpolation factor per frame
 let currentGap = MIN_GAP;
 let targetGap = MIN_GAP;
 
+// Crosshair recoil state
+let recoilX = 0;
+let recoilY = 0;
+let lastMouseX = 0;
+let lastMouseY = 0;
+const RECOIL_DECAY = 0.85; // per-frame multiplicative decay
+const RECOIL_AMOUNT = 8;   // base pixels per shot
+
 let lineUp: SVGLineElement;
 let lineDown: SVGLineElement;
 let lineLeft: SVGLineElement;
@@ -46,8 +54,9 @@ export function initCrosshair(canvas: HTMLCanvasElement): void {
   bg.setAttribute('stroke-dashoffset', '0');
 
   canvas.addEventListener('mousemove', (e) => {
-    el.style.left = `${e.clientX}px`;
-    el.style.top = `${e.clientY}px`;
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+    updateCrosshairPosition();
   });
 
   canvas.addEventListener('mouseenter', () => {
@@ -118,6 +127,50 @@ export function updateCrosshairSpread(spread: number): void {
   lineLeft.setAttribute('x2', String(-inner));
   lineRight.setAttribute('x1', String(inner));
   lineRight.setAttribute('x2', String(outer));
+}
+
+function updateCrosshairPosition(): void {
+  const el = crosshairEl();
+  el.style.left = `${lastMouseX + recoilX}px`;
+  el.style.top = `${lastMouseY + recoilY}px`;
+}
+
+/** Kick the crosshair away from the player (along aim axis) with randomness. */
+export function triggerCrosshairRecoil(): void {
+  // Direction from screen center (roughly player position) to cursor
+  const cx = window.innerWidth / 2;
+  const cy = window.innerHeight / 2;
+  const dx = lastMouseX - cx;
+  const dy = lastMouseY - cy;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len < 1) return;
+
+  const nx = dx / len;
+  const ny = dy / len;
+
+  // Forward jitter (along aim direction, biased outward)
+  const forwardJitter = RECOIL_AMOUNT * (0.7 + Math.random() * 0.6);
+  // Perpendicular jitter (side-to-side)
+  const perpJitter = (Math.random() * 2 - 1) * RECOIL_AMOUNT * 0.3;
+
+  // Perpendicular direction
+  const px = -ny;
+  const py = nx;
+
+  recoilX += nx * forwardJitter + px * perpJitter;
+  recoilY += ny * forwardJitter + py * perpJitter;
+  updateCrosshairPosition();
+}
+
+/** Decay crosshair recoil offset — call once per frame. */
+export function updateCrosshairRecoil(): void {
+  recoilX *= RECOIL_DECAY;
+  recoilY *= RECOIL_DECAY;
+  if (Math.abs(recoilX) < 0.1 && Math.abs(recoilY) < 0.1) {
+    recoilX = 0;
+    recoilY = 0;
+  }
+  updateCrosshairPosition();
 }
 
 export function showCrosshair(): void {

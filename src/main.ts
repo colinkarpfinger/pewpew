@@ -19,7 +19,7 @@ import { showHubScreen, hideHubScreen, setupHubScreen } from './ui/hub-screen.ts
 import { showEscapeMenu, hideEscapeMenu, setupEscapeMenu } from './ui/escape-menu.ts';
 import { showReplayBrowser } from './ui/replay-browser.ts';
 import { showReplayControls, hideReplayControls, onReplayExit } from './ui/replay-controls.ts';
-import { initCrosshair, showCrosshair, hideCrosshair, processHitEvents, updateCrosshairSpread, updateAmmoArc } from './ui/crosshair.ts';
+import { initCrosshair, showCrosshair, hideCrosshair, processHitEvents, updateCrosshairSpread, updateAmmoArc, triggerCrosshairRecoil, updateCrosshairRecoil } from './ui/crosshair.ts';
 import { initDevConsole, toggleDevConsole, isDevConsoleEnabled, setDevConsoleEnabled, isDevConsoleVisible, logToConsole, registerCommand } from './ui/dev-console.ts';
 
 import { AudioSystem } from './audio/audio.ts';
@@ -92,6 +92,10 @@ let accumulator = 0;
 let lastTime = performance.now();
 let gameOverShown = false;
 let currentSeed = 0;
+
+// Hit stop (freeze frame) state
+let timeScale = 1.0;
+let hitStopTimer = 0;
 
 if (!mobile) initCrosshair(canvas);
 initDevConsole();
@@ -244,6 +248,8 @@ function startGame(mode: GameMode = 'arena', weapon?: WeaponType, armor?: ArmorT
   }
   accumulator = 0;
   lastTime = performance.now();
+  timeScale = 1.0;
+  hitStopTimer = 0;
   screen = 'playing';
 }
 
@@ -416,7 +422,17 @@ function gameLoop(now: number): void {
   lastTime = now;
 
   if (screen === 'playing') {
-    accumulator += dt;
+    // Decay hit stop timer using real (unscaled) time
+    if (hitStopTimer > 0) {
+      hitStopTimer -= dt;
+      if (hitStopTimer <= 0) {
+        hitStopTimer = 0;
+        timeScale = 1.0;
+      }
+    }
+
+    const scaledDt = dt * timeScale;
+    accumulator += scaledDt;
     const state = game.state;
     input.setPlayerPos(state.player.pos);
     input.setEnemies(state.enemies.map(e => ({ id: e.id, pos: e.pos, radius: e.radius })));
@@ -447,6 +463,7 @@ function gameLoop(now: number): void {
         ? weapon.spread * weapon.movingSpreadMultiplier * 3.0
         : weapon.spread * (isMoving ? weapon.movingSpreadMultiplier : 1.0);
       updateCrosshairSpread(effectiveSpread);
+      updateCrosshairRecoil();
 
       // Update ammo arc
       const isReloading = state.player.reloadTimer > 0;
@@ -465,7 +482,12 @@ function gameLoop(now: number): void {
       fullRecorder.recordTick(currentInput);
       ringRecorder.recordTick(currentInput, game);
       tick(game, currentInput, runConfigs);
-      if (!mobile) processHitEvents(state.events);
+      if (!mobile) {
+        processHitEvents(state.events);
+        for (const ev of state.events) {
+          if (ev.type === 'projectile_fired') triggerCrosshairRecoil();
+        }
+      }
       frameEvents.push(...state.events);
       accumulator -= TICK_DURATION;
     }
@@ -512,14 +534,34 @@ function gameLoop(now: number): void {
       screen = 'gameOver';
     }
 
-    renderer.syncState(state);
-    renderer.updateParticles(dt, frameEvents, state);
+    // Process hit stop events
+    for (const ev of frameEvents) {
+      if (ev.type === 'enemy_killed') {
+        const headshot = ev.data?.headshot === true;
+        if (headshot) {
+          timeScale = 0.05;
+          hitStopTimer = 0.08;
+        } else {
+          timeScale = 0.1;
+          hitStopTimer = 0.05;
+        }
+      } else if (ev.type === 'multikill') {
+        timeScale = 0.05;
+        hitStopTimer = 0.12;
+      } else if (ev.type === 'grenade_exploded') {
+        timeScale = 0.15;
+        hitStopTimer = 0.1;
+      }
+    }
+
+    renderer.syncState(state, scaledDt);
+    renderer.updateParticles(scaledDt, frameEvents, state);
     audioSystem.processEvents(frameEvents, state);
     renderer.render();
     updateHUD(state);
   } else if (screen === 'paused' || screen === 'gameOver') {
     // Still render the scene (visible behind overlay)
-    renderer.syncState(game.state);
+    renderer.syncState(game.state, dt);
     renderer.updateParticles(dt, [], game.state);
     renderer.render();
     updateHUD(game.state);
