@@ -685,7 +685,6 @@ export class Renderer {
       } else if (ev.type === 'enemy_killed') {
         const headshot = ev.data?.headshot === true;
         if (headshot) {
-          triggerScreenShake(0.2, 0.1);
           triggerZoomPunch(1.0, 0.15);
         }
       } else if (ev.type === 'multikill') {
