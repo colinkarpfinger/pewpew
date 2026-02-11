@@ -62,7 +62,7 @@ export function checkCratePickups(state: GameState, config: CrateConfig): void {
 
     // Apply effect
     if (crate.crateType === 'health') {
-      p.hp = Math.min(p.hp + config.healthAmount, p.maxHp);
+      p.bandageSmallCount++;
     } else if (crate.crateType === 'grenade') {
       state.grenadeAmmo++;
     }
