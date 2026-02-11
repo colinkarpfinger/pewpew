@@ -671,14 +671,16 @@ export class Renderer {
     }
   }
 
-  private processJuiceEvents(events: GameEvent[], _state: GameState): void {
+  private processJuiceEvents(events: GameEvent[], state: GameState): void {
     for (const ev of events) {
       if (ev.type === 'player_hit') {
-        triggerScreenShake(0.4, 0.2);
+        const damage = typeof ev.data?.damage === 'number' ? ev.data.damage as number : 10;
+        const scale = Math.min(damage / state.player.maxHp, 1);
+        triggerScreenShake(0.15 + scale * 0.25, 0.15);
         this.vignetteOpacity = 0.6;
         this.vignetteDecayTimer = 0.4;
       } else if (ev.type === 'grenade_exploded') {
-        triggerScreenShake(0.6, 0.3);
+        triggerScreenShake(0.25, 0.2);
         triggerZoomPunch(2.0, 0.3);
       } else if (ev.type === 'enemy_killed') {
         const headshot = ev.data?.headshot === true;
@@ -699,7 +701,8 @@ export class Renderer {
       } else if (ev.type === 'projectile_fired') {
         const d = ev.data;
         if (d && typeof d.angle === 'number') {
-          triggerWeaponKick(d.angle as number, 0.015);
+          const recoilScreen = this.weaponConfig?.recoilScreen ?? 0.5;
+          triggerWeaponKick(d.angle as number, 0.015 * recoilScreen);
         }
       }
     }

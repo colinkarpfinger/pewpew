@@ -51,6 +51,8 @@ export interface WeaponConfig {
   perfectReloadEnd: number;
   activeReloadDamageBonus: number; // multiplier (e.g. 1.1 = +10%)
   perfectReloadDamageBonus: number;
+  recoilAim: number; // 0-1 scale for crosshair kick on fire
+  recoilScreen: number; // 0-1 scale for camera shake on fire
 }
 
 export type WeaponsConfig = Record<WeaponType, WeaponConfig>;

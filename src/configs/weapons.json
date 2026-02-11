@@ -18,7 +18,9 @@
     "perfectReloadStart": 0.5,
     "perfectReloadEnd": 0.58,
     "activeReloadDamageBonus": 1.1,
-    "perfectReloadDamageBonus": 1.25
+    "perfectReloadDamageBonus": 1.25,
+    "recoilAim": 0.3,
+    "recoilScreen": 0.3
   },
   "smg": {
     "damage": 15,
@@ -39,7 +41,9 @@
     "perfectReloadStart": 0.5,
     "perfectReloadEnd": 0.58,
     "activeReloadDamageBonus": 1.1,
-    "perfectReloadDamageBonus": 1.25
+    "perfectReloadDamageBonus": 1.25,
+    "recoilAim": 0.4,
+    "recoilScreen": 0.4
   },
   "rifle": {
     "damage": 25,
@@ -60,7 +64,9 @@
     "perfectReloadStart": 0.5,
     "perfectReloadEnd": 0.58,
     "activeReloadDamageBonus": 1.1,
-    "perfectReloadDamageBonus": 1.25
+    "perfectReloadDamageBonus": 1.25,
+    "recoilAim": 0.6,
+    "recoilScreen": 0.6
   },
   "shotgun": {
     "damage": 18,
@@ -81,7 +87,9 @@
     "perfectReloadStart": 0.5,
     "perfectReloadEnd": 0.58,
     "activeReloadDamageBonus": 1.1,
-    "perfectReloadDamageBonus": 1.25
+    "perfectReloadDamageBonus": 1.25,
+    "recoilAim": 1.0,
+    "recoilScreen": 1.0
   },
   "machinegun": {
     "damage": 12,
@@ -102,6 +110,8 @@
     "perfectReloadStart": 0.5,
     "perfectReloadEnd": 0.58,
     "activeReloadDamageBonus": 1.1,
-    "perfectReloadDamageBonus": 1.25
+    "perfectReloadDamageBonus": 1.25,
+    "recoilAim": 0.5,
+    "recoilScreen": 0.5
   }
 }

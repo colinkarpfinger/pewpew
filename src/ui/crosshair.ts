@@ -136,7 +136,7 @@ function updateCrosshairPosition(): void {
 }
 
 /** Kick the crosshair away from the player (along aim axis) with randomness. */
-export function triggerCrosshairRecoil(): void {
+export function triggerCrosshairRecoil(scale: number = 1): void {
   // Direction from screen center (roughly player position) to cursor
   const cx = window.innerWidth / 2;
   const cy = window.innerHeight / 2;
@@ -149,9 +149,9 @@ export function triggerCrosshairRecoil(): void {
   const ny = dy / len;
 
   // Forward jitter (along aim direction, biased outward)
-  const forwardJitter = RECOIL_AMOUNT * (0.7 + Math.random() * 0.6);
+  const forwardJitter = RECOIL_AMOUNT * scale * (0.7 + Math.random() * 0.6);
   // Perpendicular jitter (side-to-side)
-  const perpJitter = (Math.random() * 2 - 1) * RECOIL_AMOUNT * 0.3;
+  const perpJitter = (Math.random() * 2 - 1) * RECOIL_AMOUNT * scale * 0.3;
 
   // Perpendicular direction
   const px = -ny;

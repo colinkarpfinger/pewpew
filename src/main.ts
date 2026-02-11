@@ -485,7 +485,10 @@ function gameLoop(now: number): void {
       if (!mobile) {
         processHitEvents(state.events);
         for (const ev of state.events) {
-          if (ev.type === 'projectile_fired') triggerCrosshairRecoil();
+          if (ev.type === 'projectile_fired') {
+            const wc = runConfigs.weapons[state.player.activeWeapon];
+            triggerCrosshairRecoil(wc.recoilAim);
+          }
         }
       }
       frameEvents.push(...state.events);
