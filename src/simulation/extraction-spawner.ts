@@ -56,7 +56,7 @@ export function spawnInitialEnemies(
       if (!valid) continue;
 
       const enemyType: EnemyType = pickEnemyType(rng, zone.sprinterRatio, zone.gunnerRatio ?? 0, zone.shotgunnerRatio ?? 0, zone.sniperRatio ?? 0);
-      const enemy = createEnemy(state, x, y, enemyType, enemies);
+      const enemy = createEnemy(state, x, y, enemyType, enemies, rng);
       // All pre-spawned enemies start wandering
       enemy.aiState = 'wander';
       const angle = rng.next() * Math.PI * 2;
@@ -96,7 +96,7 @@ export function updateExtractionSpawner(
 
       const spawnPoint = region.spawnPoints[i % region.spawnPoints.length];
       const enemyType: EnemyType = pickEnemyType(rng, region.sprinterRatio, region.gunnerRatio ?? 0, region.shotgunnerRatio ?? 0, region.sniperRatio ?? 0);
-      const enemy = createEnemy(state, spawnPoint.x, spawnPoint.y, enemyType, enemies);
+      const enemy = createEnemy(state, spawnPoint.x, spawnPoint.y, enemyType, enemies, rng);
       state.enemies.push(enemy);
       state.events.push({
         tick: state.tick,
@@ -121,6 +121,7 @@ function createEnemy(
   y: number,
   enemyType: EnemyType,
   enemies: EnemiesConfig,
+  rng: SeededRNG,
 ): Enemy {
   const cfg = enemies[enemyType];
   const enemy: Enemy = {
@@ -135,6 +136,8 @@ function createEnemy(
     knockbackVel: { x: 0, y: 0 },
     visible: true,
     stunTimer: 0,
+    hasArmor: rng.next() < (enemies.armorChance ?? 0),
+    hasHelmet: rng.next() < (enemies.helmetChance ?? 0),
   };
 
   // Initialize ranged AI fields for all ranged types

@@ -169,7 +169,7 @@
       "files": [
         "assets/audio/money/sfx_UI_money_kaching-001.wav"
       ],
-      "volume": 0.5,
+      "volume": 0.25,
       "pitchRange": [0.95, 1.1],
       "maxInstances": 3,
       "cooldown": 0.08,

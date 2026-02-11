@@ -26,6 +26,9 @@ export function createGame(configs: GameConfigs, seed: number = 12345, gameMode:
   const armorDamageReduction = equippedArmor && configs.armor
     ? configs.armor[equippedArmor].damageReduction
     : 0;
+  const armorMaxHp = equippedArmor && configs.armor
+    ? configs.armor[equippedArmor].maxHp
+    : 0;
 
   const isExtraction = gameMode === 'extraction' && configs.extractionMap;
   const extractionMap = isExtraction ? configs.extractionMap! : null;
@@ -65,6 +68,8 @@ export function createGame(configs: GameConfigs, seed: number = 12345, gameMode:
       activeWeapon: weapon,
       equippedArmor: equippedArmor ?? null,
       armorDamageReduction,
+      armorHp: armorMaxHp,
+      armorMaxHp,
       healTimer: 0,
       healType: null,
       healFumbled: false,
@@ -156,7 +161,7 @@ export function tick(game: GameInstance, input: InputState, configs: GameConfigs
   updateProjectiles(state);
 
   // 5. Projectile collisions (vs enemies, walls, obstacles)
-  checkProjectileCollisions(state, configs.weapons);
+  checkProjectileCollisions(state, configs.weapons, configs.enemies);
 
   // 5a. Projectile vs destructible crates
   if (configs.destructibleCrates) {
@@ -288,6 +293,8 @@ export function restoreGame(stateSnapshot: GameState, rngState: number): GameIns
   state.player.activeWeapon ??= 'rifle';
   state.player.equippedArmor ??= null;
   state.player.armorDamageReduction ??= 0;
+  state.player.armorHp ??= 0;
+  state.player.armorMaxHp ??= 0;
   state.player.healTimer ??= 0;
   state.player.healType ??= null;
   state.player.healFumbled ??= false;

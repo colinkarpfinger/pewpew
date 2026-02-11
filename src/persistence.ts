@@ -9,10 +9,11 @@ export interface ExtractionSave {
   bandageSmall: number;
   bandageLarge: number;
   weaponUpgrades: Partial<Record<WeaponType, number>>;
+  armorHpMap: Partial<Record<ArmorType, number>>;
 }
 
 function defaults(): ExtractionSave {
-  return { cashStash: 0, ownedWeapons: ['pistol'], ownedArmor: [], bandageSmall: 0, bandageLarge: 0, weaponUpgrades: {} };
+  return { cashStash: 0, ownedWeapons: ['pistol'], ownedArmor: [], bandageSmall: 0, bandageLarge: 0, weaponUpgrades: {}, armorHpMap: {} };
 }
 
 export function loadSave(): ExtractionSave {
@@ -27,6 +28,7 @@ export function loadSave(): ExtractionSave {
       bandageSmall: parsed.bandageSmall ?? 0,
       bandageLarge: parsed.bandageLarge ?? 0,
       weaponUpgrades: parsed.weaponUpgrades ?? {},
+      armorHpMap: parsed.armorHpMap ?? {},
     };
   } catch {
     return defaults();
@@ -104,5 +106,21 @@ export function getWeaponUpgradeLevel(weapon: WeaponType): number {
 export function setWeaponUpgradeLevel(weapon: WeaponType, level: number): void {
   const save = loadSave();
   save.weaponUpgrades[weapon] = level;
+  writeSave(save);
+}
+
+export function getArmorHp(type: ArmorType): number | undefined {
+  return loadSave().armorHpMap[type];
+}
+
+export function setArmorHp(type: ArmorType, hp: number): void {
+  const save = loadSave();
+  save.armorHpMap[type] = hp;
+  writeSave(save);
+}
+
+export function clearArmorHp(type: ArmorType): void {
+  const save = loadSave();
+  delete save.armorHpMap[type];
   writeSave(save);
 }

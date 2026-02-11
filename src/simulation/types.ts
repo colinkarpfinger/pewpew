@@ -1,6 +1,6 @@
 // ---- Configs ----
 
-export type WeaponType = 'pistol' | 'smg' | 'rifle' | 'shotgun';
+export type WeaponType = 'pistol' | 'smg' | 'rifle' | 'shotgun' | 'machinegun';
 export type ArmorType = 'light' | 'medium' | 'heavy';
 export type GameMode = 'arena' | 'extraction';
 export type EnemyType = 'sprinter' | 'gunner' | 'shotgunner' | 'sniper';
@@ -68,6 +68,10 @@ export interface EnemiesConfig {
   gunner: EnemyTypeConfig;
   shotgunner: EnemyTypeConfig;
   sniper: EnemyTypeConfig;
+  armorChance?: number;
+  helmetChance?: number;
+  armorDamageReduction?: number;
+  helmetHeadshotReduction?: number;
 }
 
 export interface SpawningConfig {
@@ -163,6 +167,7 @@ export interface RangedEnemyConfig {
 
 export interface ArmorTierConfig {
   damageReduction: number;
+  maxHp: number;
 }
 
 export type ArmorConfig = Record<ArmorType, ArmorTierConfig>;
@@ -229,6 +234,8 @@ export interface Player {
   activeWeapon: WeaponType;
   equippedArmor: ArmorType | null;
   armorDamageReduction: number;
+  armorHp: number;
+  armorMaxHp: number;
   healTimer: number; // 0 = not healing, >0 = ticks elapsed
   healType: BandageType | null; // which bandage is being used
   healFumbled: boolean;
@@ -255,6 +262,8 @@ export interface Enemy {
   aiPhase?: 'advance' | 'retreat';
   aiTimer?: number;
   fireCooldown?: number;
+  hasArmor?: boolean;
+  hasHelmet?: boolean;
 }
 
 export interface Projectile {
@@ -435,7 +444,8 @@ export type GameEventType =
   | 'heal_start'
   | 'heal_complete'
   | 'heal_fumbled'
-  | 'heal_interrupted';
+  | 'heal_interrupted'
+  | 'armor_broken';
 
 export interface GameEvent {
   tick: number;

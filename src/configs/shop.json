@@ -1,16 +1,17 @@
 {
   "prices": {
-    "smg": 200,
-    "shotgun": 400,
-    "rifle": 500
+    "smg": 275,
+    "shotgun": 550,
+    "rifle": 675,
+    "machinegun": 5000
   },
   "armorPrices": {
-    "light": 150,
-    "medium": 300,
-    "heavy": 500
+    "light": 200,
+    "medium": 400,
+    "heavy": 675
   },
   "bandagePrices": {
-    "small": 50,
-    "large": 100
+    "small": 70,
+    "large": 135
   }
 }

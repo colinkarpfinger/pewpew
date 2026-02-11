@@ -36,6 +36,8 @@ export function updateSpawner(
       knockbackVel: { x: 0, y: 0 },
       visible: true,
       stunTimer: 0,
+      hasArmor: rng.next() < (enemies.armorChance ?? 0),
+      hasHelmet: rng.next() < (enemies.helmetChance ?? 0),
     };
 
     state.enemies.push(enemy);

@@ -1,5 +1,5 @@
 {
-  "projectileDamage": 6,
+  "projectileDamage": 8,
   "projectileSpeed": 22,
   "projectileLifetime": 45,
   "fireCooldownTicks": 45,

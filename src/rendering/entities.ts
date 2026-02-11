@@ -97,9 +97,11 @@ export function createReloadBar(playerRadius: number): THREE.Group {
 export interface EnemyMeshGroup {
   group: THREE.Group;
   headMesh: THREE.Mesh;
+  hasArmor: boolean;
+  hasHelmet: boolean;
 }
 
-export function createEnemyMesh(radius: number, enemyType: EnemyType = 'sprinter'): EnemyMeshGroup {
+export function createEnemyMesh(radius: number, enemyType: EnemyType = 'sprinter', hasArmor = false, hasHelmet = false): EnemyMeshGroup {
   const group = new THREE.Group();
 
   let bodyColor = 0xff8800; // sprinter
@@ -132,7 +134,35 @@ export function createEnemyMesh(radius: number, enemyType: EnemyType = 'sprinter
   head.position.y = radius * 2 + headRadius; // top of body cube + head radius
   group.add(head);
 
-  return { group, headMesh: head };
+  // Enemy armor overlay (slightly larger body box)
+  if (hasArmor) {
+    const armorGeo = new THREE.BoxGeometry(radius * 2.3, radius * 1.8, radius * 2.3);
+    const armorMat = new THREE.MeshStandardMaterial({
+      color: 0x333333,
+      metalness: 0.6,
+      roughness: 0.4,
+    });
+    const armorMesh = new THREE.Mesh(armorGeo, armorMat);
+    armorMesh.castShadow = true;
+    armorMesh.position.y = radius;
+    group.add(armorMesh);
+  }
+
+  // Enemy helmet (half-sphere on top of head)
+  if (hasHelmet) {
+    const helmetGeo = new THREE.SphereGeometry(headRadius * 1.15, 10, 10, 0, Math.PI * 2, 0, Math.PI / 2);
+    const helmetMat = new THREE.MeshStandardMaterial({
+      color: 0x888888,
+      metalness: 0.7,
+      roughness: 0.3,
+    });
+    const helmetMesh = new THREE.Mesh(helmetGeo, helmetMat);
+    helmetMesh.castShadow = true;
+    helmetMesh.position.y = radius * 2 + headRadius; // same as head center
+    group.add(helmetMesh);
+  }
+
+  return { group, headMesh: head, hasArmor, hasHelmet };
 }
 
 export function createPlayerArmorMesh(playerRadius: number, armorTier: ArmorType): THREE.Mesh {
@@ -191,6 +221,11 @@ export function createProjectileMesh(weaponType: WeaponType = 'rifle'): THREE.Me
       radius = 0.05;
       color = 0xff4400;
       emissive = 0xcc3300;
+      break;
+    case 'machinegun':
+      radius = 0.035;
+      color = 0xff6622;
+      emissive = 0xdd4400;
       break;
   }
 
@@ -348,6 +383,11 @@ export function createWeaponMesh(weaponType: WeaponType, upgradeLevel: number): 
       length = 0.55;
       width = 0.1;
       color = 0x554433;
+      break;
+    case 'machinegun':
+      length = 0.7;
+      width = 0.12;
+      color = 0x3a3a3a;
       break;
   }
 

@@ -1,5 +1,5 @@
 {
-  "light": { "damageReduction": 0.15 },
-  "medium": { "damageReduction": 0.30 },
-  "heavy": { "damageReduction": 0.45 }
+  "light": { "damageReduction": 0.15, "maxHp": 50 },
+  "medium": { "damageReduction": 0.30, "maxHp": 100 },
+  "heavy": { "damageReduction": 0.45, "maxHp": 150 }
 }

@@ -1,4 +1,4 @@
-import type { GameState, InputState, WeaponsConfig, WeaponConfig, Projectile, PlayerConfig } from './types.ts';
+import type { GameState, InputState, WeaponsConfig, WeaponConfig, Projectile, PlayerConfig, EnemiesConfig } from './types.ts';
 import { TICK_RATE } from './types.ts';
 import { circleCircle, circleAABB, isOutOfBounds, pointToLineDist, normalize } from './collision.ts';
 import type { SeededRNG } from './rng.ts';
@@ -150,7 +150,7 @@ export function updateProjectiles(state: GameState): void {
   state.projectiles = state.projectiles.filter(p => p.lifetime > 0);
 }
 
-export function checkProjectileCollisions(state: GameState, weapons: WeaponsConfig): void {
+export function checkProjectileCollisions(state: GameState, weapons: WeaponsConfig, enemiesConfig?: EnemiesConfig): void {
   const toRemove = new Set<number>();
   const deadEnemies = new Set<number>();
 
@@ -206,9 +206,21 @@ export function checkProjectileCollisions(state: GameState, weapons: WeaponsConf
         isHeadshot = perpDist < headRadius;
       }
 
-      const damage = isHeadshot
+      let damage = isHeadshot
         ? proj.damage * projWeapon.headshotMultiplier
         : proj.damage;
+
+      // Enemy armor: reduce body shot damage
+      if (enemy.hasArmor && !isHeadshot && enemiesConfig?.armorDamageReduction) {
+        damage *= (1 - enemiesConfig.armorDamageReduction);
+      }
+      // Enemy helmet: reduce headshot multiplier effectiveness
+      if (enemy.hasHelmet && isHeadshot && enemiesConfig?.helmetHeadshotReduction) {
+        // Recalculate with reduced headshot multiplier
+        const reducedMultiplier = projWeapon.headshotMultiplier * enemiesConfig.helmetHeadshotReduction;
+        damage = proj.damage * reducedMultiplier;
+      }
+
       enemy.hp -= damage;
 
       // Apply knockback along bullet direction
@@ -286,8 +298,20 @@ export function checkEnemyProjectileHits(state: GameState, playerConfig: PlayerC
   for (let i = state.enemyProjectiles.length - 1; i >= 0; i--) {
     const proj = state.enemyProjectiles[i];
     if (circleCircle(proj.pos, ENEMY_PROJ_RADIUS, state.player.pos, state.player.radius)) {
-      const damage = proj.damage * (1 - state.player.armorDamageReduction);
+      const rawDamage = proj.damage;
+      const damage = rawDamage * (1 - state.player.armorDamageReduction);
       state.player.hp -= damage;
+
+      // Degrade player armor HP
+      if (state.player.armorHp > 0 && state.player.armorDamageReduction > 0) {
+        const absorbed = rawDamage - damage;
+        state.player.armorHp = Math.max(0, state.player.armorHp - absorbed);
+        if (state.player.armorHp <= 0) {
+          state.player.armorDamageReduction = 0;
+          state.events.push({ tick: state.tick, type: 'armor_broken', data: {} });
+        }
+      }
+
       state.player.iframeTimer = playerConfig.iframeDuration;
       interruptHeal(state);
 

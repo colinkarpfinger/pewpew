@@ -4,6 +4,8 @@ const scoreEl = () => document.getElementById('hud-score')!;
 const hpBar = () => document.getElementById('hud-hp-bar')!;
 const grenadeCounterEl = () => document.getElementById('grenade-counter')!;
 const ammoCounterEl = () => document.getElementById('ammo-counter')!;
+const armorContainer = () => document.getElementById('hud-armor-container')!;
+const armorBar = () => document.getElementById('hud-armor-bar')!;
 const cashCounterEl = () => document.getElementById('cash-counter')!;
 const bandageCounterEl = () => document.getElementById('bandage-counter')!;
 const weaponNameEl = () => document.getElementById('weapon-name')!;
@@ -26,6 +28,15 @@ export function updateHUD(state: GameState): void {
   scoreEl().textContent = `Score: ${state.score}`;
   const pct = Math.max(0, (state.player.hp / state.player.maxHp) * 100);
   hpBar().style.width = `${pct}%`;
+
+  // Armor bar
+  if (state.player.armorMaxHp > 0 && state.player.armorHp > 0) {
+    armorContainer().classList.remove('hidden');
+    const armorPct = (state.player.armorHp / state.player.armorMaxHp) * 100;
+    armorBar().style.width = `${armorPct}%`;
+  } else {
+    armorContainer().classList.add('hidden');
+  }
 
   grenadeCounterEl().textContent = `Grenades: ${state.grenadeAmmo}`;
 

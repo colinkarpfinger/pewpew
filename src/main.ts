@@ -36,7 +36,7 @@ import gunnerConfig from './configs/gunner.json';
 import audioConfig from './configs/audio.json';
 import extractionMapConfig from './configs/extraction-map.json';
 import destructibleCratesConfig from './configs/destructible-crates.json';
-import { addCashToStash, removeWeapon, removeArmor, getBandages, getWeaponUpgradeLevel } from './persistence.ts';
+import { addCashToStash, removeWeapon, removeArmor, getBandages, getWeaponUpgradeLevel, getArmorHp, setArmorHp, clearArmorHp } from './persistence.ts';
 import shopConfig from './configs/shop.json';
 import armorConfig from './configs/armor.json';
 import bandagesConfig from './configs/bandages.json';
@@ -129,7 +129,7 @@ registerCommand('grenades', (args) => {
 
 registerCommand('weapon', (args) => {
   if (!game) return 'No active game';
-  const valid = ['pistol', 'smg', 'rifle', 'shotgun'] as const;
+  const valid = ['pistol', 'smg', 'rifle', 'shotgun', 'machinegun'] as const;
   if (!args) return `Weapon: ${game.state.player.activeWeapon}  (options: ${valid.join(', ')})`;
   const wt = args.trim().toLowerCase();
   if (!valid.includes(wt as typeof valid[number])) return `Unknown weapon. Options: ${valid.join(', ')}`;
@@ -200,6 +200,19 @@ function startGame(mode: GameMode = 'arena', weapon?: WeaponType, armor?: ArmorT
     const bandageStock = getBandages();
     game.state.player.bandageSmallCount = bandageStock.small;
     game.state.player.bandageLargeCount = bandageStock.large;
+
+    // Load armor HP from persistence (default to maxHp if not saved)
+    if (equippedArmor && game.state.player.armorMaxHp > 0) {
+      const savedHp = getArmorHp(equippedArmor);
+      if (savedHp !== undefined) {
+        game.state.player.armorHp = Math.min(savedHp, game.state.player.armorMaxHp);
+        // If armor HP was 0 from persistence, it's broken
+        if (game.state.player.armorHp <= 0) {
+          game.state.player.armorHp = 0;
+          game.state.player.armorDamageReduction = 0;
+        }
+      }
+    }
   }
 
   fullRecorder = new FullRecorder(currentSeed, configsJson);
@@ -472,6 +485,10 @@ function gameLoop(now: number): void {
     if (state.extracted && !gameOverShown) {
       gameOverShown = true;
       addCashToStash(state.runCash);
+      // Save armor HP on successful extraction
+      if (equippedArmor) {
+        setArmorHp(equippedArmor, state.player.armorHp);
+      }
       showExtractionSuccess(state.score, state.runCash);
       if (mobile) (input as TouchInputHandler).setVisible(false);
       screen = 'gameOver';
@@ -480,7 +497,10 @@ function gameLoop(now: number): void {
       // Cash is NOT added to stash on death — it's lost
       if (state.gameMode === 'extraction') {
         removeWeapon(equippedWeapon);
-        if (equippedArmor) removeArmor(equippedArmor);
+        if (equippedArmor) {
+          removeArmor(equippedArmor);
+          clearArmorHp(equippedArmor);
+        }
       }
       // Build lost gear string
       const lostParts: string[] = [];

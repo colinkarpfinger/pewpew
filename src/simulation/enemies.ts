@@ -185,8 +185,20 @@ export function checkContactDamage(state: GameState, _configs: EnemiesConfig): v
 
   for (const enemy of state.enemies) {
     if (circleCircle(state.player.pos, state.player.radius, enemy.pos, enemy.radius)) {
-      const damage = enemy.contactDamage * (1 - state.player.armorDamageReduction);
+      const rawDamage = enemy.contactDamage;
+      const damage = rawDamage * (1 - state.player.armorDamageReduction);
       state.player.hp -= damage;
+
+      // Degrade player armor HP
+      if (state.player.armorHp > 0 && state.player.armorDamageReduction > 0) {
+        const absorbed = rawDamage - damage;
+        state.player.armorHp = Math.max(0, state.player.armorHp - absorbed);
+        if (state.player.armorHp <= 0) {
+          state.player.armorDamageReduction = 0;
+          state.events.push({ tick: state.tick, type: 'armor_broken', data: {} });
+        }
+      }
+
       state.player.iframeTimer = state.player.iframeTimer || 60; // will be set from config in game.ts
       enemy.stunTimer = 30; // 0.5 seconds stun after hitting player
       interruptHeal(state);

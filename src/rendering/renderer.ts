@@ -363,7 +363,7 @@ export class Renderer {
       currentEnemyIds.add(enemy.id);
       let entry = this.enemyGroups.get(enemy.id);
       if (!entry) {
-        entry = createEnemyMesh(enemy.radius, enemy.type);
+        entry = createEnemyMesh(enemy.radius, enemy.type, enemy.hasArmor ?? false, enemy.hasHelmet ?? false);
         this.enemyGroups.set(enemy.id, entry);
         this.enemyTypes.set(enemy.id, enemy.type);
         this.scene.add(entry.group);

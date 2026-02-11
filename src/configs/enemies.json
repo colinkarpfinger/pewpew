@@ -1,30 +1,34 @@
 {
   "sprinter": {
     "speed": 6.0,
-    "hp": 75,
-    "contactDamage": 20,
+    "hp": 90,
+    "contactDamage": 25,
     "radius": 0.35,
     "scoreValue": 150
   },
   "gunner": {
     "speed": 2.0,
-    "hp": 80,
-    "contactDamage": 10,
+    "hp": 100,
+    "contactDamage": 13,
     "radius": 0.4,
     "scoreValue": 200
   },
   "shotgunner": {
     "speed": 3.5,
-    "hp": 90,
-    "contactDamage": 15,
+    "hp": 110,
+    "contactDamage": 20,
     "radius": 0.45,
     "scoreValue": 250
   },
   "sniper": {
     "speed": 1.5,
-    "hp": 60,
-    "contactDamage": 5,
+    "hp": 75,
+    "contactDamage": 8,
     "radius": 0.35,
     "scoreValue": 300
-  }
+  },
+  "armorChance": 0.15,
+  "helmetChance": 0.35,
+  "armorDamageReduction": 0.3,
+  "helmetHeadshotReduction": 0.5
 }

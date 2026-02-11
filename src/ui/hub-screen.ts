@@ -1,5 +1,5 @@
 import type { WeaponType, WeaponsConfig, ArmorType, ArmorConfig, WeaponUpgradesConfig } from '../simulation/types.ts';
-import { getStashCash, getOwnedWeapons, addCashToStash, addWeapon, getOwnedArmor, addArmor, getBandages, addBandages, getWeaponUpgradeLevel, setWeaponUpgradeLevel } from '../persistence.ts';
+import { getStashCash, getOwnedWeapons, addCashToStash, addWeapon, getOwnedArmor, addArmor, getBandages, addBandages, getWeaponUpgradeLevel, setWeaponUpgradeLevel, getArmorHp, setArmorHp } from '../persistence.ts';
 
 export interface HubCallbacks {
   onStartRun: (weapon: WeaponType, armor: ArmorType | null) => void;
@@ -23,6 +23,8 @@ const shopItemsEl = () => document.getElementById('hub-shop-items')!;
 const weaponListEl = () => document.getElementById('hub-weapon-list')!;
 const armorShopItemsEl = () => document.getElementById('hub-armor-shop-items')!;
 const armorListEl = () => document.getElementById('hub-armor-list')!;
+const armorRepairEl = () => document.getElementById('hub-armor-repair')!;
+const armorRepairItemsEl = () => document.getElementById('hub-armor-repair-items')!;
 const bandageShopEl = () => document.getElementById('hub-bandage-shop-items')!;
 const upgradeShopEl = () => document.getElementById('hub-upgrade-shop-items')!;
 
@@ -56,7 +58,7 @@ function refreshHub(): void {
   }
 
   // Weapon shop items
-  const shopTypes: WeaponType[] = ['smg', 'shotgun', 'rifle'];
+  const shopTypes: WeaponType[] = ['smg', 'shotgun', 'rifle', 'machinegun'];
   const shopContainer = shopItemsEl();
   shopContainer.innerHTML = '';
 
@@ -358,6 +360,66 @@ function refreshHub(): void {
 
     armorLoadoutContainer.appendChild(btn);
   }
+
+  // Armor repair section
+  const repairContainer = armorRepairItemsEl();
+  repairContainer.innerHTML = '';
+  let hasRepairableArmor = false;
+
+  for (const type of ownedArmors) {
+    const tierConfig = armorConfig[type];
+    const maxHp = tierConfig.maxHp;
+    const savedHp = getArmorHp(type);
+    const currentHp = savedHp ?? maxHp; // default to full if never saved
+
+    if (currentHp >= maxHp) continue; // no repair needed
+    hasRepairableArmor = true;
+
+    const repairPrice = Math.ceil((armorPrices[type] ?? 0) * 0.5);
+    const canAfford = cash >= repairPrice;
+
+    const item = document.createElement('div');
+    item.className = 'shop-item';
+
+    const info = document.createElement('div');
+    info.className = 'shop-item-info';
+
+    const name = document.createElement('div');
+    name.className = 'shop-item-name';
+    name.textContent = `${type} armor`;
+    info.appendChild(name);
+
+    const stats = document.createElement('div');
+    stats.className = 'shop-item-stats';
+    stats.textContent = `${Math.ceil(currentHp)} / ${maxHp} HP`;
+    info.appendChild(stats);
+
+    item.appendChild(info);
+
+    const action = document.createElement('div');
+    action.className = 'shop-item-action';
+
+    const priceLabel = document.createElement('span');
+    priceLabel.className = 'shop-item-price';
+    priceLabel.textContent = `$${repairPrice}`;
+    action.appendChild(priceLabel);
+
+    const repairBtn = document.createElement('button');
+    repairBtn.className = 'shop-buy-btn';
+    repairBtn.textContent = 'REPAIR';
+    repairBtn.disabled = !canAfford;
+    repairBtn.addEventListener('click', () => {
+      addCashToStash(-repairPrice);
+      setArmorHp(type, maxHp);
+      refreshHub();
+    });
+    action.appendChild(repairBtn);
+
+    item.appendChild(action);
+    repairContainer.appendChild(item);
+  }
+
+  armorRepairEl().classList.toggle('hidden', !hasRepairableArmor);
 }
 
 export function showHubScreen(): void {

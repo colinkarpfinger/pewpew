@@ -82,5 +82,26 @@
     "perfectReloadEnd": 0.58,
     "activeReloadDamageBonus": 1.1,
     "perfectReloadDamageBonus": 1.25
+  },
+  "machinegun": {
+    "damage": 12,
+    "fireRate": 20,
+    "projectileSpeed": 50,
+    "projectileLifetime": 50,
+    "spread": 0.09,
+    "movingSpreadMultiplier": 2.0,
+    "headshotMultiplier": 7.0,
+    "penetration": 3,
+    "knockback": 4,
+    "headshotKnockbackMultiplier": 2.0,
+    "pelletsPerShot": 1,
+    "magazineSize": 100,
+    "reloadTime": 180,
+    "activeReloadStart": 0.4,
+    "activeReloadEnd": 0.65,
+    "perfectReloadStart": 0.5,
+    "perfectReloadEnd": 0.58,
+    "activeReloadDamageBonus": 1.1,
+    "perfectReloadDamageBonus": 1.25
   }
 }
