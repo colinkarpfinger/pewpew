@@ -65,6 +65,18 @@
           <h1>GAME OVER</h1>
           <p id="final-score">Score: 0</p>
           <p id="final-cash"></p>
+          <div id="run-stats" class="hidden">
+            <table>
+              <tr><td class="stat-label">Kills</td><td class="stat-value" id="stat-kills">0</td></tr>
+              <tr><td class="stat-label">Headshot Kills</td><td class="stat-value" id="stat-headshots">0</td></tr>
+              <tr><td class="stat-label">Accuracy</td><td class="stat-value" id="stat-accuracy">0%</td></tr>
+              <tr><td class="stat-label">Bullets Fired</td><td class="stat-value" id="stat-bullets">0</td></tr>
+              <tr><td class="stat-label">HP Lost</td><td class="stat-value" id="stat-hp-lost">0</td></tr>
+              <tr><td class="stat-label">HP Healed</td><td class="stat-value" id="stat-hp-healed">0</td></tr>
+              <tr><td class="stat-label">Cash Earned</td><td class="stat-value" id="stat-cash">$0</td></tr>
+              <tr><td class="stat-label">Distance</td><td class="stat-value" id="stat-distance">0m</td></tr>
+            </table>
+          </div>
           <button id="restart-btn">Play Again</button>
         </div>
       </div>
@@ -126,6 +138,7 @@
           </div>
           <button class="menu-btn" id="hub-start-run">Start Run</button>
           <button class="menu-btn" id="hub-back">Back</button>
+          <button class="menu-btn" id="hub-clear-save" style="margin-top: 20px; font-size: 0.7em; opacity: 0.6;">Reset Save</button>
         </div>
       </div>
 

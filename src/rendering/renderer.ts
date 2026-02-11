@@ -49,6 +49,7 @@ export class Renderer {
   private muzzleFlashes: { light: THREE.PointLight; timer: number }[] = [];
   private dirLight: THREE.DirectionalLight | null = null;
   private enemyTypes = new Map<number, EnemyType>();
+  private sniperLaserMeshes = new Map<number, THREE.Mesh>();
 
   constructor(canvas: HTMLCanvasElement) {
     this.scene = new THREE.Scene();
@@ -91,6 +92,7 @@ export class Renderer {
     this.cashMeshes.clear();
     this.destructibleCrateMeshes.clear();
     this.enemyTypes.clear();
+    this.sniperLaserMeshes.clear();
     this.playerGroup = null;
 
     // Ground
@@ -377,6 +379,55 @@ export class Renderer {
         this.scene.remove(entry.group);
         this.enemyGroups.delete(id);
         this.enemyTypes.delete(id);
+      }
+    }
+
+    // Sniper laser telegraph beams
+    const activeLaserIds = new Set<number>();
+    for (const enemy of state.enemies) {
+      if (enemy.type !== 'sniper' || !enemy.telegraphTimer || enemy.telegraphTimer <= 0 || !enemy.telegraphDir) continue;
+      activeLaserIds.add(enemy.id);
+
+      let laser = this.sniperLaserMeshes.get(enemy.id);
+      if (!laser) {
+        const laserLength = 30;
+        const geo = new THREE.CylinderGeometry(0.02, 0.02, laserLength, 4);
+        geo.rotateZ(Math.PI / 2); // align along X axis
+        const mat = new THREE.MeshBasicMaterial({
+          color: 0xff0000,
+          transparent: true,
+          opacity: 0.4,
+        });
+        laser = new THREE.Mesh(geo, mat);
+        this.sniperLaserMeshes.set(enemy.id, laser);
+        this.scene.add(laser);
+      }
+
+      // Position and orient the laser
+      const dir = enemy.telegraphDir;
+      const angle = Math.atan2(dir.y, dir.x);
+      const laserLength = 30;
+      const halfLen = laserLength / 2;
+      laser.position.set(
+        enemy.pos.x + Math.cos(angle) * halfLen,
+        0.5,
+        enemy.pos.y + Math.sin(angle) * halfLen,
+      );
+      laser.rotation.y = -angle;
+
+      // Pulse opacity based on remaining time (gets more opaque as it's about to fire)
+      const maxTelegraph = 60; // matches config
+      const progress = 1 - (enemy.telegraphTimer / maxTelegraph);
+      const opacity = 0.15 + progress * 0.55;
+      (laser.material as THREE.MeshBasicMaterial).opacity = opacity;
+      laser.visible = enemy.visible;
+    }
+
+    // Remove lasers for enemies that stopped telegraphing or died
+    for (const [id, laser] of this.sniperLaserMeshes) {
+      if (!activeLaserIds.has(id)) {
+        this.scene.remove(laser);
+        this.sniperLaserMeshes.delete(id);
       }
     }
 

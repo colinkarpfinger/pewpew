@@ -1,13 +1,14 @@
 {
-  "projectileDamage": 25,
-  "projectileSpeed": 35,
+  "projectileDamage": 35,
+  "projectileSpeed": 40,
   "projectileLifetime": 120,
   "fireCooldownTicks": 90,
-  "engageRange": 18,
-  "retreatRange": 22,
-  "spread": 0.02,
+  "engageRange": 20,
+  "retreatRange": 24,
+  "spread": 0.015,
   "advanceDuration": 90,
   "retreatDuration": 120,
   "retreatSpeedMultiplier": 0.7,
-  "preferredRange": 14
+  "preferredRange": 15,
+  "telegraphTicks": 60
 }

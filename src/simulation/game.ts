@@ -99,6 +99,16 @@ export function createGame(configs: GameConfigs, seed: number = 12345, gameMode:
     extractionMap,
     extractionSpawner: extractionMap ? createExtractionSpawner(extractionMap) : null,
     extracted: false,
+    runStats: {
+      enemyKills: 0,
+      headshotKills: 0,
+      bulletsFired: 0,
+      bulletsHit: 0,
+      hpLost: 0,
+      hpHealed: 0,
+      cashEarned: 0,
+      distanceTraveled: 0,
+    },
   };
 
   // Arena mode: aim right by default
@@ -214,7 +224,10 @@ export function tick(game: GameInstance, input: InputState, configs: GameConfigs
     updateSpawner(state, configs.spawning, configs.enemies, rng);
   }
 
-  // 10. Extraction win condition
+  // 10. Update run stats from events
+  updateRunStats(state);
+
+  // 11. Extraction win condition
   if (state.extractionMap && isInAnyExtractionZone(state.player.pos, state.extractionMap.extractionZones)) {
     state.extracted = true;
     state.events.push({
@@ -273,6 +286,38 @@ function detectMultiKills(state: GameState, config: MultiKillConfig): void {
   });
 }
 
+function updateRunStats(state: GameState): void {
+  const stats = state.runStats;
+  for (const ev of state.events) {
+    switch (ev.type) {
+      case 'projectile_fired':
+        stats.bulletsFired++;
+        break;
+      case 'enemy_hit':
+        // Only count bullet first-hits for accuracy (not grenades or penetration hits)
+        if (ev.data?.['source'] !== 'grenade' && ev.data?.['isFirstHit']) {
+          stats.bulletsHit++;
+        }
+        break;
+      case 'enemy_killed':
+        stats.enemyKills++;
+        if (ev.data?.['headshot']) {
+          stats.headshotKills++;
+        }
+        break;
+      case 'player_hit':
+        stats.hpLost += (ev.data?.['damage'] as number) ?? 0;
+        break;
+      case 'heal_complete':
+        stats.hpHealed += (ev.data?.['healAmount'] as number) ?? 0;
+        break;
+      case 'cash_picked_up':
+        stats.cashEarned += (ev.data?.['amount'] as number) ?? 0;
+        break;
+    }
+  }
+}
+
 /** Deep clone a GameState via JSON round-trip */
 export function cloneState(state: GameState): GameState {
   return JSON.parse(JSON.stringify(state));
@@ -318,6 +363,16 @@ export function restoreGame(stateSnapshot: GameState, rngState: number): GameIns
   state.extractionMap ??= null;
   state.extractionSpawner ??= null;
   state.extracted ??= false;
+  state.runStats ??= {
+    enemyKills: 0,
+    headshotKills: 0,
+    bulletsFired: 0,
+    bulletsHit: 0,
+    hpLost: 0,
+    hpHealed: 0,
+    cashEarned: 0,
+    distanceTraveled: 0,
+  };
   // Migrate old extractionZone → extractionZones
   if (state.extractionMap) {
     const em = state.extractionMap as unknown as Record<string, unknown>;

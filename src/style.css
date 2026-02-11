@@ -468,7 +468,7 @@ html, body {
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.9);
-  z-index: 10;
+  z-index: 45;
 }
 
 #hub-screen.hidden {
@@ -698,6 +698,36 @@ html, body {
 
 #final-cash:empty {
   display: none;
+}
+
+/* ---- Run Stats ---- */
+
+#run-stats {
+  margin-bottom: 24px;
+}
+
+#run-stats.hidden {
+  display: none;
+}
+
+#run-stats table {
+  margin: 0 auto;
+  border-collapse: collapse;
+  font-family: monospace;
+  font-size: 16px;
+}
+
+#run-stats .stat-label {
+  text-align: left;
+  padding: 3px 16px 3px 0;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+#run-stats .stat-value {
+  text-align: right;
+  padding: 3px 0;
+  font-weight: bold;
+  color: #fff;
 }
 
 /* ---- Escape / Pause Menu ---- */

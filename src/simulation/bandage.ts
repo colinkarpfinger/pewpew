@@ -6,8 +6,17 @@ export function updateHeal(state: GameState, input: InputState, config: BandageC
   // If not healing, check for heal start input
   if (player.healTimer === 0) {
     if (input.healSmall && player.bandageSmallCount > 0 && player.dodgeTimer === 0) {
+      // Cancel reload if in progress
+      if (player.reloadTimer > 0) {
+        player.reloadTimer = 0;
+        player.reloadFumbled = false;
+      }
       startHeal(state, config, 'small');
     } else if (input.healLarge && player.bandageLargeCount > 0 && player.dodgeTimer === 0) {
+      if (player.reloadTimer > 0) {
+        player.reloadTimer = 0;
+        player.reloadFumbled = false;
+      }
       startHeal(state, config, 'large');
     }
     return;

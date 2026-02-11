@@ -95,15 +95,19 @@ function completeReload(state: GameState, weapons: WeaponsConfig, reloadType: 'n
 }
 
 export function updateReload(state: GameState, input: InputState, weapons: WeaponsConfig): void {
-  if (state.player.healTimer > 0) return; // can't reload while healing
-
   const weapon = getWeapon(state, weapons);
 
-  // R pressed while not reloading: start manual reload
+  // R pressed while not reloading: start manual reload (cancel heal if active)
   if (input.reload && state.player.reloadTimer === 0) {
+    if (state.player.healTimer > 0) {
+      interruptHeal(state);
+    }
     startReload(state, weapons);
     return;
   }
+
+  // Can't advance reload while healing
+  if (state.player.healTimer > 0) return;
 
   // Not reloading — nothing to do
   if (state.player.reloadTimer === 0) return;
@@ -235,7 +239,7 @@ export function checkProjectileCollisions(state: GameState, weapons: WeaponsConf
       state.events.push({
         tick: state.tick,
         type: 'enemy_hit',
-        data: { enemyId: enemy.id, damage, headshot: isHeadshot, remainingHp: enemy.hp, x: proj.pos.x, y: proj.pos.y },
+        data: { enemyId: enemy.id, damage, headshot: isHeadshot, remainingHp: enemy.hp, x: proj.pos.x, y: proj.pos.y, isFirstHit },
       });
 
       if (enemy.hp <= 0) {

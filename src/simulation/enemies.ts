@@ -150,7 +150,59 @@ function updateRangedEnemy(state: GameState, enemy: GameState['enemies'][0], cfg
     enemy.pos.y += perpY * lateralDir * enemy.speed * TICK_DURATION;
   }
 
+  const telegraphTicks = (cfg as RangedEnemyConfig).telegraphTicks;
+
+  // Sniper telegraph phase
+  if (telegraphTicks && enemy.telegraphTimer && enemy.telegraphTimer > 0) {
+    enemy.telegraphTimer--;
+
+    // Track player for first 2/3 of telegraph, then lock direction
+    const lockThreshold = Math.floor(telegraphTicks / 3);
+    if (enemy.telegraphTimer > lockThreshold) {
+      enemy.telegraphDir = { x: dir.x, y: dir.y };
+    }
+
+    // Fire when telegraph completes
+    if (enemy.telegraphTimer <= 0 && enemy.telegraphDir) {
+      const fireDir = enemy.telegraphDir;
+      const baseAngle = Math.atan2(fireDir.y, fireDir.x);
+
+      state.enemyProjectiles.push({
+        id: state.nextEntityId++,
+        pos: { x: enemy.pos.x, y: enemy.pos.y },
+        vel: {
+          x: Math.cos(baseAngle) * cfg.projectileSpeed,
+          y: Math.sin(baseAngle) * cfg.projectileSpeed,
+        },
+        damage: cfg.projectileDamage,
+        lifetime: cfg.projectileLifetime,
+      });
+
+      state.events.push({
+        tick: state.tick,
+        type: 'enemy_projectile_fired',
+        data: { enemyId: enemy.id, enemyType: enemy.type, x: enemy.pos.x, y: enemy.pos.y, angle: baseAngle },
+      });
+
+      enemy.fireCooldown = cfg.fireCooldownTicks;
+      enemy.telegraphDir = undefined;
+    }
+    return;
+  }
+
   if (d <= cfg.engageRange && enemy.fireCooldown <= 0 && hasLOS) {
+    // Sniper: start telegraph instead of firing immediately
+    if (telegraphTicks) {
+      enemy.telegraphTimer = telegraphTicks;
+      enemy.telegraphDir = { x: dir.x, y: dir.y };
+      state.events.push({
+        tick: state.tick,
+        type: 'sniper_telegraph',
+        data: { enemyId: enemy.id, x: enemy.pos.x, y: enemy.pos.y },
+      });
+      return;
+    }
+
     const baseAngle = Math.atan2(dir.y, dir.x);
     const pellets = (cfg as RangedEnemyConfig).pelletsPerShot ?? 1;
 

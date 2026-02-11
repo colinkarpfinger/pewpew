@@ -181,7 +181,7 @@ function explodeGrenade(state: GameState, grenade: Grenade, config: GrenadeConfi
       state.events.push({
         tick: state.tick,
         type: 'enemy_hit',
-        data: { enemyId: enemy.id, damage, headshot: false, remainingHp: enemy.hp, x: enemy.pos.x, y: enemy.pos.y },
+        data: { enemyId: enemy.id, damage, headshot: false, remainingHp: enemy.hp, x: enemy.pos.x, y: enemy.pos.y, source: 'grenade' },
       });
 
       if (enemy.hp <= 0) {

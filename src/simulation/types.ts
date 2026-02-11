@@ -163,6 +163,7 @@ export interface RangedEnemyConfig {
   retreatSpeedMultiplier: number;
   preferredRange?: number; // sniper stays at this distance
   pelletsPerShot?: number; // shotgunner fires multiple pellets
+  telegraphTicks?: number; // ticks of laser telegraph before firing (sniper)
 }
 
 export interface ArmorTierConfig {
@@ -264,6 +265,8 @@ export interface Enemy {
   fireCooldown?: number;
   hasArmor?: boolean;
   hasHelmet?: boolean;
+  telegraphTimer?: number; // ticks remaining in telegraph phase (sniper laser)
+  telegraphDir?: Vec2; // locked aim direction during telegraph
 }
 
 export interface Projectile {
@@ -445,12 +448,26 @@ export type GameEventType =
   | 'heal_complete'
   | 'heal_fumbled'
   | 'heal_interrupted'
-  | 'armor_broken';
+  | 'armor_broken'
+  | 'sniper_telegraph';
 
 export interface GameEvent {
   tick: number;
   type: GameEventType;
   data?: Record<string, unknown>;
+}
+
+// ---- Run Stats ----
+
+export interface RunStats {
+  enemyKills: number;
+  headshotKills: number;
+  bulletsFired: number;
+  bulletsHit: number;
+  hpLost: number;
+  hpHealed: number;
+  cashEarned: number;
+  distanceTraveled: number;
 }
 
 // ---- Game State ----
@@ -483,6 +500,7 @@ export interface GameState {
   extractionMap: ExtractionMapConfig | null;
   extractionSpawner: ExtractionSpawnerState | null;
   extracted: boolean;
+  runStats: RunStats;
 }
 
 export const TICK_RATE = 60;

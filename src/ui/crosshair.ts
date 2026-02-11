@@ -151,7 +151,7 @@ export function processHitEvents(events: GameEvent[]): void {
     } else if (event.type === 'crate_picked_up') {
       const crateType = event.data?.['crateType'] as string;
       if (crateType === 'health') {
-        showReloadPopup('active', '+25 HP', 'Health Restored');
+        showReloadPopup('active', '+1 Bandage', 'Small Bandage');
       } else {
         showReloadPopup('active', '+1 Grenade', 'Ammo Restored');
       }

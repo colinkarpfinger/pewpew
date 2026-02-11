@@ -124,3 +124,7 @@ export function clearArmorHp(type: ArmorType): void {
   delete save.armorHpMap[type];
   writeSave(save);
 }
+
+export function clearSave(): void {
+  localStorage.removeItem(SAVE_KEY);
+}

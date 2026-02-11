@@ -1,5 +1,5 @@
 import type { WeaponType, WeaponsConfig, ArmorType, ArmorConfig, WeaponUpgradesConfig } from '../simulation/types.ts';
-import { getStashCash, getOwnedWeapons, addCashToStash, addWeapon, getOwnedArmor, addArmor, getBandages, addBandages, getWeaponUpgradeLevel, setWeaponUpgradeLevel, getArmorHp, setArmorHp } from '../persistence.ts';
+import { getStashCash, getOwnedWeapons, addCashToStash, addWeapon, getOwnedArmor, addArmor, getBandages, addBandages, getWeaponUpgradeLevel, setWeaponUpgradeLevel, getArmorHp, setArmorHp, clearSave } from '../persistence.ts';
 
 export interface HubCallbacks {
   onStartRun: (weapon: WeaponType, armor: ArmorType | null) => void;
@@ -445,5 +445,14 @@ export function setupHubScreen(callbacks: HubCallbacks, prices: ShopPrices, wc: 
 
   document.getElementById('hub-back')!.addEventListener('click', () => {
     callbacks.onBack();
+  });
+
+  document.getElementById('hub-clear-save')!.addEventListener('click', () => {
+    if (confirm('Reset all progress? This cannot be undone.')) {
+      clearSave();
+      selectedWeapon = 'pistol';
+      selectedArmor = null;
+      refreshHub();
+    }
   });
 }

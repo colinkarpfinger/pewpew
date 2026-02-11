@@ -489,7 +489,7 @@ function gameLoop(now: number): void {
       if (equippedArmor) {
         setArmorHp(equippedArmor, state.player.armorHp);
       }
-      showExtractionSuccess(state.score, state.runCash);
+      showExtractionSuccess(state.score, state.runCash, state.runStats);
       if (mobile) (input as TouchInputHandler).setVisible(false);
       screen = 'gameOver';
     } else if (state.gameOver && !gameOverShown) {
@@ -507,7 +507,7 @@ function gameLoop(now: number): void {
       if (equippedWeapon !== 'pistol') lostParts.push(equippedWeapon);
       if (equippedArmor) lostParts.push(`${equippedArmor} armor`);
       const lostGear = lostParts.length > 0 ? lostParts.join(' + ') : undefined;
-      showGameOver(state.score, state.gameMode, lostGear);
+      showGameOver(state.score, state.gameMode, lostGear, state.runStats);
       if (mobile) (input as TouchInputHandler).setVisible(false);
       screen = 'gameOver';
     }

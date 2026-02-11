@@ -1,4 +1,4 @@
-import type { GameState, GameMode, WeaponConfig } from './simulation/types.ts';
+import type { GameState, GameMode, WeaponConfig, RunStats } from './simulation/types.ts';
 
 const scoreEl = () => document.getElementById('hud-score')!;
 const hpBar = () => document.getElementById('hud-hp-bar')!;
@@ -104,7 +104,23 @@ export function updateHUD(state: GameState): void {
   }
 }
 
-export function showGameOver(score: number, gameMode: GameMode = 'arena', lostGear?: string): void {
+function displayRunStats(stats: RunStats): void {
+  const el = document.getElementById('run-stats')!;
+  el.classList.remove('hidden');
+  document.getElementById('stat-kills')!.textContent = String(stats.enemyKills);
+  document.getElementById('stat-headshots')!.textContent = String(stats.headshotKills);
+  const accuracy = stats.bulletsFired > 0
+    ? Math.round((stats.bulletsHit / stats.bulletsFired) * 100)
+    : 0;
+  document.getElementById('stat-accuracy')!.textContent = `${accuracy}%`;
+  document.getElementById('stat-bullets')!.textContent = String(stats.bulletsFired);
+  document.getElementById('stat-hp-lost')!.textContent = String(Math.round(stats.hpLost));
+  document.getElementById('stat-hp-healed')!.textContent = String(Math.round(stats.hpHealed));
+  document.getElementById('stat-cash')!.textContent = `$${stats.cashEarned}`;
+  document.getElementById('stat-distance')!.textContent = `${Math.round(stats.distanceTraveled)}m`;
+}
+
+export function showGameOver(score: number, gameMode: GameMode = 'arena', lostGear?: string, stats?: RunStats): void {
   const titleEl = gameOverEl().querySelector('h1');
   if (titleEl) titleEl.textContent = gameMode === 'extraction' ? 'KILLED IN ACTION' : 'GAME OVER';
   finalScoreEl().textContent = `Score: ${score}`;
@@ -115,20 +131,31 @@ export function showGameOver(score: number, gameMode: GameMode = 'arena', lostGe
     cashEl.textContent = '';
   }
   restartBtn().textContent = gameMode === 'extraction' ? 'Return to Hub' : 'Play Again';
+  if (stats) {
+    displayRunStats(stats);
+  } else {
+    document.getElementById('run-stats')!.classList.add('hidden');
+  }
   gameOverEl().classList.remove('hidden');
 }
 
-export function showExtractionSuccess(score: number, runCash: number): void {
+export function showExtractionSuccess(score: number, runCash: number, stats?: RunStats): void {
   const titleEl = gameOverEl().querySelector('h1');
   if (titleEl) titleEl.textContent = 'EXTRACTED!';
   finalScoreEl().textContent = `Score: ${score}`;
   finalCashEl().textContent = `+$${runCash}`;
   restartBtn().textContent = 'Return to Hub';
+  if (stats) {
+    displayRunStats(stats);
+  } else {
+    document.getElementById('run-stats')!.classList.add('hidden');
+  }
   gameOverEl().classList.remove('hidden');
 }
 
 export function hideGameOver(): void {
   gameOverEl().classList.add('hidden');
+  document.getElementById('run-stats')!.classList.add('hidden');
 }
 
 export function onRestart(callback: () => void): void {

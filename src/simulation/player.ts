@@ -5,6 +5,8 @@ import { interruptHeal } from './bandage.ts';
 
 export function updatePlayer(state: GameState, input: InputState, config: PlayerConfig): void {
   const player = state.player;
+  const prevX = player.pos.x;
+  const prevY = player.pos.y;
 
   // Start dodge if requested and able
   if (input.dodge && player.dodgeTimer === 0 && player.dodgeCooldown === 0) {
@@ -57,6 +59,13 @@ export function updatePlayer(state: GameState, input: InputState, config: Player
       player.pos.x += pushOut.x;
       player.pos.y += pushOut.y;
     }
+  }
+
+  // Accumulate distance traveled
+  const dx = player.pos.x - prevX;
+  const dy = player.pos.y - prevY;
+  if (dx !== 0 || dy !== 0) {
+    state.runStats.distanceTraveled += Math.sqrt(dx * dx + dy * dy);
   }
 
   // Tick i-frame timer
