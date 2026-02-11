@@ -22,6 +22,8 @@ export class FullRecorder {
       reload: input.reload,
       throwGrenade: input.throwGrenade,
       throwPower: input.throwPower,
+      healSmall: input.healSmall,
+      healLarge: input.healLarge,
     });
   }
 

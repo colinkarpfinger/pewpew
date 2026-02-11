@@ -1,6 +1,8 @@
 {
   "sprinterBills": [2, 4],
   "gunnerBills": [3, 5],
+  "shotgunnerBills": [4, 6],
+  "sniperBills": [5, 8],
   "denomination": 10,
   "scatterRadius": 1.0,
   "pickupRadius": 1.0

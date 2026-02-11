@@ -6,10 +6,13 @@ export interface ExtractionSave {
   cashStash: number;
   ownedWeapons: WeaponType[];
   ownedArmor: ArmorType[];
+  bandageSmall: number;
+  bandageLarge: number;
+  weaponUpgrades: Partial<Record<WeaponType, number>>;
 }
 
 function defaults(): ExtractionSave {
-  return { cashStash: 0, ownedWeapons: ['pistol'], ownedArmor: [] };
+  return { cashStash: 0, ownedWeapons: ['pistol'], ownedArmor: [], bandageSmall: 0, bandageLarge: 0, weaponUpgrades: {} };
 }
 
 export function loadSave(): ExtractionSave {
@@ -21,6 +24,9 @@ export function loadSave(): ExtractionSave {
       cashStash: parsed.cashStash ?? 0,
       ownedWeapons: parsed.ownedWeapons ?? ['pistol'],
       ownedArmor: parsed.ownedArmor ?? [],
+      bandageSmall: parsed.bandageSmall ?? 0,
+      bandageLarge: parsed.bandageLarge ?? 0,
+      weaponUpgrades: parsed.weaponUpgrades ?? {},
     };
   } catch {
     return defaults();
@@ -76,5 +82,27 @@ export function addArmor(type: ArmorType): void {
 export function removeArmor(type: ArmorType): void {
   const save = loadSave();
   save.ownedArmor = save.ownedArmor.filter(a => a !== type);
+  writeSave(save);
+}
+
+export function getBandages(): { small: number; large: number } {
+  const save = loadSave();
+  return { small: save.bandageSmall, large: save.bandageLarge };
+}
+
+export function addBandages(type: 'small' | 'large', count: number): void {
+  const save = loadSave();
+  if (type === 'small') save.bandageSmall += count;
+  else save.bandageLarge += count;
+  writeSave(save);
+}
+
+export function getWeaponUpgradeLevel(weapon: WeaponType): number {
+  return loadSave().weaponUpgrades[weapon] ?? 0;
+}
+
+export function setWeaponUpgradeLevel(weapon: WeaponType, level: number): void {
+  const save = loadSave();
+  save.weaponUpgrades[weapon] = level;
   writeSave(save);
 }

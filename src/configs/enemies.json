@@ -12,5 +12,19 @@
     "contactDamage": 10,
     "radius": 0.4,
     "scoreValue": 200
+  },
+  "shotgunner": {
+    "speed": 3.5,
+    "hp": 90,
+    "contactDamage": 15,
+    "radius": 0.45,
+    "scoreValue": 250
+  },
+  "sniper": {
+    "speed": 1.5,
+    "hp": 60,
+    "contactDamage": 5,
+    "radius": 0.35,
+    "scoreValue": 300
   }
 }

@@ -36,9 +36,15 @@ import gunnerConfig from './configs/gunner.json';
 import audioConfig from './configs/audio.json';
 import extractionMapConfig from './configs/extraction-map.json';
 import destructibleCratesConfig from './configs/destructible-crates.json';
-import { addCashToStash, removeWeapon, removeArmor } from './persistence.ts';
+import { addCashToStash, removeWeapon, removeArmor, getBandages, getWeaponUpgradeLevel } from './persistence.ts';
 import shopConfig from './configs/shop.json';
 import armorConfig from './configs/armor.json';
+import bandagesConfig from './configs/bandages.json';
+import shotgunnerConfig from './configs/shotgunner.json';
+import sniperConfig from './configs/sniper.json';
+import weaponUpgradesConfig from './configs/weapon-upgrades.json';
+import type { BandageConfig, RangedEnemyConfig, WeaponUpgradesConfig, WeaponConfig } from './simulation/types.ts';
+import { getEffectiveWeaponConfig } from './simulation/weapon-upgrades.ts';
 
 const configs: GameConfigs = {
   player: playerConfig,
@@ -54,6 +60,10 @@ const configs: GameConfigs = {
   armor: armorConfig,
   extractionMap: extractionMapConfig,
   destructibleCrates: destructibleCratesConfig,
+  bandages: bandagesConfig as BandageConfig,
+  shotgunner: shotgunnerConfig as RangedEnemyConfig,
+  sniper: sniperConfig as RangedEnemyConfig,
+  weaponUpgrades: weaponUpgradesConfig as unknown as WeaponUpgradesConfig,
 };
 const configsJson = JSON.stringify(configs);
 
@@ -62,6 +72,7 @@ type Screen = 'start' | 'hub' | 'playing' | 'paused' | 'gameOver' | 'replay';
 let screen: Screen = 'start';
 let equippedWeapon: WeaponType = 'pistol';
 let equippedArmor: ArmorType | null = null;
+let runConfigs: GameConfigs = configs; // effective configs for current run (with upgrades applied)
 
 // ---- Core objects ----
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
@@ -168,11 +179,33 @@ function startGame(mode: GameMode = 'arena', weapon?: WeaponType, armor?: ArmorT
   const activeWeapon: WeaponType = weapon ?? (mode === 'extraction' ? 'pistol' : 'rifle');
   equippedWeapon = activeWeapon;
   equippedArmor = armor ?? null;
-  game = createGame(configs, currentSeed, mode, activeWeapon, equippedArmor);
+  // Apply weapon upgrades for extraction mode
+  let effectiveConfigs = configs;
+  if (mode === 'extraction' && configs.weaponUpgrades) {
+    const upgradedWeapons = { ...configs.weapons } as Record<string, WeaponConfig>;
+    for (const wt of Object.keys(configs.weapons) as Array<WeaponType>) {
+      const upgradeLevel = getWeaponUpgradeLevel(wt);
+      if (upgradeLevel > 0 && configs.weaponUpgrades[wt]) {
+        upgradedWeapons[wt] = getEffectiveWeaponConfig(configs.weapons[wt], upgradeLevel, configs.weaponUpgrades[wt]);
+      }
+    }
+    effectiveConfigs = { ...configs, weapons: upgradedWeapons as typeof configs.weapons };
+  }
+
+  runConfigs = effectiveConfigs;
+  game = createGame(runConfigs, currentSeed, mode, activeWeapon, equippedArmor);
+
+  // Set bandage counts from persistence
+  if (mode === 'extraction') {
+    const bandageStock = getBandages();
+    game.state.player.bandageSmallCount = bandageStock.small;
+    game.state.player.bandageLargeCount = bandageStock.large;
+  }
+
   fullRecorder = new FullRecorder(currentSeed, configsJson);
   ringRecorder = new RingRecorder(game);
 
-  const weaponConfig = configs.weapons[activeWeapon];
+  const weaponConfig = effectiveConfigs.weapons[activeWeapon];
   setWeaponConfig(weaponConfig);
   setActiveWeaponName(activeWeapon);
 
@@ -181,6 +214,9 @@ function startGame(mode: GameMode = 'arena', weapon?: WeaponType, armor?: ArmorT
   renderer.setPlayerArmor(equippedArmor);
   renderer.setDodgeDuration(configs.player.dodgeDuration);
   renderer.setWeaponConfig(weaponConfig);
+  renderer.setBandageConfig(bandagesConfig as BandageConfig);
+  const upgradeLevel = mode === 'extraction' ? getWeaponUpgradeLevel(activeWeapon) : 0;
+  renderer.setPlayerWeapon(activeWeapon, upgradeLevel);
   audioSystem.init();
   gameOverShown = false;
   hideGameOver();
@@ -332,7 +368,7 @@ setupHubScreen({
     showStartScreen();
     screen = 'start';
   },
-}, shopConfig.prices, configs.weapons, shopConfig.armorPrices, armorConfig);
+}, shopConfig.prices, configs.weapons, shopConfig.armorPrices, armorConfig, shopConfig.bandagePrices, weaponUpgradesConfig as unknown as WeaponUpgradesConfig);
 
 // ---- Start screen ----
 onStartGame((mode) => {
@@ -383,6 +419,8 @@ function gameLoop(now: number): void {
       currentInput.dodge = false;
       currentInput.reload = false;
       currentInput.throwGrenade = false;
+      currentInput.healSmall = false;
+      currentInput.healLarge = false;
     }
 
     const frameEvents: GameEvent[] = [];
@@ -391,7 +429,7 @@ function gameLoop(now: number): void {
       // Update dynamic crosshair based on effective spread
       const isDodging = state.player.dodgeTimer > 0;
       const isMoving = currentInput.moveDir.x !== 0 || currentInput.moveDir.y !== 0;
-      const weapon = configs.weapons[state.player.activeWeapon];
+      const weapon = runConfigs.weapons[state.player.activeWeapon];
       const effectiveSpread = isDodging
         ? weapon.spread * weapon.movingSpreadMultiplier * 3.0
         : weapon.spread * (isMoving ? weapon.movingSpreadMultiplier : 1.0);
@@ -413,7 +451,7 @@ function gameLoop(now: number): void {
       ticksRan = true;
       fullRecorder.recordTick(currentInput);
       ringRecorder.recordTick(currentInput, game);
-      tick(game, currentInput, configs);
+      tick(game, currentInput, runConfigs);
       if (!mobile) processHitEvents(state.events);
       frameEvents.push(...state.events);
       accumulator -= TICK_DURATION;

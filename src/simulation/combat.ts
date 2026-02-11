@@ -2,6 +2,7 @@ import type { GameState, InputState, WeaponsConfig, WeaponConfig, Projectile, Pl
 import { TICK_RATE } from './types.ts';
 import { circleCircle, circleAABB, isOutOfBounds, pointToLineDist, normalize } from './collision.ts';
 import type { SeededRNG } from './rng.ts';
+import { interruptHeal } from './bandage.ts';
 
 const ENEMY_PROJ_RADIUS = 0.15;
 
@@ -11,6 +12,7 @@ function getWeapon(state: GameState, weapons: WeaponsConfig): WeaponConfig {
 
 export function tryFire(state: GameState, input: InputState, weapons: WeaponsConfig, rng: SeededRNG): void {
   if (state.player.dodgeTimer > 0) return;
+  if (state.player.healTimer > 0) return; // can't fire while healing
   if (!input.fire) return;
   if (state.player.fireCooldown > 0) return;
   if (state.player.reloadTimer > 0) return; // can't fire while reloading
@@ -93,6 +95,8 @@ function completeReload(state: GameState, weapons: WeaponsConfig, reloadType: 'n
 }
 
 export function updateReload(state: GameState, input: InputState, weapons: WeaponsConfig): void {
+  if (state.player.healTimer > 0) return; // can't reload while healing
+
   const weapon = getWeapon(state, weapons);
 
   // R pressed while not reloading: start manual reload
@@ -285,6 +289,7 @@ export function checkEnemyProjectileHits(state: GameState, playerConfig: PlayerC
       const damage = proj.damage * (1 - state.player.armorDamageReduction);
       state.player.hp -= damage;
       state.player.iframeTimer = playerConfig.iframeDuration;
+      interruptHeal(state);
 
       state.events.push({
         tick: state.tick,

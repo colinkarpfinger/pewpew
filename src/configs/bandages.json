@@ -1,0 +1,24 @@
+{
+  "small": {
+    "healAmount": 25,
+    "healTime": 180,
+    "speedMultiplier": 0.3,
+    "activeHealStart": 0.4,
+    "activeHealEnd": 0.7,
+    "perfectHealStart": 0.5,
+    "perfectHealEnd": 0.6,
+    "activeHealBonus": 1.1,
+    "perfectHealBonus": 1.2
+  },
+  "large": {
+    "healAmount": 50,
+    "healTime": 240,
+    "speedMultiplier": 0.25,
+    "activeHealStart": 0.4,
+    "activeHealEnd": 0.65,
+    "perfectHealStart": 0.48,
+    "perfectHealEnd": 0.57,
+    "activeHealBonus": 1.1,
+    "perfectHealBonus": 1.2
+  }
+}

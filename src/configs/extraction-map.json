@@ -11,10 +11,10 @@
   "enemyDetectionRange": 18,
   "wanderSpeedMultiplier": 0.3,
   "zones": [
-    { "yMin": -60, "yMax": -30, "ambientInterval": 480, "sprinterRatio": 1.0, "gunnerRatio": 0, "initialEnemyCount": 2 },
-    { "yMin": -30, "yMax": 0, "ambientInterval": 300, "sprinterRatio": 0.85, "gunnerRatio": 0.15, "initialEnemyCount": 3 },
-    { "yMin": 0, "yMax": 30, "ambientInterval": 180, "sprinterRatio": 0.75, "gunnerRatio": 0.25, "initialEnemyCount": 4 },
-    { "yMin": 30, "yMax": 60, "ambientInterval": 120, "sprinterRatio": 0.7, "gunnerRatio": 0.3, "initialEnemyCount": 5 }
+    { "yMin": -60, "yMax": -30, "ambientInterval": 480, "sprinterRatio": 1.0, "gunnerRatio": 0, "shotgunnerRatio": 0, "sniperRatio": 0, "initialEnemyCount": 2 },
+    { "yMin": -30, "yMax": 0, "ambientInterval": 300, "sprinterRatio": 0.7, "gunnerRatio": 0.15, "shotgunnerRatio": 0.1, "sniperRatio": 0.05, "initialEnemyCount": 3 },
+    { "yMin": 0, "yMax": 30, "ambientInterval": 180, "sprinterRatio": 0.5, "gunnerRatio": 0.2, "shotgunnerRatio": 0.15, "sniperRatio": 0.15, "initialEnemyCount": 4 },
+    { "yMin": 30, "yMax": 60, "ambientInterval": 120, "sprinterRatio": 0.4, "gunnerRatio": 0.2, "shotgunnerRatio": 0.2, "sniperRatio": 0.2, "initialEnemyCount": 5 }
   ],
   "walls": [
     { "pos": { "x": -8, "y": -48 }, "width": 6, "height": 1 },

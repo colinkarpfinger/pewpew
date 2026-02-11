@@ -14,6 +14,8 @@ export function spawnCash(state: GameState, config: CashConfig | undefined, rng:
     const enemyType = d.enemyType as EnemyType | undefined;
     let range = config.sprinterBills;
     if (enemyType === 'gunner') range = config.gunnerBills;
+    else if (enemyType === 'shotgunner') range = config.shotgunnerBills ?? config.gunnerBills;
+    else if (enemyType === 'sniper') range = config.sniperBills ?? config.gunnerBills;
     const billCount = rng.int(range[0], range[1]);
 
     const cx = d.x as number;

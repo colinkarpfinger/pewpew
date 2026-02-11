@@ -8,6 +8,7 @@ const WALL_BOUNCE_THRESHOLD = 0.5; // min speed to emit wall/obstacle bounce sou
 
 export function tryThrowGrenade(state: GameState, input: InputState, config: GrenadeConfig): void {
   if (state.player.dodgeTimer > 0) return;
+  if (state.player.healTimer > 0) return; // can't throw while healing
   if (!input.throwGrenade) return;
   if (state.grenadeAmmo <= 0) return;
 

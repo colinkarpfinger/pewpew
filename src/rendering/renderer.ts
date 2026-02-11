@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { GameState, GameEvent, WeaponConfig, EnemyType, ArmorType } from '../simulation/types.ts';
+import type { GameState, GameEvent, WeaponConfig, WeaponType, EnemyType, ArmorType, BandageConfig } from '../simulation/types.ts';
 import { ParticleSystem } from './particles.ts';
 import {
   createPlayerMesh,
@@ -17,6 +17,7 @@ import {
   createZoneGroundMesh,
   createWallMeshes,
   createExtractionZoneMesh,
+  createWeaponMesh,
   type EnemyMeshGroup,
 } from './entities.ts';
 import { createCamera, updateCamera } from './camera.ts';
@@ -32,9 +33,11 @@ export class Renderer {
   private playerAim: THREE.Mesh | null = null;
   private playerReloadBar: THREE.Group | null = null;
   private playerArmorMesh: THREE.Mesh | null = null;
+  private playerWeaponGroup: THREE.Group | null = null;
   private playerRadius = 0.4;
   private dodgeDuration = 18;
   private weaponConfig: WeaponConfig | null = null;
+  private bandageConfig: BandageConfig | null = null;
   private enemyGroups = new Map<number, EnemyMeshGroup>();
   private projectileMeshes = new Map<number, THREE.Mesh>();
   private enemyProjectileMeshes = new Map<number, THREE.Mesh>();
@@ -181,6 +184,26 @@ export class Renderer {
     this.weaponConfig = config;
   }
 
+  /** Store bandage config for heal bar calculations */
+  setBandageConfig(config: BandageConfig): void {
+    this.bandageConfig = config;
+  }
+
+  /** Set or swap weapon model on the player */
+  setPlayerWeapon(type: WeaponType, upgradeLevel: number): void {
+    if (this.playerWeaponGroup && this.playerGroup) {
+      this.playerGroup.remove(this.playerWeaponGroup);
+      this.playerWeaponGroup = null;
+    }
+    if (this.playerGroup) {
+      this.playerWeaponGroup = createWeaponMesh(type, upgradeLevel);
+      const r = this.playerRadius;
+      const capsuleHeight = r * 1.2;
+      this.playerWeaponGroup.position.set(r * 0.8, r + capsuleHeight / 2, 0);
+      this.playerGroup.add(this.playerWeaponGroup);
+    }
+  }
+
   /** Attach or remove armor mesh on player capsule */
   setPlayerArmor(armorTier: ArmorType | null): void {
     if (this.playerArmorMesh && this.playerCapsule) {
@@ -260,39 +283,72 @@ export class Renderer {
       this.playerGroup.visible = state.player.iframeTimer === 0 ||
         Math.floor(state.player.iframeTimer / 4) % 2 === 0;
 
-      // Reload bar with active/perfect timing zones
-      if (this.playerReloadBar && this.weaponConfig) {
+      // Reload / Heal bar with active/perfect timing zones
+      if (this.playerReloadBar) {
         const reloading = state.player.reloadTimer > 0;
-        this.playerReloadBar.visible = reloading;
+        const healing = state.player.healTimer > 0 && state.player.healType !== null;
+        this.playerReloadBar.visible = reloading || healing;
 
-        if (reloading) {
+        if (reloading && this.weaponConfig) {
           const wc = this.weaponConfig;
           const progress = state.player.reloadTimer / wc.reloadTime;
           const barHeight = this.playerRadius * 3;
-          const baseY = 0.1; // bottom of bar
+          const baseY = 0.1;
 
-          // Fill bar — grows from bottom
           const fillMesh = this.playerReloadBar.children[1] as THREE.Mesh;
+          (fillMesh.material as THREE.MeshStandardMaterial).color.setHex(0xaaaaaa);
+          (fillMesh.material as THREE.MeshStandardMaterial).emissive.setHex(0x555555);
           fillMesh.scale.y = progress;
           fillMesh.position.y = (barHeight * progress) / 2 + baseY;
 
-          // Active zone — positioned by config fractions
           const activeMesh = this.playerReloadBar.children[2] as THREE.Mesh;
+          (activeMesh.material as THREE.MeshStandardMaterial).color.setHex(0x66ccff);
+          (activeMesh.material as THREE.MeshStandardMaterial).emissive.setHex(0x3388aa);
           const activeCenterY = ((wc.activeReloadStart + wc.activeReloadEnd) / 2) * barHeight + baseY;
           activeMesh.scale.y = (wc.activeReloadEnd - wc.activeReloadStart);
           activeMesh.position.y = activeCenterY;
 
-          // Perfect zone — positioned within active zone
           const perfectMesh = this.playerReloadBar.children[3] as THREE.Mesh;
           const perfectCenterY = ((wc.perfectReloadStart + wc.perfectReloadEnd) / 2) * barHeight + baseY;
           perfectMesh.scale.y = (wc.perfectReloadEnd - wc.perfectReloadStart);
           perfectMesh.position.y = perfectCenterY;
 
-          // Cursor line — shows current progress position
           const cursorMesh = this.playerReloadBar.children[4] as THREE.Mesh;
           cursorMesh.position.y = progress * barHeight + baseY;
 
-          // Counter-rotate so bar always faces camera
+          this.playerReloadBar.rotation.y = -this.playerGroup.rotation.y;
+        } else if (healing && this.bandageConfig) {
+          const healType = state.player.healType!;
+          const tc = this.bandageConfig[healType];
+          const progress = state.player.healTimer / tc.healTime;
+          const barHeight = this.playerRadius * 3;
+          const baseY = 0.1;
+
+          // Green fill for healing
+          const fillMesh = this.playerReloadBar.children[1] as THREE.Mesh;
+          (fillMesh.material as THREE.MeshStandardMaterial).color.setHex(0x44cc66);
+          (fillMesh.material as THREE.MeshStandardMaterial).emissive.setHex(0x228833);
+          fillMesh.scale.y = progress;
+          fillMesh.position.y = (barHeight * progress) / 2 + baseY;
+
+          // Active zone — green tint
+          const activeMesh = this.playerReloadBar.children[2] as THREE.Mesh;
+          (activeMesh.material as THREE.MeshStandardMaterial).color.setHex(0x66ff88);
+          (activeMesh.material as THREE.MeshStandardMaterial).emissive.setHex(0x33aa44);
+          const activeCenterY = ((tc.activeHealStart + tc.activeHealEnd) / 2) * barHeight + baseY;
+          activeMesh.scale.y = (tc.activeHealEnd - tc.activeHealStart);
+          activeMesh.position.y = activeCenterY;
+
+          // Perfect zone — gold
+          const perfectMesh = this.playerReloadBar.children[3] as THREE.Mesh;
+          const perfectCenterY = ((tc.perfectHealStart + tc.perfectHealEnd) / 2) * barHeight + baseY;
+          perfectMesh.scale.y = (tc.perfectHealEnd - tc.perfectHealStart);
+          perfectMesh.position.y = perfectCenterY;
+
+          // Cursor
+          const cursorMesh = this.playerReloadBar.children[4] as THREE.Mesh;
+          cursorMesh.position.y = progress * barHeight + baseY;
+
           this.playerReloadBar.rotation.y = -this.playerGroup.rotation.y;
         }
       }

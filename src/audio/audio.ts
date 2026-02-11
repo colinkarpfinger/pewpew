@@ -34,6 +34,10 @@ const EVENT_MAP: Partial<Record<GameEventType, string>> = {
   crate_picked_up: 'crate_pickup',
   cash_picked_up: 'cash_pickup',
   enemy_projectile_fired: 'enemy_fire',
+  heal_start: 'reload_start',
+  heal_complete: 'reload_complete',
+  heal_fumbled: 'reload_fumbled',
+  heal_interrupted: 'reload_fumbled',
 };
 
 export class AudioSystem {

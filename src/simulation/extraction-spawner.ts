@@ -55,7 +55,7 @@ export function spawnInitialEnemies(
       }
       if (!valid) continue;
 
-      const enemyType: EnemyType = pickEnemyType(rng, zone.sprinterRatio, zone.gunnerRatio ?? 0);
+      const enemyType: EnemyType = pickEnemyType(rng, zone.sprinterRatio, zone.gunnerRatio ?? 0, zone.shotgunnerRatio ?? 0, zone.sniperRatio ?? 0);
       const enemy = createEnemy(state, x, y, enemyType, enemies);
       // All pre-spawned enemies start wandering
       enemy.aiState = 'wander';
@@ -95,7 +95,7 @@ export function updateExtractionSpawner(
       if (state.enemies.length >= map.maxEnemies) break;
 
       const spawnPoint = region.spawnPoints[i % region.spawnPoints.length];
-      const enemyType: EnemyType = pickEnemyType(rng, region.sprinterRatio, region.gunnerRatio ?? 0);
+      const enemyType: EnemyType = pickEnemyType(rng, region.sprinterRatio, region.gunnerRatio ?? 0, region.shotgunnerRatio ?? 0, region.sniperRatio ?? 0);
       const enemy = createEnemy(state, spawnPoint.x, spawnPoint.y, enemyType, enemies);
       state.enemies.push(enemy);
       state.events.push({
@@ -107,9 +107,11 @@ export function updateExtractionSpawner(
   }
 }
 
-function pickEnemyType(rng: SeededRNG, _sprinterRatio: number, gunnerRatio: number): EnemyType {
+function pickEnemyType(rng: SeededRNG, _sprinterRatio: number, gunnerRatio: number, shotgunnerRatio: number, sniperRatio: number): EnemyType {
   const roll = rng.next();
-  if (roll < gunnerRatio) return 'gunner';
+  if (roll < sniperRatio) return 'sniper';
+  if (roll < sniperRatio + shotgunnerRatio) return 'shotgunner';
+  if (roll < sniperRatio + shotgunnerRatio + gunnerRatio) return 'gunner';
   return 'sprinter';
 }
 
@@ -135,7 +137,8 @@ function createEnemy(
     stunTimer: 0,
   };
 
-  if (enemyType === 'gunner') {
+  // Initialize ranged AI fields for all ranged types
+  if (enemyType === 'gunner' || enemyType === 'shotgunner' || enemyType === 'sniper') {
     enemy.aiPhase = 'advance';
     enemy.aiTimer = 0;
     enemy.fireCooldown = 0;

@@ -28,6 +28,12 @@ export class InputHandler implements IInputHandler {
   private grenadeReleasePower = 0;
   private static readonly GRENADE_MAX_CHARGE_MS = 1000;
 
+  // Edge-detected heal inputs
+  private healSmallPressed = false;
+  private healSmallConsumed = false;
+  private healLargePressed = false;
+  private healLargeConsumed = false;
+
   constructor(camera: THREE.PerspectiveCamera, canvas: HTMLCanvasElement) {
     this.camera = camera;
 
@@ -41,6 +47,12 @@ export class InputHandler implements IInputHandler {
       }
       if (e.key.toLowerCase() === 'g' && this.grenadeChargeStart === null) {
         this.grenadeChargeStart = performance.now();
+      }
+      if (e.key === '4' && !this.healSmallConsumed) {
+        this.healSmallPressed = true;
+      }
+      if (e.key === '5' && !this.healLargeConsumed) {
+        this.healLargePressed = true;
       }
     });
 
@@ -57,6 +69,12 @@ export class InputHandler implements IInputHandler {
         this.grenadeReleasePower = Math.min(1, holdMs / InputHandler.GRENADE_MAX_CHARGE_MS);
         this.grenadeReleased = true;
         this.grenadeChargeStart = null;
+      }
+      if (e.key === '4') {
+        this.healSmallConsumed = false;
+      }
+      if (e.key === '5') {
+        this.healLargeConsumed = false;
       }
     });
 
@@ -108,6 +126,14 @@ export class InputHandler implements IInputHandler {
     if (this.grenadeReleased) {
       this.grenadeReleased = false;
       this.grenadeReleasePower = 0;
+    }
+    if (this.healSmallPressed) {
+      this.healSmallPressed = false;
+      this.healSmallConsumed = true;
+    }
+    if (this.healLargePressed) {
+      this.healLargePressed = false;
+      this.healLargeConsumed = true;
     }
   }
 
@@ -166,6 +192,8 @@ export class InputHandler implements IInputHandler {
     const reload = this.reloadPressed;
     const throwGrenade = this.grenadeReleased;
     const throwPower = this.grenadeReleasePower;
+    const healSmall = this.healSmallPressed;
+    const healLarge = this.healLargePressed;
 
     return {
       moveDir,
@@ -176,6 +204,8 @@ export class InputHandler implements IInputHandler {
       reload,
       throwGrenade,
       throwPower,
+      healSmall,
+      healLarge,
     };
   }
 }

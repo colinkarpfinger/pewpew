@@ -8,5 +8,9 @@
     "light": 150,
     "medium": 300,
     "heavy": 500
+  },
+  "bandagePrices": {
+    "small": 50,
+    "large": 100
   }
 }

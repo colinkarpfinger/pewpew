@@ -3,7 +3,23 @@
 export type WeaponType = 'pistol' | 'smg' | 'rifle' | 'shotgun';
 export type ArmorType = 'light' | 'medium' | 'heavy';
 export type GameMode = 'arena' | 'extraction';
-export type EnemyType = 'sprinter' | 'gunner';
+export type EnemyType = 'sprinter' | 'gunner' | 'shotgunner' | 'sniper';
+
+export type BandageType = 'small' | 'large';
+
+export interface BandageTierConfig {
+  healAmount: number;
+  healTime: number; // ticks
+  speedMultiplier: number;
+  activeHealStart: number; // fraction 0-1
+  activeHealEnd: number;
+  perfectHealStart: number;
+  perfectHealEnd: number;
+  activeHealBonus: number; // multiplier on heal amount
+  perfectHealBonus: number;
+}
+
+export type BandageConfig = Record<BandageType, BandageTierConfig>;
 
 export interface PlayerConfig {
   speed: number;
@@ -50,6 +66,8 @@ export interface EnemyTypeConfig {
 export interface EnemiesConfig {
   sprinter: EnemyTypeConfig;
   gunner: EnemyTypeConfig;
+  shotgunner: EnemyTypeConfig;
+  sniper: EnemyTypeConfig;
 }
 
 export interface SpawningConfig {
@@ -108,6 +126,8 @@ export interface CrateConfig {
 export interface CashConfig {
   sprinterBills: number[];
   gunnerBills: number[];
+  shotgunnerBills?: number[];
+  sniperBills?: number[];
   denomination: number;
   scatterRadius: number;
   pickupRadius: number;
@@ -126,11 +146,41 @@ export interface GunnerConfig {
   retreatSpeedMultiplier: number;
 }
 
+export interface RangedEnemyConfig {
+  projectileDamage: number;
+  projectileSpeed: number;
+  projectileLifetime: number; // ticks
+  fireCooldownTicks: number;
+  engageRange: number;
+  retreatRange: number;
+  spread: number; // radians
+  advanceDuration: number; // ticks
+  retreatDuration: number; // ticks
+  retreatSpeedMultiplier: number;
+  preferredRange?: number; // sniper stays at this distance
+  pelletsPerShot?: number; // shotgunner fires multiple pellets
+}
+
 export interface ArmorTierConfig {
   damageReduction: number;
 }
 
 export type ArmorConfig = Record<ArmorType, ArmorTierConfig>;
+
+export interface WeaponUpgradeLevel {
+  price: number;
+  damageBonus: number;
+  fireRateBonus: number;
+  magazineSizeBonus: number;
+  reloadTimeReduction: number; // ticks to subtract from reload time
+}
+
+export interface WeaponUpgradeConfig {
+  maxLevel: number;
+  levels: WeaponUpgradeLevel[];
+}
+
+export type WeaponUpgradesConfig = Record<WeaponType, WeaponUpgradeConfig>;
 
 export interface GameConfigs {
   player: PlayerConfig;
@@ -146,6 +196,10 @@ export interface GameConfigs {
   armor?: ArmorConfig;
   extractionMap?: ExtractionMapConfig;
   destructibleCrates?: DestructibleCrateConfig;
+  bandages?: BandageConfig;
+  shotgunner?: RangedEnemyConfig;
+  sniper?: RangedEnemyConfig;
+  weaponUpgrades?: WeaponUpgradesConfig;
 }
 
 // ---- Entities ----
@@ -175,6 +229,12 @@ export interface Player {
   activeWeapon: WeaponType;
   equippedArmor: ArmorType | null;
   armorDamageReduction: number;
+  healTimer: number; // 0 = not healing, >0 = ticks elapsed
+  healType: BandageType | null; // which bandage is being used
+  healFumbled: boolean;
+  healSpeedMultiplier: number; // 1.0 = normal, <1.0 during healing
+  bandageSmallCount: number;
+  bandageLargeCount: number;
 }
 
 export interface Enemy {
@@ -294,6 +354,8 @@ export interface TriggerRegion {
   enemyCount: number;
   sprinterRatio: number;
   gunnerRatio?: number;
+  shotgunnerRatio?: number;
+  sniperRatio?: number;
 }
 
 export interface ZoneConfig {
@@ -302,6 +364,8 @@ export interface ZoneConfig {
   ambientInterval: number;
   sprinterRatio: number;
   gunnerRatio?: number;
+  shotgunnerRatio?: number;
+  sniperRatio?: number;
   initialEnemyCount?: number; // enemies pre-spawned in this zone at level start
 }
 
@@ -336,6 +400,8 @@ export interface InputState {
   reload: boolean; // edge-detected: true only on press frame
   throwGrenade: boolean; // true on G key release frame
   throwPower: number;    // 0-1 charge fraction (how long G was held)
+  healSmall: boolean; // edge-detected: true on key '4' press
+  healLarge: boolean; // edge-detected: true on key '5' press
 }
 
 // ---- Events ----
@@ -365,7 +431,11 @@ export type GameEventType =
   | 'trigger_activated'
   | 'extraction_success'
   | 'destructible_crate_hit'
-  | 'destructible_crate_destroyed';
+  | 'destructible_crate_destroyed'
+  | 'heal_start'
+  | 'heal_complete'
+  | 'heal_fumbled'
+  | 'heal_interrupted';
 
 export interface GameEvent {
   tick: number;

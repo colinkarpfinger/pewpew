@@ -1,12 +1,15 @@
 import type { GameState, InputState, PlayerConfig } from './types.ts';
 import { TICK_DURATION } from './types.ts';
 import { clampToArena, circleAABB } from './collision.ts';
+import { interruptHeal } from './bandage.ts';
 
 export function updatePlayer(state: GameState, input: InputState, config: PlayerConfig): void {
   const player = state.player;
 
   // Start dodge if requested and able
   if (input.dodge && player.dodgeTimer === 0 && player.dodgeCooldown === 0) {
+    // Dodging interrupts healing
+    interruptHeal(state);
     player.dodgeTimer = config.dodgeDuration;
     // Lock direction: use moveDir if moving, otherwise aimDir
     if (input.moveDir.x !== 0 || input.moveDir.y !== 0) {
@@ -33,7 +36,7 @@ export function updatePlayer(state: GameState, input: InputState, config: Player
   } else {
     // Normal movement (instant, no inertia)
     if (input.moveDir.x !== 0 || input.moveDir.y !== 0) {
-      const speed = config.speed * player.speedBoostMultiplier;
+      const speed = config.speed * player.speedBoostMultiplier * player.healSpeedMultiplier;
       player.pos.x += input.moveDir.x * speed * TICK_DURATION;
       player.pos.y += input.moveDir.y * speed * TICK_DURATION;
     }

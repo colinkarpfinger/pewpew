@@ -143,6 +143,8 @@ export class TouchInputHandler implements IInputHandler {
       reload: false,
       throwGrenade,
       throwPower,
+      healSmall: false,
+      healLarge: false,
     };
   }
 

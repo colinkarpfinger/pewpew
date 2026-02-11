@@ -139,6 +139,26 @@ html, body {
   display: none;
 }
 
+/* ---- Bandage Counter ---- */
+
+#bandage-counter {
+  position: absolute;
+  bottom: 82px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(68, 204, 102, 0.9);
+  font-size: 14px;
+  font-family: monospace;
+  font-weight: bold;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+  z-index: 40;
+}
+
+#bandage-counter.hidden {
+  display: none;
+}
+
 /* ---- Reload Popup ---- */
 
 #reload-popup {
@@ -439,6 +459,8 @@ html, body {
   color: #fff;
   max-width: 600px;
   width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 #hub-screen-content h1 {
@@ -600,6 +622,26 @@ html, body {
 
 #hub-armor-loadout {
   margin-bottom: 24px;
+}
+
+#hub-bandage-shop {
+  margin-bottom: 24px;
+}
+
+#hub-bandage-shop-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#hub-upgrade-shop {
+  margin-bottom: 24px;
+}
+
+#hub-upgrade-shop-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 #hub-armor-list {

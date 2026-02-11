@@ -1,0 +1,34 @@
+{
+  "pistol": {
+    "maxLevel": 3,
+    "levels": [
+      { "price": 100, "damageBonus": 2, "fireRateBonus": 0.5, "magazineSizeBonus": 2, "reloadTimeReduction": 10 },
+      { "price": 250, "damageBonus": 3, "fireRateBonus": 0.5, "magazineSizeBonus": 3, "reloadTimeReduction": 15 },
+      { "price": 500, "damageBonus": 4, "fireRateBonus": 1, "magazineSizeBonus": 4, "reloadTimeReduction": 20 }
+    ]
+  },
+  "smg": {
+    "maxLevel": 3,
+    "levels": [
+      { "price": 150, "damageBonus": 2, "fireRateBonus": 1, "magazineSizeBonus": 5, "reloadTimeReduction": 10 },
+      { "price": 350, "damageBonus": 3, "fireRateBonus": 1, "magazineSizeBonus": 5, "reloadTimeReduction": 15 },
+      { "price": 600, "damageBonus": 4, "fireRateBonus": 2, "magazineSizeBonus": 10, "reloadTimeReduction": 20 }
+    ]
+  },
+  "rifle": {
+    "maxLevel": 3,
+    "levels": [
+      { "price": 200, "damageBonus": 3, "fireRateBonus": 0.5, "magazineSizeBonus": 3, "reloadTimeReduction": 10 },
+      { "price": 400, "damageBonus": 5, "fireRateBonus": 1, "magazineSizeBonus": 5, "reloadTimeReduction": 15 },
+      { "price": 700, "damageBonus": 7, "fireRateBonus": 1.5, "magazineSizeBonus": 7, "reloadTimeReduction": 20 }
+    ]
+  },
+  "shotgun": {
+    "maxLevel": 3,
+    "levels": [
+      { "price": 200, "damageBonus": 2, "fireRateBonus": 0.3, "magazineSizeBonus": 1, "reloadTimeReduction": 15 },
+      { "price": 450, "damageBonus": 3, "fireRateBonus": 0.3, "magazineSizeBonus": 1, "reloadTimeReduction": 20 },
+      { "price": 750, "damageBonus": 5, "fireRateBonus": 0.5, "magazineSizeBonus": 2, "reloadTimeReduction": 25 }
+    ]
+  }
+}

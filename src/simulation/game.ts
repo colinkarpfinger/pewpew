@@ -6,6 +6,7 @@ import { tryFire, updateProjectiles, checkProjectileCollisions, updateReload, up
 import { updateEnemies, checkContactDamage } from './enemies.ts';
 import { updateSpawner } from './spawner.ts';
 import { tryThrowGrenade, updateGrenades } from './grenade.ts';
+import { updateHeal } from './bandage.ts';
 import { spawnCrates, checkCratePickups, updateCrateLifetimes } from './crates.ts';
 import { spawnCash, checkCashPickups } from './cash.ts';
 import { createExtractionSpawner, updateExtractionSpawner, spawnInitialEnemies } from './extraction-spawner.ts';
@@ -64,6 +65,12 @@ export function createGame(configs: GameConfigs, seed: number = 12345, gameMode:
       activeWeapon: weapon,
       equippedArmor: equippedArmor ?? null,
       armorDamageReduction,
+      healTimer: 0,
+      healType: null,
+      healFumbled: false,
+      healSpeedMultiplier: 1.0,
+      bandageSmallCount: 0,
+      bandageLargeCount: 0,
     },
     enemies: [],
     projectiles: [],
@@ -117,6 +124,11 @@ export function tick(game: GameInstance, input: InputState, configs: GameConfigs
 
   // 1. Player movement
   updatePlayer(state, input, configs.player);
+
+  // 1b. Bandage healing
+  if (configs.bandages) {
+    updateHeal(state, input, configs.bandages);
+  }
 
   // 2. Reload
   updateReload(state, input, configs.weapons);
@@ -177,7 +189,7 @@ export function tick(game: GameInstance, input: InputState, configs: GameConfigs
   }
 
   // 7. Enemy AI
-  updateEnemies(state, configs.enemies, configs.gunner, rng);
+  updateEnemies(state, configs.enemies, configs.gunner, rng, configs.shotgunner, configs.sniper);
 
   // 7b. Enemy projectiles
   updateEnemyProjectiles(state);
@@ -276,6 +288,12 @@ export function restoreGame(stateSnapshot: GameState, rngState: number): GameIns
   state.player.activeWeapon ??= 'rifle';
   state.player.equippedArmor ??= null;
   state.player.armorDamageReduction ??= 0;
+  state.player.healTimer ??= 0;
+  state.player.healType ??= null;
+  state.player.healFumbled ??= false;
+  state.player.healSpeedMultiplier ??= 1.0;
+  state.player.bandageSmallCount ??= 0;
+  state.player.bandageLargeCount ??= 0;
   state.gameMode ??= 'arena';
   state.grenades ??= [];
   state.crates ??= [];

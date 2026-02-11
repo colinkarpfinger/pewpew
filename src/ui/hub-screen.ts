@@ -1,5 +1,5 @@
-import type { WeaponType, WeaponsConfig, ArmorType, ArmorConfig } from '../simulation/types.ts';
-import { getStashCash, getOwnedWeapons, addCashToStash, addWeapon, getOwnedArmor, addArmor } from '../persistence.ts';
+import type { WeaponType, WeaponsConfig, ArmorType, ArmorConfig, WeaponUpgradesConfig } from '../simulation/types.ts';
+import { getStashCash, getOwnedWeapons, addCashToStash, addWeapon, getOwnedArmor, addArmor, getBandages, addBandages, getWeaponUpgradeLevel, setWeaponUpgradeLevel } from '../persistence.ts';
 
 export interface HubCallbacks {
   onStartRun: (weapon: WeaponType, armor: ArmorType | null) => void;
@@ -12,8 +12,10 @@ let selectedWeapon: WeaponType = 'pistol';
 let selectedArmor: ArmorType | null = null;
 let shopPrices: ShopPrices = {};
 let armorPrices: ShopPrices = {};
+let bandagePrices: ShopPrices = {};
 let weaponsConfig: WeaponsConfig | null = null;
 let armorConfig: ArmorConfig | null = null;
+let weaponUpgradesConfig: WeaponUpgradesConfig | null = null;
 
 const el = () => document.getElementById('hub-screen')!;
 const stashEl = () => document.getElementById('hub-stash')!;
@@ -21,6 +23,8 @@ const shopItemsEl = () => document.getElementById('hub-shop-items')!;
 const weaponListEl = () => document.getElementById('hub-weapon-list')!;
 const armorShopItemsEl = () => document.getElementById('hub-armor-shop-items')!;
 const armorListEl = () => document.getElementById('hub-armor-list')!;
+const bandageShopEl = () => document.getElementById('hub-bandage-shop-items')!;
+const upgradeShopEl = () => document.getElementById('hub-upgrade-shop-items')!;
 
 function formatStats(type: WeaponType, wc: WeaponsConfig): string {
   const w = wc[type];
@@ -195,6 +199,127 @@ function refreshHub(): void {
     armorShopContainer.appendChild(item);
   }
 
+  // Bandage shop items
+  const bandageContainer = bandageShopEl();
+  bandageContainer.innerHTML = '';
+  const bandages = getBandages();
+  const bandageTypes: Array<{ key: 'small' | 'large'; label: string; count: number }> = [
+    { key: 'small', label: 'Small Bandage (25hp)', count: bandages.small },
+    { key: 'large', label: 'Large Bandage (50hp)', count: bandages.large },
+  ];
+  for (const bt of bandageTypes) {
+    const price = bandagePrices[bt.key] ?? 0;
+    const canAfford = cash >= price;
+
+    const item = document.createElement('div');
+    item.className = 'shop-item';
+
+    const info = document.createElement('div');
+    info.className = 'shop-item-info';
+
+    const name = document.createElement('div');
+    name.className = 'shop-item-name';
+    name.textContent = bt.label;
+    info.appendChild(name);
+
+    const stats = document.createElement('div');
+    stats.className = 'shop-item-stats';
+    stats.textContent = `Owned: ${bt.count}`;
+    info.appendChild(stats);
+
+    item.appendChild(info);
+
+    const action = document.createElement('div');
+    action.className = 'shop-item-action';
+
+    const priceLabel = document.createElement('span');
+    priceLabel.className = 'shop-item-price';
+    priceLabel.textContent = `$${price}`;
+    action.appendChild(priceLabel);
+
+    const buyBtn = document.createElement('button');
+    buyBtn.className = 'shop-buy-btn';
+    buyBtn.textContent = 'BUY';
+    buyBtn.disabled = !canAfford;
+    buyBtn.addEventListener('click', () => {
+      addCashToStash(-price);
+      addBandages(bt.key, 1);
+      refreshHub();
+    });
+    action.appendChild(buyBtn);
+
+    item.appendChild(action);
+    bandageContainer.appendChild(item);
+  }
+
+  // Weapon upgrades shop
+  const upgradeContainer = upgradeShopEl();
+  upgradeContainer.innerHTML = '';
+  if (weaponUpgradesConfig) {
+    for (const type of owned) {
+      const upgradeCfg = weaponUpgradesConfig[type];
+      if (!upgradeCfg) continue;
+      const currentLevel = getWeaponUpgradeLevel(type);
+      if (currentLevel >= upgradeCfg.maxLevel) {
+        // MAX level display
+        const item = document.createElement('div');
+        item.className = 'shop-item';
+        const info = document.createElement('div');
+        info.className = 'shop-item-info';
+        const nameEl = document.createElement('div');
+        nameEl.className = 'shop-item-name';
+        nameEl.textContent = `${type} Lv.${currentLevel}`;
+        info.appendChild(nameEl);
+        const statsEl = document.createElement('div');
+        statsEl.className = 'shop-item-stats';
+        statsEl.textContent = 'MAX';
+        info.appendChild(statsEl);
+        item.appendChild(info);
+        const actionEl = document.createElement('div');
+        actionEl.className = 'shop-item-action';
+        const badge = document.createElement('span');
+        badge.className = 'shop-item-owned';
+        badge.textContent = 'MAX';
+        actionEl.appendChild(badge);
+        item.appendChild(actionEl);
+        upgradeContainer.appendChild(item);
+        continue;
+      }
+      const nextLevel = upgradeCfg.levels[currentLevel];
+      const item = document.createElement('div');
+      item.className = 'shop-item';
+      const info = document.createElement('div');
+      info.className = 'shop-item-info';
+      const nameEl = document.createElement('div');
+      nameEl.className = 'shop-item-name';
+      nameEl.textContent = `${type} Lv.${currentLevel} → Lv.${currentLevel + 1}`;
+      info.appendChild(nameEl);
+      const statsEl = document.createElement('div');
+      statsEl.className = 'shop-item-stats';
+      statsEl.textContent = `+${nextLevel.damageBonus} DMG | +${nextLevel.fireRateBonus} RPS | +${nextLevel.magazineSizeBonus} MAG`;
+      info.appendChild(statsEl);
+      item.appendChild(info);
+      const actionEl = document.createElement('div');
+      actionEl.className = 'shop-item-action';
+      const priceLabel = document.createElement('span');
+      priceLabel.className = 'shop-item-price';
+      priceLabel.textContent = `$${nextLevel.price}`;
+      actionEl.appendChild(priceLabel);
+      const buyBtn = document.createElement('button');
+      buyBtn.className = 'shop-buy-btn';
+      buyBtn.textContent = 'UPGRADE';
+      buyBtn.disabled = cash < nextLevel.price;
+      buyBtn.addEventListener('click', () => {
+        addCashToStash(-nextLevel.price);
+        setWeaponUpgradeLevel(type, currentLevel + 1);
+        refreshHub();
+      });
+      actionEl.appendChild(buyBtn);
+      item.appendChild(actionEl);
+      upgradeContainer.appendChild(item);
+    }
+  }
+
   // Armor loadout buttons
   const armorLoadoutContainer = armorListEl();
   armorLoadoutContainer.innerHTML = '';
@@ -244,11 +369,13 @@ export function hideHubScreen(): void {
   el().classList.add('hidden');
 }
 
-export function setupHubScreen(callbacks: HubCallbacks, prices: ShopPrices, wc: WeaponsConfig, ap: ShopPrices, ac: ArmorConfig): void {
+export function setupHubScreen(callbacks: HubCallbacks, prices: ShopPrices, wc: WeaponsConfig, ap: ShopPrices, ac: ArmorConfig, bp?: ShopPrices, wuc?: WeaponUpgradesConfig): void {
   shopPrices = prices;
   weaponsConfig = wc;
   armorPrices = ap;
   armorConfig = ac;
+  bandagePrices = bp ?? {};
+  weaponUpgradesConfig = wuc ?? null;
 
   document.getElementById('hub-start-run')!.addEventListener('click', () => {
     callbacks.onStartRun(selectedWeapon, selectedArmor);

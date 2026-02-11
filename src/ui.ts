@@ -5,6 +5,7 @@ const hpBar = () => document.getElementById('hud-hp-bar')!;
 const grenadeCounterEl = () => document.getElementById('grenade-counter')!;
 const ammoCounterEl = () => document.getElementById('ammo-counter')!;
 const cashCounterEl = () => document.getElementById('cash-counter')!;
+const bandageCounterEl = () => document.getElementById('bandage-counter')!;
 const weaponNameEl = () => document.getElementById('weapon-name')!;
 const gameOverEl = () => document.getElementById('game-over')!;
 const finalScoreEl = () => document.getElementById('final-score')!;
@@ -57,6 +58,29 @@ export function updateHUD(state: GameState): void {
     cashEl.textContent = `$${state.runCash}`;
   } else {
     cashEl.classList.add('hidden');
+  }
+
+  // Bandage counter (extraction mode only)
+  const bandageEl = bandageCounterEl();
+  if (state.gameMode === 'extraction') {
+    const small = state.player.bandageSmallCount;
+    const large = state.player.bandageLargeCount;
+    if (small > 0 || large > 0) {
+      bandageEl.classList.remove('hidden');
+      const parts: string[] = [];
+      if (small > 0) parts.push(`[4] Sm:${small}`);
+      if (large > 0) parts.push(`[5] Lg:${large}`);
+      bandageEl.textContent = parts.join(' ');
+
+      // Show HEALING state
+      if (state.player.healTimer > 0) {
+        bandageEl.textContent += ' HEALING';
+      }
+    } else {
+      bandageEl.classList.add('hidden');
+    }
+  } else {
+    bandageEl.classList.add('hidden');
   }
 
   // Change HP bar color based on health

@@ -107,6 +107,12 @@ export function createEnemyMesh(radius: number, enemyType: EnemyType = 'sprinter
   if (enemyType === 'gunner') {
     bodyColor = 0x8844cc;
     headColor = 0x6633aa;
+  } else if (enemyType === 'shotgunner') {
+    bodyColor = 0xcc4422;
+    headColor = 0xaa3311;
+  } else if (enemyType === 'sniper') {
+    bodyColor = 0x2266cc;
+    headColor = 0x1155aa;
   }
 
   // Body cube
@@ -313,6 +319,52 @@ export function createObstacleMeshWithColor(width: number, height: number, color
   mesh.receiveShadow = true;
   mesh.position.y = wallHeight / 2;
   return mesh;
+}
+
+export function createWeaponMesh(weaponType: WeaponType, upgradeLevel: number): THREE.Group {
+  const group = new THREE.Group();
+
+  let length = 0.5;
+  let width = 0.08;
+  let color = 0x444444;
+
+  switch (weaponType) {
+    case 'pistol':
+      length = 0.35;
+      width = 0.06;
+      color = 0x555555;
+      break;
+    case 'smg':
+      length = 0.45;
+      width = 0.07;
+      color = 0x444455;
+      break;
+    case 'rifle':
+      length = 0.6;
+      width = 0.06;
+      color = 0x445544;
+      break;
+    case 'shotgun':
+      length = 0.55;
+      width = 0.1;
+      color = 0x554433;
+      break;
+  }
+
+  // Barrel
+  const barrelGeo = new THREE.BoxGeometry(length, width, width);
+  const emissiveIntensity = upgradeLevel * 0.3;
+  const emissiveColor = upgradeLevel >= 3 ? 0xddaa22 : upgradeLevel >= 2 ? 0x88aadd : 0x446688;
+  const barrelMat = new THREE.MeshStandardMaterial({
+    color,
+    emissive: emissiveColor,
+    emissiveIntensity,
+  });
+  const barrel = new THREE.Mesh(barrelGeo, barrelMat);
+  barrel.position.x = length / 2;
+  group.add(barrel);
+
+  return group;
 }
 
 export function createWallMeshes(arenaWidth: number, arenaHeight: number): THREE.Group {
