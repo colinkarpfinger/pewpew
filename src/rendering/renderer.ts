@@ -22,6 +22,7 @@ import {
 } from './entities.ts';
 import { createCamera, updateCamera, triggerScreenShake, triggerZoomPunch, triggerWeaponKick } from './camera.ts';
 import { getZoneIndex } from '../simulation/extraction-map.ts';
+import { FogOfWar } from './fog-of-war.ts';
 
 export class Renderer {
   readonly scene: THREE.Scene;
@@ -59,6 +60,9 @@ export class Renderer {
   private vignetteOpacity = 0;
   private vignetteDecayTimer = 0;
   private vignetteBaseOpacity = 0; // sustained low-HP vignette
+
+  // Fog of war
+  private fogOfWar: FogOfWar;
 
   constructor(canvas: HTMLCanvasElement) {
     this.scene = new THREE.Scene();
@@ -109,6 +113,9 @@ export class Renderer {
     });
     this.vignetteMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), vignetteMat);
     this.vignetteScene.add(this.vignetteMesh);
+
+    // Fog of war overlay
+    this.fogOfWar = new FogOfWar();
 
     window.addEventListener('resize', () => this.onResize());
   }
@@ -199,6 +206,9 @@ export class Renderer {
     if (this.particles) this.particles.dispose();
     this.particles = new ParticleSystem();
     this.scene.add(this.particles.points);
+
+    // Fog of war casters
+    this.fogOfWar.setCasters(state.obstacles, state.destructibleCrates, state.arena);
 
     // Player
     this.playerRadius = state.player.radius;
@@ -391,6 +401,16 @@ export class Renderer {
 
     // Update camera
     updateCamera(this.camera, state.player.pos.x, state.player.pos.y, dt);
+
+    // Update fog of war
+    this.fogOfWar.update(
+      state.player.pos,
+      state.player.aimDir,
+      this.camera,
+      state.destructibleCrates,
+      state.obstacles,
+      state.arena,
+    );
 
     // Sync enemies
     const currentEnemyIds = new Set<number>();
@@ -740,15 +760,19 @@ export class Renderer {
 
   render(): void {
     this.webglRenderer.render(this.scene, this.camera);
+
+    // Render fog of war overlay
+    this.webglRenderer.autoClear = false;
+    this.fogOfWar.render(this.webglRenderer);
+
     // Render vignette overlay on top
     if (this.vignetteScene && this.vignetteCamera) {
       const effectiveOpacity = Math.max(this.vignetteOpacity, this.vignetteBaseOpacity);
       if (effectiveOpacity > 0) {
-        this.webglRenderer.autoClear = false;
         this.webglRenderer.render(this.vignetteScene, this.vignetteCamera);
-        this.webglRenderer.autoClear = true;
       }
     }
+    this.webglRenderer.autoClear = true;
   }
 
   private onResize(): void {
