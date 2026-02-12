@@ -514,7 +514,7 @@ export class Renderer {
     // Player projectiles are not rendered — tracers are used instead (see updateTracers)
 
     // Update tracers
-    this.updateTracers(dt);
+    this.updateTracers(dt, state.obstacles, state.arena);
 
     // Sync enemy projectiles
     const currentEnemyProjIds = new Set<number>();
@@ -789,18 +789,37 @@ export class Renderer {
     });
   }
 
-  private updateTracers(dt: number): void {
+  private updateTracers(dt: number, obstacles: GameState['obstacles'], arena: GameState['arena']): void {
+    const halfW = arena.width / 2;
+    const halfH = arena.height / 2;
+
     for (let i = this.tracers.length - 1; i >= 0; i--) {
       const t = this.tracers[i];
       t.lifetime -= dt;
-      if (t.lifetime <= 0) {
+      t.mesh.position.x += t.vx * dt;
+      t.mesh.position.z += t.vz * dt;
+
+      // Check if tracer hit an obstacle or left the arena
+      const tx = t.mesh.position.x;
+      const tz = t.mesh.position.z;
+      let hit = tx < -halfW || tx > halfW || tz < -halfH || tz > halfH;
+      if (!hit) {
+        for (const obs of obstacles) {
+          const dx = tx - obs.pos.x;
+          const dz = tz - obs.pos.y;
+          if (Math.abs(dx) < obs.width / 2 && Math.abs(dz) < obs.height / 2) {
+            hit = true;
+            break;
+          }
+        }
+      }
+
+      if (t.lifetime <= 0 || hit) {
         this.scene.remove(t.mesh);
         t.mesh.geometry.dispose();
         (t.mesh.material as THREE.Material).dispose();
         this.tracers.splice(i, 1);
       } else {
-        t.mesh.position.x += t.vx * dt;
-        t.mesh.position.z += t.vz * dt;
         // Fade out
         const opacity = t.lifetime / 0.15;
         (t.mesh.material as THREE.MeshStandardMaterial).opacity = opacity;
