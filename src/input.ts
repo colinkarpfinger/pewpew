@@ -158,10 +158,10 @@ export class InputHandler implements IInputHandler {
     // Movement direction from WASD
     let mx = 0;
     let my = 0;
-    if (this.keys.has('w') || this.keys.has('arrowup')) my -= 1;
-    if (this.keys.has('s') || this.keys.has('arrowdown')) my += 1;
-    if (this.keys.has('a') || this.keys.has('arrowleft')) mx -= 1;
-    if (this.keys.has('d') || this.keys.has('arrowright')) mx += 1;
+    if (this.keys.has('w') || this.keys.has('arrowup')) my += 1;
+    if (this.keys.has('s') || this.keys.has('arrowdown')) my -= 1;
+    if (this.keys.has('a') || this.keys.has('arrowleft')) mx += 1;
+    if (this.keys.has('d') || this.keys.has('arrowright')) mx -= 1;
 
     // In our coordinate system, simulation Y maps to Three.js Z
     // W/S move in sim Y (which is Z in 3D), A/D move in sim X
