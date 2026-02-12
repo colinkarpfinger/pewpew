@@ -13,13 +13,20 @@ function getWeapon(state: GameState, weapons: WeaponsConfig): WeaponConfig {
 export function tryFire(state: GameState, input: InputState, weapons: WeaponsConfig, rng: SeededRNG): void {
   if (state.player.dodgeTimer > 0) return;
   if (state.player.healTimer > 0) return; // can't fire while healing
-  if (!input.fire) return;
-  if (state.player.fireCooldown > 0) return;
   if (state.player.reloadTimer > 0) return; // can't fire while reloading
   if (state.player.ammo <= 0) return; // no ammo
 
   const weapon = getWeapon(state, weapons);
-  const cooldownTicks = Math.ceil(TICK_RATE / weapon.fireRate);
+
+  // Semi-auto weapons require a fresh click per shot
+  if (weapon.semiAuto) {
+    if (!input.firePressed) return;
+  } else {
+    if (!input.fire) return;
+    if (state.player.fireCooldown > 0) return;
+  }
+
+  const cooldownTicks = weapon.semiAuto ? 1 : Math.ceil(TICK_RATE / weapon.fireRate);
   state.player.fireCooldown = cooldownTicks;
   state.player.ammo--;
 

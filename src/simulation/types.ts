@@ -53,6 +53,7 @@ export interface WeaponConfig {
   perfectReloadDamageBonus: number;
   recoilAim: number; // 0-1 scale for crosshair kick on fire
   recoilScreen: number; // 0-1 scale for camera shake on fire
+  semiAuto?: boolean; // requires click per shot (no hold-to-fire)
 }
 
 export type WeaponsConfig = Record<WeaponType, WeaponConfig>;
@@ -409,6 +410,7 @@ export interface InputState {
   moveDir: Vec2; // normalized or zero
   aimDir: Vec2; // normalized, world-space direction from player
   fire: boolean;
+  firePressed: boolean; // edge-detected: true only on click frame
   headshotTargetId: number | null; // enemy ID whose head is under cursor
   dodge: boolean; // edge-detected: true only on press frame
   reload: boolean; // edge-detected: true only on press frame

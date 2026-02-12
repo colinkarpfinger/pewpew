@@ -14,6 +14,10 @@ export class InputHandler implements IInputHandler {
   private playerPos: Vec2 = { x: 0, y: 0 };
   private headMeshes = new Map<number, THREE.Mesh>();
 
+  // Edge-detected fire input (for semi-auto weapons)
+  private firePressed = false;
+  private fireConsumed = false;
+
   // Edge-detected dodge input
   private dodgePressed = false;
   private dodgeConsumed = false;
@@ -79,11 +83,19 @@ export class InputHandler implements IInputHandler {
     });
 
     canvas.addEventListener('mousedown', (e) => {
-      if (e.button === 0) this.mouseDown = true;
+      if (e.button === 0) {
+        this.mouseDown = true;
+        if (!this.fireConsumed) {
+          this.firePressed = true;
+        }
+      }
     });
 
     window.addEventListener('mouseup', (e) => {
-      if (e.button === 0) this.mouseDown = false;
+      if (e.button === 0) {
+        this.mouseDown = false;
+        this.fireConsumed = false;
+      }
     });
 
     canvas.addEventListener('mousemove', (e) => {
@@ -115,6 +127,10 @@ export class InputHandler implements IInputHandler {
 
   /** Consume edge-detected inputs after simulation ticks have processed them. */
   consumeEdgeInputs(): void {
+    if (this.firePressed) {
+      this.firePressed = false;
+      this.fireConsumed = true;
+    }
     if (this.dodgePressed) {
       this.dodgePressed = false;
       this.dodgeConsumed = true;
@@ -188,6 +204,7 @@ export class InputHandler implements IInputHandler {
     }
 
     // Read edge-detected inputs (consumed separately via consumeEdgeInputs)
+    const firePressed = this.firePressed;
     const dodge = this.dodgePressed;
     const reload = this.reloadPressed;
     const throwGrenade = this.grenadeReleased;
@@ -199,6 +216,7 @@ export class InputHandler implements IInputHandler {
       moveDir,
       aimDir,
       fire: this.mouseDown,
+      firePressed,
       headshotTargetId,
       dodge,
       reload,

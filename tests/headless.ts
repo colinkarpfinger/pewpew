@@ -21,8 +21,10 @@ const weaponBase = {
 };
 
 const cashConfig = {
-  sprinterAmount: [25, 40],
-  gunnerAmount: [30, 50],
+  sprinterBills: [2, 4],
+  gunnerBills: [3, 5],
+  denomination: 10,
+  scatterRadius: 1.5,
   pickupRadius: 1.0,
 };
 
@@ -42,10 +44,10 @@ const gunnerConfig = {
 const configs: GameConfigs = {
   player: { speed: 5.0, hp: 100, radius: 0.4, iframeDuration: 60, dodgeDuration: 18, dodgeCooldown: 42, dodgeSpeedMultiplier: 1.8 },
   weapons: {
-    pistol: { damage: 12, fireRate: 3, projectileSpeed: 20, projectileLifetime: 60, spread: 0.02, penetration: 1, knockback: 8, pelletsPerShot: 1, magazineSize: 12, reloadTime: 90, ...weaponBase },
+    pistol: { damage: 12, fireRate: 3, projectileSpeed: 20, projectileLifetime: 60, spread: 0.02, penetration: 1, knockback: 8, pelletsPerShot: 1, magazineSize: 12, reloadTime: 90, semiAuto: true, ...weaponBase },
     smg: { damage: 15, fireRate: 12, projectileSpeed: 20, projectileLifetime: 60, spread: 0.06, penetration: 2, knockback: 6, pelletsPerShot: 1, magazineSize: 40, reloadTime: 120, ...weaponBase },
     rifle: { damage: 25, fireRate: 8, projectileSpeed: 20, projectileLifetime: 120, spread: 0.03, penetration: 5, knockback: 12, pelletsPerShot: 1, magazineSize: 30, reloadTime: 90, ...weaponBase },
-    shotgun: { damage: 18, fireRate: 2, projectileSpeed: 20, projectileLifetime: 30, spread: 0.15, penetration: 1, knockback: 20, pelletsPerShot: 6, magazineSize: 6, reloadTime: 150, ...weaponBase },
+    shotgun: { damage: 18, fireRate: 2, projectileSpeed: 20, projectileLifetime: 30, spread: 0.15, penetration: 1, knockback: 20, pelletsPerShot: 6, magazineSize: 6, reloadTime: 150, semiAuto: true, ...weaponBase },
   },
   enemies: {
     sprinter: { speed: 6.0, hp: 75, contactDamage: 20, radius: 0.35, scoreValue: 150 },
@@ -73,7 +75,7 @@ const configs: GameConfigs = {
   gunner: gunnerConfig,
 };
 
-const noInput: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: false, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
+const noInput: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: false, firePressed: false, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
 
 // Extraction map for tests
 const testExtractionMapEarly: ExtractionMapConfig = {
@@ -160,7 +162,7 @@ assert(game.state.tick === 60, 'Tick count is 60 after 60 ticks');
 // Test 3: Player movement
 console.log('\n--- Test 3: Player movement ---');
 const moveGame = createGame(configs, 42);
-const moveRight: InputState = { moveDir: { x: 1, y: 0 }, aimDir: { x: 1, y: 0 }, fire: false, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
+const moveRight: InputState = { moveDir: { x: 1, y: 0 }, aimDir: { x: 1, y: 0 }, fire: false, firePressed: false, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
 for (let i = 0; i < 60; i++) {
   tick(moveGame, moveRight, configs);
 }
@@ -177,7 +179,7 @@ assert(spawnGame.state.enemies.length > 0, `Enemies spawned: ${spawnGame.state.e
 // Test 5: Firing creates projectiles
 console.log('\n--- Test 5: Firing ---');
 const fireGame = createGame(configs, 42);
-const fireInput: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: true, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
+const fireInput: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: true, firePressed: true, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
 tick(fireGame, fireInput, configs);
 assert(fireGame.state.projectiles.length > 0, `Projectile created: ${fireGame.state.projectiles.length}`);
 assert(fireGame.state.projectiles[0].weaponType === 'rifle', 'Projectile has correct weapon type');
@@ -226,6 +228,7 @@ if (combatGame.state.enemies.length > 0) {
     moveDir: { x: 0, y: 0 },
     aimDir: { x: dx / len, y: dy / len },
     fire: true,
+    firePressed: true,
     headshotTargetId: null,
     dodge: false,
     reload: false,
@@ -247,6 +250,7 @@ const dodgeInput: InputState = {
   moveDir: { x: 1, y: 0 },
   aimDir: { x: 1, y: 0 },
   fire: false,
+  firePressed: false,
   headshotTargetId: null,
   dodge: true,
   reload: false,
@@ -258,7 +262,7 @@ assert(dodgeGame.state.player.dodgeDir.x === 1, 'Dodge direction locked to moveD
 const posAfterDodgeStart = dodgeGame.state.player.pos.x;
 
 // Continue dodging (dodge input should be edge-detected, so set to false)
-const noDodgeInput: InputState = { moveDir: { x: 1, y: 0 }, aimDir: { x: 1, y: 0 }, fire: false, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
+const noDodgeInput: InputState = { moveDir: { x: 1, y: 0 }, aimDir: { x: 1, y: 0 }, fire: false, firePressed: false, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
 for (let i = 0; i < 17; i++) {
   tick(dodgeGame, noDodgeInput, configs);
 }
@@ -284,6 +288,7 @@ const dodgeFireInput: InputState = {
   moveDir: { x: 1, y: 0 },
   aimDir: { x: 1, y: 0 },
   fire: true,
+  firePressed: true,
   headshotTargetId: null,
   dodge: true,
   reload: false,
@@ -310,7 +315,7 @@ console.log('\n--- Test 11: Shotgun pellets ---');
 const shotgunGame = createGame(configs, 42, 'arena', 'shotgun');
 assert(shotgunGame.state.player.activeWeapon === 'shotgun', 'Active weapon is shotgun');
 assert(shotgunGame.state.player.ammo === 6, 'Shotgun starts with 6 ammo');
-const shotgunFireInput: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: true, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
+const shotgunFireInput: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: true, firePressed: true, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
 tick(shotgunGame, shotgunFireInput, configs);
 assert(shotgunGame.state.projectiles.length === 6, `Shotgun fires 6 pellets: ${shotgunGame.state.projectiles.length}`);
 assert(shotgunGame.state.player.ammo === 5, 'Only 1 ammo consumed per shot');
@@ -366,6 +371,7 @@ function aimAt(g: ReturnType<typeof createGame>, tx: number, ty: number): InputS
     moveDir: { x: 0, y: 0 },
     aimDir: { x: dx / len, y: dy / len },
     fire: true,
+    firePressed: true,
     headshotTargetId: null,
     dodge: false,
     reload: false,
@@ -416,10 +422,10 @@ console.log('\n--- Test 14: Pistol magazine cycle ---');
   const g = createGame(combatConfigs, 200, 'extraction'); // pistol, 12 rounds
   assert(g.state.player.ammo === 12, 'Pistol starts with 12');
 
-  const input: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: true, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
+  const input: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: true, firePressed: true, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
 
-  // Pistol: fireRate=3 → ceil(60/3)=20 tick cooldown, 12 shots = 240 ticks to empty
-  // Auto-reload takes 90 ticks → first post-reload shot at ~330
+  // Pistol is semi-auto: fires once per firePressed, cooldown=1 tick
+  // 12 shots to empty → auto-reload takes 90 ticks → fires again
   // Run 500 ticks to be safe
   let firedEvents = 0;
   let reloadCompleted = false;
@@ -440,7 +446,7 @@ console.log('\n--- Test 15: SMG fire rate vs rifle ---');
 {
   const smgGame = createGame(combatConfigs, 300, 'arena', 'smg');
   const rifleGame = createGame(combatConfigs, 300, 'arena', 'rifle');
-  const input: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: true, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
+  const input: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: true, firePressed: true, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
 
   let smgShots = 0;
   let rifleShots = 0;
@@ -473,7 +479,7 @@ console.log('\n--- Test 16: Shotgun one-shots close enemy ---');
   let killFound = false;
   for (let i = 0; i < 15; i++) {
     // Only fire on first tick
-    const inp = i === 0 ? input : { ...input, fire: false };
+    const inp = i === 0 ? input : { ...input, fire: false, firePressed: false };
     tick(g, inp, configs);
     for (const ev of g.state.events) {
       if (ev.type === 'enemy_killed') killFound = true;
@@ -487,7 +493,7 @@ console.log('\n--- Test 16: Shotgun one-shots close enemy ---');
 console.log('\n--- Test 17: Shotgun pellet spread ---');
 {
   const g = createGame(combatConfigs, 500, 'arena', 'shotgun');
-  const input: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: true, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
+  const input: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: true, firePressed: true, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
   tick(g, input, configs);
   assert(g.state.projectiles.length === 6, 'Got 6 pellets');
 
@@ -507,13 +513,13 @@ console.log('\n--- Test 18: Manual reload mid-magazine ---');
 {
   const g = createGame(combatConfigs, 600, 'arena', 'rifle');
   // Fire a few shots to reduce ammo
-  const fireInp: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: true, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
+  const fireInp: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: true, firePressed: true, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
   for (let i = 0; i < 30; i++) tick(g, fireInp, configs);
   const ammoAfterFiring = g.state.player.ammo;
   assert(ammoAfterFiring < 30, `Used some ammo: ${ammoAfterFiring}/30`);
 
   // Press reload
-  const reloadInp: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: false, headshotTargetId: null, dodge: false, reload: true, throwGrenade: false, throwPower: 0 };
+  const reloadInp: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: false, firePressed: false, headshotTargetId: null, dodge: false, reload: true, throwGrenade: false, throwPower: 0 };
   tick(g, reloadInp, configs);
   assert(g.state.player.reloadTimer > 0, 'Reload started');
 
@@ -577,6 +583,7 @@ console.log('\n--- Test 20: Rifle penetration ---');
     moveDir: { x: 0, y: 0 },
     aimDir: { x: 1, y: 0 },
     fire: true,
+    firePressed: true,
     headshotTargetId: id1,
     dodge: false,
     reload: false,
@@ -607,7 +614,7 @@ console.log('\n--- Test 21: Pistol limited penetration ---');
 
   let hitsById: Record<number, number> = {};
   for (let i = 0; i < 30; i++) {
-    const inp = i === 0 ? input : { ...input, fire: false };
+    const inp = i === 0 ? input : { ...input, fire: false, firePressed: false };
     tick(g, inp, configs);
     for (const ev of g.state.events) {
       if (ev.type === 'enemy_hit') {
@@ -644,7 +651,7 @@ console.log('\n--- Test 22: Extended gameplay (30s all weapons) ---');
         });
         inp = aimAt(g, closest.pos.x, closest.pos.y);
       } else {
-        inp = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: true, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
+        inp = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: true, firePressed: true, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
       }
       tick(g, inp, configs);
       for (const ev of g.state.events) {
@@ -702,7 +709,7 @@ console.log('\n--- Test 24: Weapon damage values ---');
     let totalDamage = 0;
     let hitCount = 0;
     for (let i = 0; i < 20; i++) {
-      const inp = i === 0 ? input : { ...input, fire: false };
+      const inp = i === 0 ? input : { ...input, fire: false, firePressed: false };
       tick(g, inp, configs);
       for (const ev of g.state.events) {
         if (ev.type === 'enemy_hit') {
@@ -730,7 +737,7 @@ console.log('\n--- Test 25: Full determinism with combat (all weapons) ---');
     const gA = createGame(combatConfigs, 1300 + weaponTypes.indexOf(wt), 'arena', wt);
     const gB = createGame(combatConfigs, 1300 + weaponTypes.indexOf(wt), 'arena', wt);
 
-    const input: InputState = { moveDir: { x: 1, y: 0 }, aimDir: { x: 1, y: 0 }, fire: true, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
+    const input: InputState = { moveDir: { x: 1, y: 0 }, aimDir: { x: 1, y: 0 }, fire: true, firePressed: true, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
 
     for (let i = 0; i < 600; i++) {
       tick(gA, input, configs);
@@ -901,6 +908,7 @@ console.log('\n--- Test 34: Walls as obstacles ---');
     moveDir: { x: 0, y: 0 },
     aimDir: { x: 0, y: 1 },
     fire: true,
+    firePressed: true,
     headshotTargetId: null,
     dodge: false,
     reload: false,
@@ -913,7 +921,7 @@ console.log('\n--- Test 34: Walls as obstacles ---');
   // Advance until projectile either hits wall or expires
   let projDestroyed = false;
   for (let i = 0; i < 30; i++) {
-    tick(g, { ...fireUp, fire: false }, extractionConfigs);
+    tick(g, { ...fireUp, fire: false, firePressed: false }, extractionConfigs);
     if (g.state.events.some(e => e.type === 'projectile_destroyed')) {
       projDestroyed = true;
       break;
@@ -929,7 +937,7 @@ console.log('\n--- Test 35: Extraction determinism ---');
   const gB = createGame(extractionConfigs, 99, 'extraction');
 
   // Move both players the same way
-  const moveUp: InputState = { moveDir: { x: 0, y: 1 }, aimDir: { x: 0, y: 1 }, fire: false, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
+  const moveUp: InputState = { moveDir: { x: 0, y: 1 }, aimDir: { x: 0, y: 1 }, fire: false, firePressed: false, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
 
   for (let i = 0; i < 600; i++) {
     tick(gA, moveUp, extractionConfigs);
@@ -968,6 +976,7 @@ console.log('\n--- Test 36: Extended extraction gameplay (30s+) ---');
         moveDir: { x: 0, y: 1 }, // always moving north
         aimDir: len > 0 ? { x: dx / len, y: dy / len } : { x: 0, y: 1 },
         fire: true,
+        firePressed: true,
         headshotTargetId: null,
         dodge: false,
         reload: false,
@@ -979,6 +988,7 @@ console.log('\n--- Test 36: Extended extraction gameplay (30s+) ---');
         moveDir: { x: 0, y: 1 },
         aimDir: { x: 0, y: 1 },
         fire: false,
+        firePressed: false,
         headshotTargetId: null,
         dodge: false,
         reload: false,
@@ -1017,7 +1027,7 @@ console.log('\n--- Test 37: Cash spawns from kills (extraction) ---');
 
   let cashSpawned = false;
   for (let i = 0; i < 30; i++) {
-    tick(g, i === 0 ? input : { ...input, fire: false }, extractionConfigs);
+    tick(g, i === 0 ? input : { ...input, fire: false, firePressed: false }, extractionConfigs);
     for (const ev of g.state.events) {
       if (ev.type === 'cash_spawned') cashSpawned = true;
     }
@@ -1034,7 +1044,7 @@ console.log('\n--- Test 38: No cash in arena mode ---');
   const input = aimAt(g, 2, 0);
 
   for (let i = 0; i < 30; i++) {
-    tick(g, i === 0 ? input : { ...input, fire: false }, combatConfigs);
+    tick(g, i === 0 ? input : { ...input, fire: false, firePressed: false }, combatConfigs);
   }
   assert(g.state.cashPickups.length === 0, 'No cash pickups in arena mode');
   assert(g.state.runCash === 0, 'No run cash in arena mode');
@@ -1049,7 +1059,7 @@ console.log('\n--- Test 39: Cash amount ranges ---');
   injectEnemy(g, g.state.player.pos.x + 2, g.state.player.pos.y, 1, 'sprinter');
   const input = aimAt(g, g.state.player.pos.x + 2, g.state.player.pos.y);
   for (let i = 0; i < 20; i++) {
-    tick(g, i === 0 ? input : { ...input, fire: false }, extractionConfigs);
+    tick(g, i === 0 ? input : { ...input, fire: false, firePressed: false }, extractionConfigs);
   }
 
   assert(g.state.cashPickups.length > 0, 'Cash pickup from sprinter exists');
@@ -1063,7 +1073,7 @@ console.log('\n--- Test 39: Cash amount ranges ---');
   injectGunner(g, g.state.player.pos.x + 2, g.state.player.pos.y, 1);
   const input2 = aimAt(g, g.state.player.pos.x + 2, g.state.player.pos.y);
   for (let i = 0; i < 20; i++) {
-    tick(g, i === 0 ? input2 : { ...input2, fire: false }, extractionConfigs);
+    tick(g, i === 0 ? input2 : { ...input2, fire: false, firePressed: false }, extractionConfigs);
   }
 
   if (g.state.cashPickups.length > prevCount) {
@@ -1127,9 +1137,9 @@ console.log('\n--- Test 43: Cash determinism ---');
   const inputB = aimAt(gB, gB.state.player.pos.x + 2, gB.state.player.pos.y);
 
   for (let i = 0; i < 30; i++) {
-    const inp = i === 0 ? inputA : { ...inputA, fire: false };
+    const inp = i === 0 ? inputA : { ...inputA, fire: false, firePressed: false };
     tick(gA, inp, extractionConfigs);
-    tick(gB, i === 0 ? inputB : { ...inputB, fire: false }, extractionConfigs);
+    tick(gB, i === 0 ? inputB : { ...inputB, fire: false, firePressed: false }, extractionConfigs);
   }
 
   assert(gA.state.cashPickups.length === gB.state.cashPickups.length, 'Same cash pickup count');
@@ -1162,6 +1172,7 @@ console.log('\n--- Test 44: Extended extraction with cash ---');
         moveDir: { x: 0, y: 1 },
         aimDir: len > 0 ? { x: dx / len, y: dy / len } : { x: 0, y: 1 },
         fire: true,
+        firePressed: true,
         headshotTargetId: null,
         dodge: false,
         reload: false,
@@ -1173,6 +1184,7 @@ console.log('\n--- Test 44: Extended extraction with cash ---');
         moveDir: { x: 0, y: 1 },
         aimDir: { x: 0, y: 1 },
         fire: false,
+        firePressed: false,
         headshotTargetId: null,
         dodge: false,
         reload: false,
@@ -1399,7 +1411,7 @@ console.log('\n--- Test 53: Gunner kill score ---');
 
   let killScore = 0;
   for (let i = 0; i < 20; i++) {
-    tick(g, i === 0 ? input : { ...input, fire: false }, configs);
+    tick(g, i === 0 ? input : { ...input, fire: false, firePressed: false }, configs);
     for (const ev of g.state.events) {
       if (ev.type === 'enemy_killed' && ev.data?.['enemyType'] === 'gunner') {
         killScore = ev.data?.['scoreValue'] as number;
@@ -1417,7 +1429,7 @@ console.log('\n--- Test 54: Gunner cash drop ---');
   const input = aimAt(g, g.state.player.pos.x + 2, g.state.player.pos.y);
 
   for (let i = 0; i < 30; i++) {
-    tick(g, i === 0 ? input : { ...input, fire: false }, extractionConfigs);
+    tick(g, i === 0 ? input : { ...input, fire: false, firePressed: false }, extractionConfigs);
   }
 
   assert(g.state.cashPickups.length > 0, `Gunner dropped cash: ${g.state.cashPickups.length}`);

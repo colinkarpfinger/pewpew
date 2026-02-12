@@ -17,6 +17,7 @@ export class FullRecorder {
       moveDir: { x: input.moveDir.x, y: input.moveDir.y },
       aimDir: { x: input.aimDir.x, y: input.aimDir.y },
       fire: input.fire,
+      firePressed: input.firePressed,
       headshotTargetId: input.headshotTargetId,
       dodge: input.dodge,
       reload: input.reload,

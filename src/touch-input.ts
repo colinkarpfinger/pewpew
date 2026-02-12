@@ -32,6 +32,9 @@ export class TouchInputHandler implements IInputHandler {
   private playerPos: Vec2 = { x: 0, y: 0 };
   private enemies: EnemyRef[] = [];
 
+  // Edge-detected fire (for semi-auto weapons)
+  private wasFiring = false;
+
   // Double-tap dodge
   private lastLeftReleaseTime = 0;
   private dodgeTriggered = false;
@@ -134,10 +137,15 @@ export class TouchInputHandler implements IInputHandler {
     const throwGrenade = this.grenadeReleased;
     const throwPower = this.grenadeReleasePower;
 
+    // Detect fire edge (transition from not-firing to firing)
+    const firePressed = fire && !this.wasFiring;
+    this.wasFiring = fire;
+
     return {
       moveDir,
       aimDir,
       fire,
+      firePressed,
       headshotTargetId: null,
       dodge,
       reload: false,

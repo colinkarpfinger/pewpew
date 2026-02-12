@@ -20,7 +20,8 @@
     "activeReloadDamageBonus": 1.1,
     "perfectReloadDamageBonus": 1.25,
     "recoilAim": 0.3,
-    "recoilScreen": 0.3
+    "recoilScreen": 0.3,
+    "semiAuto": true
   },
   "smg": {
     "damage": 15,
@@ -77,7 +78,7 @@
     "movingSpreadMultiplier": 3.0,
     "headshotMultiplier": 7.0,
     "penetration": 1,
-    "knockback": 20,
+    "knockback": 10,
     "headshotKnockbackMultiplier": 2.0,
     "pelletsPerShot": 6,
     "magazineSize": 6,
@@ -89,7 +90,8 @@
     "activeReloadDamageBonus": 1.1,
     "perfectReloadDamageBonus": 1.25,
     "recoilAim": 1.0,
-    "recoilScreen": 1.0
+    "recoilScreen": 1.0,
+    "semiAuto": true
   },
   "machinegun": {
     "damage": 12,
