@@ -45,6 +45,7 @@ import sniperConfig from './configs/sniper.json';
 import weaponUpgradesConfig from './configs/weapon-upgrades.json';
 import type { BandageConfig, RangedEnemyConfig, WeaponUpgradesConfig, WeaponConfig } from './simulation/types.ts';
 import { getEffectiveWeaponConfig } from './simulation/weapon-upgrades.ts';
+import { loadWeaponModels } from './rendering/weapon-models.ts';
 
 const configs: GameConfigs = {
   player: playerConfig,
@@ -594,4 +595,5 @@ if (fullscreenBtn) {
 }
 
 showStartScreen();
+loadWeaponModels().catch(console.error);
 requestAnimationFrame(gameLoop);

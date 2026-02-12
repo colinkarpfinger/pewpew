@@ -33,6 +33,10 @@ export function updateEnemies(
 
       if (enemy.aiState === 'wander') {
         updateWander(enemy, wanderSpeedMult, rng);
+        // Face wander direction
+        if (enemy.wanderDir) {
+          enemy.facingDir = { x: enemy.wanderDir.x, y: enemy.wanderDir.y };
+        }
       } else if (enemy.type === 'gunner' && gunnerConfig) {
         updateRangedEnemy(state, enemy, gunnerConfig, rng);
       } else if (enemy.type === 'shotgunner' && shotgunnerConfig) {
@@ -48,6 +52,9 @@ export function updateEnemies(
 
         enemy.pos.x += dir.x * enemy.speed * TICK_DURATION;
         enemy.pos.y += dir.y * enemy.speed * TICK_DURATION;
+
+        // Face movement direction
+        enemy.facingDir = { x: dir.x, y: dir.y };
       }
     }
 
@@ -94,6 +101,9 @@ function updateRangedEnemy(state: GameState, enemy: GameState['enemies'][0], cfg
     x: state.player.pos.x - enemy.pos.x,
     y: state.player.pos.y - enemy.pos.y,
   });
+
+  // Face toward player
+  enemy.facingDir = { x: dir.x, y: dir.y };
 
   // Initialize AI fields if missing
   enemy.aiPhase ??= 'advance';

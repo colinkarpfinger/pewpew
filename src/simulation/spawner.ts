@@ -35,6 +35,7 @@ export function updateSpawner(
       scoreValue: cfg.scoreValue,
       knockbackVel: { x: 0, y: 0 },
       visible: true,
+      facingDir: { x: 1, y: 0 },
       stunTimer: 0,
       hasArmor: rng.next() < (enemies.armorChance ?? 0),
       hasHelmet: rng.next() < (enemies.helmetChance ?? 0),

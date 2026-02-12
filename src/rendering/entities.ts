@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { WeaponType, EnemyType, ArmorType } from '../simulation/types.ts';
+import { getWeaponModel, enemyWeaponType } from './weapon-models.ts';
 
 export function createPlayerMesh(radius: number): THREE.Group {
   const group = new THREE.Group();
@@ -161,6 +162,14 @@ export function createEnemyMesh(radius: number, enemyType: EnemyType = 'sprinter
     helmetMesh.castShadow = true;
     helmetMesh.position.y = radius * 2 + headRadius; // same as head center
     group.add(helmetMesh);
+  }
+
+  // Attach weapon model for ranged enemies
+  const weaponKey = enemyWeaponType(enemyType);
+  if (weaponKey) {
+    const weapon = createWeaponMesh(weaponKey, 0);
+    weapon.position.set(radius * 0.3, radius, radius * 0.6);
+    group.add(weapon);
   }
 
   return { group, bodyMesh: body, headMesh: head, hasArmor, hasHelmet };
@@ -357,7 +366,27 @@ export function createObstacleMeshWithColor(width: number, height: number, color
   return mesh;
 }
 
-export function createWeaponMesh(weaponType: WeaponType, upgradeLevel: number): THREE.Group {
+export function createWeaponMesh(weaponType: WeaponType | 'sniper', upgradeLevel: number): THREE.Group {
+  // Try to use loaded 3D model
+  const model = getWeaponModel(weaponType);
+  if (model) {
+    // Apply upgrade-level emissive glow
+    if (upgradeLevel > 0) {
+      const emissiveIntensity = upgradeLevel * 0.3;
+      const emissiveColor = upgradeLevel >= 3 ? 0xddaa22 : upgradeLevel >= 2 ? 0x88aadd : 0x446688;
+      model.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          const mat = (child.material as THREE.MeshStandardMaterial).clone();
+          mat.emissive = new THREE.Color(emissiveColor);
+          mat.emissiveIntensity = emissiveIntensity;
+          child.material = mat;
+        }
+      });
+    }
+    return model;
+  }
+
+  // Fallback: box geometry
   const group = new THREE.Group();
 
   let length = 0.5;
@@ -389,6 +418,11 @@ export function createWeaponMesh(weaponType: WeaponType, upgradeLevel: number): 
       length = 0.7;
       width = 0.12;
       color = 0x3a3a3a;
+      break;
+    case 'sniper':
+      length = 0.65;
+      width = 0.06;
+      color = 0x3a4a5a;
       break;
   }
 

@@ -259,6 +259,7 @@ export interface Enemy {
   scoreValue: number;
   knockbackVel: Vec2;
   visible: boolean;
+  facingDir: Vec2; // normalized direction enemy is facing
   stunTimer: number; // ticks remaining where enemy can't move
   aiState?: 'wander' | 'chase'; // extraction mode: wander until player spotted
   wanderDir?: Vec2; // current wander direction

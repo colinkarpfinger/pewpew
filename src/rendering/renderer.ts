@@ -5,7 +5,6 @@ import {
   createPlayerMesh,
   createPlayerArmorMesh,
   createEnemyMesh,
-  createProjectileMesh,
   createEnemyProjectileMesh,
   createGrenadeMesh,
   createCashMesh,
@@ -48,6 +47,7 @@ export class Renderer {
   private destructibleCrateMeshes = new Map<number, THREE.Mesh>();
   private particles: ParticleSystem | null = null;
   private muzzleFlashes: { light: THREE.PointLight; timer: number }[] = [];
+  private tracers: { mesh: THREE.Mesh; vx: number; vz: number; lifetime: number }[] = [];
   private dirLight: THREE.DirectionalLight | null = null;
   private enemyTypes = new Map<number, EnemyType>();
   private sniperLaserMeshes = new Map<number, THREE.Mesh>();
@@ -133,6 +133,7 @@ export class Renderer {
     this.enemyTypes.clear();
     this.sniperLaserMeshes.clear();
     this.hitFlashTimers.clear();
+    this.tracers = [];
     this.playerGroup = null;
 
     // Ground
@@ -244,7 +245,9 @@ export class Renderer {
       this.playerWeaponGroup = createWeaponMesh(type, upgradeLevel);
       const r = this.playerRadius;
       const capsuleHeight = r * 1.2;
-      this.playerWeaponGroup.position.set(r * 0.8, r + capsuleHeight / 2, 0);
+      // Pistol extends forward; longer guns pull back so grip aligns with player body
+      const xOffset = type === 'pistol' ? r * 1.5 : r * 0.3;
+      this.playerWeaponGroup.position.set(xOffset, r + capsuleHeight / 2, r * 0.5);
       this.playerGroup.add(this.playerWeaponGroup);
     }
   }
@@ -426,6 +429,9 @@ export class Renderer {
       entry.group.position.set(enemy.pos.x, 0, enemy.pos.y);
       entry.group.visible = enemy.visible;
 
+      // Rotate enemy to face their facing direction
+      entry.group.rotation.y = -Math.atan2(enemy.facingDir.y, enemy.facingDir.x);
+
       // Hit flash: set emissive white when recently hit
       const flashTime = this.hitFlashTimers.get(enemy.id);
       const emissiveColor = (flashTime && flashTime > 0) ? 0xffffff : 0x000000;
@@ -505,25 +511,10 @@ export class Renderer {
       this.dirLight.target.updateMatrixWorld();
     }
 
-    // Sync projectiles
-    const currentProjIds = new Set<number>();
-    for (const proj of state.projectiles) {
-      currentProjIds.add(proj.id);
-      let mesh = this.projectileMeshes.get(proj.id);
-      if (!mesh) {
-        mesh = createProjectileMesh(proj.weaponType);
-        this.projectileMeshes.set(proj.id, mesh);
-        this.scene.add(mesh);
-      }
-      mesh.position.set(proj.pos.x, mesh.position.y, proj.pos.y);
-    }
-    // Remove dead projectile meshes
-    for (const [id, mesh] of this.projectileMeshes) {
-      if (!currentProjIds.has(id)) {
-        this.scene.remove(mesh);
-        this.projectileMeshes.delete(id);
-      }
-    }
+    // Player projectiles are not rendered — tracers are used instead (see updateTracers)
+
+    // Update tracers
+    this.updateTracers(dt);
 
     // Sync enemy projectiles
     const currentEnemyProjIds = new Set<number>();
@@ -642,20 +633,38 @@ export class Renderer {
     this.updateVignette(dt, state);
   }
 
+  /** Compute gun muzzle position in world space (3D coords) given player sim pos and aim angle */
+  private getMuzzlePos(simX: number, simY: number, angle: number): { x: number; y: number; z: number } {
+    const r = this.playerRadius;
+    const forwardDist = r * 1.5 + 0.3; // past the gun barrel tip
+    const sideDist = r * 0.5; // right side offset (matches weapon Z offset)
+    return {
+      x: simX + Math.cos(angle) * forwardDist - Math.sin(angle) * sideDist,
+      y: r + r * 1.2 / 2, // weapon height
+      z: simY + Math.sin(angle) * forwardDist + Math.cos(angle) * sideDist,
+    };
+  }
+
   private updateMuzzleFlashes(dt: number, events: GameEvent[]): void {
     // Spawn one flash per shot (not per pellet) from projectile_fired events
     let shotFlashAdded = false;
     for (const ev of events) {
-      if (ev.type === 'projectile_fired' && !shotFlashAdded) {
+      if (ev.type === 'projectile_fired') {
         const d = ev.data;
-        if (!d || typeof d.x !== 'number' || typeof d.y !== 'number') continue;
+        if (!d || typeof d.x !== 'number' || typeof d.y !== 'number' || typeof d.angle !== 'number') continue;
 
-        const light = new THREE.PointLight(0xff8c20, 3, 8);
-        light.position.set(d.x as number, 0.5, d.y as number);
-        this.scene.add(light);
-        // Random duration between 60-80ms
-        this.muzzleFlashes.push({ light, timer: 0.06 + Math.random() * 0.02 });
-        shotFlashAdded = true;
+        // Spawn tracer from gun muzzle (one per pellet)
+        const muzzle = this.getMuzzlePos(d.x as number, d.y as number, d.angle as number);
+        this.spawnTracer(muzzle, d.angle as number);
+
+        // Muzzle flash only once per shot
+        if (!shotFlashAdded) {
+          const light = new THREE.PointLight(0xff8c20, 3, 8);
+          light.position.set(muzzle.x, muzzle.y, muzzle.z);
+          this.scene.add(light);
+          this.muzzleFlashes.push({ light, timer: 0.06 + Math.random() * 0.02 });
+          shotFlashAdded = true;
+        }
       } else if (ev.type === 'enemy_projectile_fired') {
         const d = ev.data;
         if (!d || typeof d.x !== 'number' || typeof d.y !== 'number') continue;
@@ -755,6 +764,48 @@ export class Renderer {
     const effectiveOpacity = Math.max(this.vignetteOpacity, this.vignetteBaseOpacity);
     if (this.vignetteMesh) {
       (this.vignetteMesh.material as THREE.ShaderMaterial).uniforms.uOpacity.value = effectiveOpacity;
+    }
+  }
+
+  private spawnTracer(muzzle: { x: number; y: number; z: number }, angle: number): void {
+    const tracerLength = 0.6;
+    const geo = new THREE.BoxGeometry(tracerLength, 0.02, 0.02);
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0xffee88,
+      emissive: 0xffcc44,
+      emissiveIntensity: 2.0,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(muzzle.x, muzzle.y, muzzle.z);
+    mesh.rotation.y = -angle;
+    this.scene.add(mesh);
+
+    const speed = 60; // faster than bullets (50) so they lead
+    this.tracers.push({
+      mesh,
+      vx: Math.cos(angle) * speed,
+      vz: Math.sin(angle) * speed,
+      lifetime: 0.15,
+    });
+  }
+
+  private updateTracers(dt: number): void {
+    for (let i = this.tracers.length - 1; i >= 0; i--) {
+      const t = this.tracers[i];
+      t.lifetime -= dt;
+      if (t.lifetime <= 0) {
+        this.scene.remove(t.mesh);
+        t.mesh.geometry.dispose();
+        (t.mesh.material as THREE.Material).dispose();
+        this.tracers.splice(i, 1);
+      } else {
+        t.mesh.position.x += t.vx * dt;
+        t.mesh.position.z += t.vz * dt;
+        // Fade out
+        const opacity = t.lifetime / 0.15;
+        (t.mesh.material as THREE.MeshStandardMaterial).opacity = opacity;
+        (t.mesh.material as THREE.MeshStandardMaterial).transparent = true;
+      }
     }
   }
 
