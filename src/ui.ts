@@ -1,6 +1,6 @@
 import type { GameState, GameMode, WeaponConfig, RunStats, PlayerInventory } from './simulation/types.ts';
 import type { ItemCategory } from './simulation/items.ts';
-import { ITEM_DEFS } from './simulation/items.ts';
+import { ITEM_DEFS, WEAPON_AMMO_MAP } from './simulation/items.ts';
 import { countItemInBackpack } from './simulation/inventory.ts';
 
 const scoreEl = () => document.getElementById('hud-score')!;
@@ -52,17 +52,41 @@ export function updateHUD(state: GameState): void {
     armorContainer().classList.add('hidden');
   }
 
-  grenadeCounterEl().textContent = `Grenades: ${state.grenadeAmmo}`;
+  // Grenade counter: show backpack count in extraction mode
+  if (state.gameMode === 'extraction') {
+    const grenadeCount = countItemInBackpack(state.player.inventory, 'frag_grenade');
+    grenadeCounterEl().textContent = `Grenades: ${grenadeCount}`;
+  } else {
+    grenadeCounterEl().textContent = `Grenades: ${state.grenadeAmmo}`;
+  }
 
   // Ammo counter text (works on both desktop and mobile)
   const counter = ammoCounterEl();
   if (_weaponConfig) {
-    if (state.player.reloadTimer > 0) {
+    if (state.player.weaponSwapTimer > 0) {
+      counter.textContent = 'SWAPPING';
+      counter.classList.add('reloading');
+      counter.classList.remove('bonus-active', 'bonus-perfect');
+    } else if (state.player.reloadTimer > 0) {
       counter.textContent = 'RELOADING';
       counter.classList.add('reloading');
       counter.classList.remove('bonus-active', 'bonus-perfect');
     } else {
-      counter.textContent = `${state.player.ammo} / ${_weaponConfig.magazineSize}`;
+      if (state.gameMode === 'extraction') {
+        // Show currentAmmo / magSize | ammoType: reserve
+        const weaponSlot = state.player.activeWeaponSlot === 1 ? 'weapon1' : 'weapon2';
+        const weaponInst = state.player.inventory.equipment[weaponSlot];
+        if (weaponInst) {
+          const ammoType = WEAPON_AMMO_MAP[weaponInst.defId as keyof typeof WEAPON_AMMO_MAP];
+          const reserve = ammoType ? countItemInBackpack(state.player.inventory, ammoType) : 0;
+          const ammoLabel = ammoType ?? '';
+          counter.textContent = `${state.player.ammo} / ${_weaponConfig.magazineSize} | ${ammoLabel}: ${reserve}`;
+        } else {
+          counter.textContent = `${state.player.ammo} / ${_weaponConfig.magazineSize}`;
+        }
+      } else {
+        counter.textContent = `${state.player.ammo} / ${_weaponConfig.magazineSize}`;
+      }
       counter.classList.remove('reloading');
       if (state.player.damageBonusMultiplier > 1.2) {
         counter.classList.add('bonus-perfect');
@@ -85,16 +109,16 @@ export function updateHUD(state: GameState): void {
     cashEl.classList.add('hidden');
   }
 
-  // Bandage counter (extraction mode only)
+  // Bandage counter (extraction mode only — now shows backpack counts)
   const bandageEl = bandageCounterEl();
   if (state.gameMode === 'extraction') {
-    const small = state.player.bandageSmallCount;
-    const large = state.player.bandageLargeCount;
+    const small = countItemInBackpack(state.player.inventory, 'bandage_small');
+    const large = countItemInBackpack(state.player.inventory, 'bandage_large');
     if (small > 0 || large > 0) {
       bandageEl.classList.remove('hidden');
       const parts: string[] = [];
-      if (small > 0) parts.push(`[4] Sm:${small}`);
-      if (large > 0) parts.push(`[5] Lg:${large}`);
+      if (small > 0) parts.push(`Sm:${small}`);
+      if (large > 0) parts.push(`Lg:${large}`);
       bandageEl.textContent = parts.join(' ');
 
       // Show HEALING state

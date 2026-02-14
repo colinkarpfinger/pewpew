@@ -570,13 +570,29 @@ New config file: `inventory.json`
 - Body containers despawn after configurable timeout (default 120s); crate containers never despawn
 - `lootColumns` config controls the loot panel grid width (default 2)
 
-### Phase 4: Weapon & Combat Updates
+### Phase 4: Weapon & Combat Updates — DONE
 - Dual weapon slots (keys 1, 2)
 - Weapon swap mechanic with delay
 - Ammo-from-backpack reload system
 - Hotbar quick-use (keys 3–7) replacing current bandage/grenade keys
 - Migrate grenade system to inventory-based
 - Wire up "Use" context menu action (currently stubbed)
+
+**Implementation notes:**
+- Extraction mode only — arena mode keeps all legacy counters/inputs unchanged
+- `activeWeaponSlot` (1 | 2) and `weaponSwapTimer` added to Player
+- `weaponSlot1`, `weaponSlot2`, `hotbarUse` added to InputState
+- `weaponSwapTicks: 18` added to InventoryConfig (~0.3s swap delay)
+- `pullAmmoFromBackpack()` helper removes ammo from backpack during reload
+- Reload checks backpack for matching ammo type via `WEAPON_AMMO_MAP`; fails gracefully if none available
+- `completeReload()` does partial reloads (pulls only what's available, not always full magazine)
+- Hotbar medical items consume from backpack via `removeItemFromBackpack()`; active heal timing works with any hotbar press during heal
+- G key grenade throw consumes `frag_grenade` from backpack in extraction mode
+- "Use" context menu auto-assigns item to first empty hotbar slot, then triggers use callback
+- HUD ammo counter shows `currentAmmo / magSize | ammoType: reserve` in extraction mode
+- HUD grenade/bandage counters read from backpack counts instead of legacy fields
+- Weapon swap events update weapon config, display name, and player model
+- `syncInventoryToPlayer()` updated to use `activeWeaponSlot` for determining active weapon
 
 ### Phase 5: Home Base
 - Simple 3D room level (floor, walls, objects)

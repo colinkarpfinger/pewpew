@@ -1,10 +1,35 @@
 import type { GameState, InputState, BandageConfig, BandageType } from './types.ts';
+import { removeItemFromBackpack, countItemInBackpack } from './inventory.ts';
+
+const DEF_ID_TO_BANDAGE_TYPE: Record<string, BandageType> = {
+  bandage_small: 'small',
+  bandage_large: 'large',
+};
 
 export function updateHeal(state: GameState, input: InputState, config: BandageConfig): void {
   const player = state.player;
 
   // If not healing, check for heal start input
   if (player.healTimer === 0) {
+    if (state.gameMode === 'extraction') {
+      // Extraction mode: use hotbar system
+      if (input.hotbarUse !== null && player.dodgeTimer === 0 && player.weaponSwapTimer === 0) {
+        const defId = player.inventory.hotbar[input.hotbarUse];
+        if (defId) {
+          const bandageType = DEF_ID_TO_BANDAGE_TYPE[defId];
+          if (bandageType && countItemInBackpack(player.inventory, defId) > 0) {
+            if (player.reloadTimer > 0) {
+              player.reloadTimer = 0;
+              player.reloadFumbled = false;
+            }
+            startHealExtraction(state, config, bandageType, defId);
+          }
+        }
+      }
+      return;
+    }
+
+    // Arena mode: legacy inputs
     if (input.healSmall && player.bandageSmallCount > 0 && player.dodgeTimer === 0) {
       // Cancel reload if in progress
       if (player.reloadTimer > 0) {
@@ -33,7 +58,10 @@ export function updateHeal(state: GameState, input: InputState, config: BandageC
   const progress = player.healTimer / tierConfig.healTime;
 
   // Check for active/perfect heal attempt (same key as started with)
-  const healInput = healType === 'small' ? input.healSmall : input.healLarge;
+  // In extraction mode, any hotbar press during healing counts as the active heal input
+  const healInput = state.gameMode === 'extraction'
+    ? input.hotbarUse !== null
+    : (healType === 'small' ? input.healSmall : input.healLarge);
   if (healInput && !player.healFumbled) {
     if (progress >= tierConfig.perfectHealStart && progress <= tierConfig.perfectHealEnd) {
       completeHeal(state, config, healType, 'perfect');
@@ -69,6 +97,27 @@ function startHeal(state: GameState, config: BandageConfig, type: BandageType): 
   } else {
     player.bandageLargeCount--;
   }
+
+  player.healTimer = 1;
+  player.healType = type;
+  player.healFumbled = false;
+  player.healSpeedMultiplier = config[type].speedMultiplier;
+
+  state.events.push({
+    tick: state.tick,
+    type: 'heal_start',
+    data: { healType: type },
+  });
+}
+
+function startHealExtraction(state: GameState, config: BandageConfig, type: BandageType, defId: string): void {
+  const player = state.player;
+
+  // Consume from backpack immediately (risk/reward: consumed even if interrupted)
+  removeItemFromBackpack(player.inventory, defId, 1);
+  // Sync legacy counts
+  player.bandageSmallCount = countItemInBackpack(player.inventory, 'bandage_small');
+  player.bandageLargeCount = countItemInBackpack(player.inventory, 'bandage_large');
 
   player.healTimer = 1;
   player.healType = type;

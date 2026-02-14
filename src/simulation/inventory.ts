@@ -82,6 +82,24 @@ export function removeItemFromBackpack(inv: PlayerInventory, defId: string, quan
   return true;
 }
 
+/**
+ * Remove up to `amount` of a given item from backpack.
+ * Returns actual amount removed (may be less if insufficient).
+ */
+export function pullAmmoFromBackpack(inv: PlayerInventory, ammoDefId: string, amount: number): number {
+  let remaining = amount;
+  for (let i = inv.backpack.length - 1; i >= 0 && remaining > 0; i--) {
+    const slot = inv.backpack[i];
+    if (slot?.defId === ammoDefId) {
+      const removing = Math.min(slot.quantity, remaining);
+      slot.quantity -= removing;
+      remaining -= removing;
+      if (slot.quantity <= 0) inv.backpack[i] = null;
+    }
+  }
+  return amount - remaining;
+}
+
 export function moveItem(inv: PlayerInventory, fromSlot: number, toSlot: number): void {
   if (fromSlot === toSlot) return;
   if (fromSlot < 0 || fromSlot >= inv.backpack.length) return;
@@ -204,11 +222,16 @@ export function splitStack(inv: PlayerInventory, slotIndex: number): boolean {
 export function syncInventoryToPlayer(player: Player, configs: GameConfigs): void {
   const inv = player.inventory;
 
-  // Active weapon — use weapon1 slot
-  const w1 = inv.equipment.weapon1;
-  if (w1) {
-    const wt = w1.defId as WeaponType;
+  // Active weapon — use activeWeaponSlot
+  const weaponSlot = player.activeWeaponSlot === 2 ? 'weapon2' : 'weapon1';
+  const activeWeaponItem = inv.equipment[weaponSlot];
+  if (activeWeaponItem) {
+    const wt = activeWeaponItem.defId as WeaponType;
     player.activeWeapon = wt;
+    // Sync ammo from weapon instance
+    if (activeWeaponItem.currentAmmo !== undefined) {
+      player.ammo = activeWeaponItem.currentAmmo;
+    }
   }
 
   // Armor

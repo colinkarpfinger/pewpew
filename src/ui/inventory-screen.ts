@@ -18,6 +18,7 @@ let inventoryRef: PlayerInventory | null = null;
 let configRef: InventoryConfig | null = null;
 let isOpen = false;
 let onChangeCallback: (() => void) | null = null;
+let onUseItemCallback: ((defId: string) => void) | null = null;
 let isDragging = false;
 let dragStarted = false;
 
@@ -249,9 +250,25 @@ function buildContextActions(region: SlotRegion, slotIndex: number | string, ite
       });
     }
 
-    // Use — medical/grenade (grayed out for now)
+    // Use — medical/grenade: assign to first empty hotbar slot and trigger use
     if (def.category === 'medical' || def.category === 'grenade') {
-      actions.push({ label: 'Use', handler: () => {}, disabled: true });
+      actions.push({
+        label: 'Use',
+        handler: () => {
+          if (!inventoryRef) return;
+          // Ensure item is in a hotbar slot
+          const alreadyInHotbar = inventoryRef.hotbar.includes(item.defId);
+          if (!alreadyInHotbar) {
+            const emptySlot = inventoryRef.hotbar.indexOf(null);
+            if (emptySlot !== -1) {
+              inventoryRef.hotbar[emptySlot] = item.defId;
+            }
+          }
+          if (onUseItemCallback) {
+            onUseItemCallback(item.defId);
+          }
+        },
+      });
     }
 
     // Split Stack
@@ -270,9 +287,16 @@ function buildContextActions(region: SlotRegion, slotIndex: number | string, ite
       },
     });
   } else if (region === 'hotbar') {
-    // Use — grayed out
+    // Use — trigger use callback
     if (def.category === 'medical' || def.category === 'grenade') {
-      actions.push({ label: 'Use', handler: () => {}, disabled: true });
+      actions.push({
+        label: 'Use',
+        handler: () => {
+          if (onUseItemCallback) {
+            onUseItemCallback(item.defId);
+          }
+        },
+      });
     }
   }
 
@@ -295,8 +319,9 @@ function buildContextActions(region: SlotRegion, slotIndex: number | string, ite
 
 // ---- Public API ----
 
-export function setupInventoryScreen(onChange?: () => void): void {
+export function setupInventoryScreen(onChange?: () => void, onUseItem?: (defId: string) => void): void {
   onChangeCallback = onChange ?? null;
+  onUseItemCallback = onUseItem ?? null;
   if (!document.getElementById('inventory-screen')) {
     const overlay = document.createElement('div');
     overlay.id = 'inventory-screen';

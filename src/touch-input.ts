@@ -154,6 +154,9 @@ export class TouchInputHandler implements IInputHandler {
       healSmall: false,
       healLarge: false,
       interact: false,
+      weaponSlot1: false,
+      weaponSlot2: false,
+      hotbarUse: null,
     };
   }
 

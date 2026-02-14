@@ -3,6 +3,7 @@ import { TICK_DURATION } from './types.ts';
 import { normalize } from './collision.ts';
 import { queryPushOut } from './physics.ts';
 import type { PhysicsWorld } from './physics.ts';
+import { removeItemFromBackpack, countItemInBackpack } from './inventory.ts';
 
 const OBSTACLE_HEIGHT = 1.5;
 const BOUNCE_VEL_THRESHOLD = 1.5; // min vertical speed to emit ground bounce sound
@@ -11,10 +12,17 @@ const WALL_BOUNCE_THRESHOLD = 0.5; // min speed to emit wall/obstacle bounce sou
 export function tryThrowGrenade(state: GameState, input: InputState, config: GrenadeConfig): void {
   if (state.player.dodgeTimer > 0) return;
   if (state.player.healTimer > 0) return; // can't throw while healing
+  if (state.player.weaponSwapTimer > 0) return; // can't throw during swap
   if (!input.throwGrenade) return;
-  if (state.grenadeAmmo <= 0) return;
 
-  state.grenadeAmmo--;
+  if (state.gameMode === 'extraction') {
+    // Check backpack for frag_grenade
+    if (countItemInBackpack(state.player.inventory, 'frag_grenade') <= 0) return;
+    removeItemFromBackpack(state.player.inventory, 'frag_grenade', 1);
+  } else {
+    if (state.grenadeAmmo <= 0) return;
+    state.grenadeAmmo--;
+  }
 
   // Interpolate launch speed based on charge power
   const launchSpeed = config.minSpeed + (config.maxSpeed - config.minSpeed) * input.throwPower;

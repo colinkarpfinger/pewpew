@@ -26,6 +26,9 @@ export class FullRecorder {
       healSmall: input.healSmall,
       healLarge: input.healLarge,
       interact: input.interact,
+      weaponSlot1: input.weaponSlot1,
+      weaponSlot2: input.weaponSlot2,
+      hotbarUse: input.hotbarUse,
     });
   }
 

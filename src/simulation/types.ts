@@ -31,6 +31,7 @@ export interface InventoryConfig {
   lootInteractionRadius: number;
   bodyDespawnTime: number;
   lootColumns: number;
+  weaponSwapTicks: number;
 }
 
 export type BandageType = 'small' | 'large';
@@ -288,6 +289,8 @@ export interface Player {
   bandageSmallCount: number;
   bandageLargeCount: number;
   inventory: PlayerInventory;
+  activeWeaponSlot: 1 | 2;
+  weaponSwapTimer: number; // ticks remaining during swap (0 = not swapping)
 }
 
 export interface Enemy {
@@ -465,6 +468,9 @@ export interface InputState {
   healSmall: boolean; // edge-detected: true on key '4' press
   healLarge: boolean; // edge-detected: true on key '5' press
   interact: boolean; // edge-detected: true on F key press
+  weaponSlot1: boolean; // edge-detected: key 1 press
+  weaponSlot2: boolean; // edge-detected: key 2 press
+  hotbarUse: number | null; // hotbar slot (0-4) pressed this tick, or null
 }
 
 // ---- Events ----
@@ -500,7 +506,9 @@ export type GameEventType =
   | 'heal_fumbled'
   | 'heal_interrupted'
   | 'armor_broken'
-  | 'sniper_telegraph';
+  | 'sniper_telegraph'
+  | 'weapon_swap'
+  | 'hotbar_use';
 
 export interface GameEvent {
   tick: number;

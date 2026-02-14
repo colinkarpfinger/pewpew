@@ -2,7 +2,7 @@ import type { GameState, GameConfigs, InputState, MultiKillConfig, GameMode, Wea
 import { SeededRNG } from './rng.ts';
 import { createArena } from './arena.ts';
 import { updatePlayer } from './player.ts';
-import { tryFire, updateProjectiles, checkProjectileCollisions, updateReload, updateEnemyProjectiles, checkEnemyProjectileHits } from './combat.ts';
+import { tryFire, updateProjectiles, checkProjectileCollisions, updateReload, updateEnemyProjectiles, checkEnemyProjectileHits, updateWeaponSwap } from './combat.ts';
 import { updateEnemies, checkContactDamage } from './enemies.ts';
 import { updateSpawner } from './spawner.ts';
 import { tryThrowGrenade, updateGrenades } from './grenade.ts';
@@ -82,6 +82,8 @@ export function createGame(configs: GameConfigs, seed: number = 12345, gameMode:
       bandageSmallCount: 0,
       bandageLargeCount: 0,
       inventory: createEmptyInventory(configs.inventory?.backpackSize ?? 20),
+      activeWeaponSlot: 1,
+      weaponSwapTimer: 0,
     },
     enemies: [],
     projectiles: [],
@@ -153,6 +155,9 @@ export function tick(game: GameInstance, input: InputState, configs: GameConfigs
   if (configs.bandages) {
     updateHeal(state, input, configs.bandages);
   }
+
+  // 1c. Weapon swap (extraction mode only)
+  updateWeaponSwap(state, input, configs);
 
   // 2. Reload
   updateReload(state, input, configs.weapons);
@@ -372,6 +377,8 @@ export function restoreGame(stateSnapshot: GameState, rngState: number): GameIns
   state.player.bandageSmallCount ??= 0;
   state.player.bandageLargeCount ??= 0;
   state.player.inventory ??= createEmptyInventory(20);
+  state.player.activeWeaponSlot ??= 1;
+  state.player.weaponSwapTimer ??= 0;
   state.gameMode ??= 'arena';
   state.grenades ??= [];
   state.crates ??= [];

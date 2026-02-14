@@ -1,10 +1,13 @@
-import type { GameState, InputState, WeaponsConfig, WeaponConfig, Projectile, PlayerConfig, EnemiesConfig } from './types.ts';
+import type { GameState, InputState, WeaponsConfig, WeaponConfig, Projectile, PlayerConfig, EnemiesConfig, GameConfigs, WeaponType } from './types.ts';
 import { TICK_RATE } from './types.ts';
 import { circleCircle, isOutOfBounds, pointToLineDist, normalize } from './collision.ts';
 import type { SeededRNG } from './rng.ts';
 import { interruptHeal } from './bandage.ts';
 import { queryPushOut } from './physics.ts';
 import type { PhysicsWorld } from './physics.ts';
+import { pullAmmoFromBackpack } from './inventory.ts';
+import { WEAPON_AMMO_MAP } from './items.ts';
+import type { ItemInstance } from './items.ts';
 
 const ENEMY_PROJ_RADIUS = 0.15;
 
@@ -12,10 +15,72 @@ function getWeapon(state: GameState, weapons: WeaponsConfig): WeaponConfig {
   return weapons[state.player.activeWeapon];
 }
 
+function getEquippedWeaponInstance(state: GameState): ItemInstance | null {
+  const slot = state.player.activeWeaponSlot === 1 ? 'weapon1' : 'weapon2';
+  return state.player.inventory.equipment[slot];
+}
+
+export function updateWeaponSwap(state: GameState, input: InputState, configs: GameConfigs): void {
+  if (state.gameMode !== 'extraction') return;
+  const player = state.player;
+  const inv = player.inventory;
+  const swapTicks = configs.inventory?.weaponSwapTicks ?? 18;
+
+  if (input.weaponSlot1 && player.activeWeaponSlot !== 1 && inv.equipment.weapon1 !== null) {
+    // Store currentAmmo on weapon being swapped away
+    const oldWeapon = inv.equipment.weapon2;
+    if (oldWeapon) {
+      oldWeapon.currentAmmo = player.ammo;
+    }
+    player.activeWeaponSlot = 1;
+    player.weaponSwapTimer = swapTicks;
+    // Cancel reload if in progress
+    if (player.reloadTimer > 0) {
+      player.reloadTimer = 0;
+      player.reloadFumbled = false;
+    }
+    // Cancel heal
+    if (player.healTimer > 0) {
+      interruptHeal(state);
+    }
+    // Load new weapon's ammo
+    const newWeapon = inv.equipment.weapon1!;
+    player.activeWeapon = newWeapon.defId as WeaponType;
+    player.ammo = newWeapon.currentAmmo ?? 0;
+    player.damageBonusMultiplier = 1.0;
+    state.events.push({ tick: state.tick, type: 'weapon_swap', data: { slot: 1 } });
+  } else if (input.weaponSlot2 && player.activeWeaponSlot !== 2 && inv.equipment.weapon2 !== null) {
+    const oldWeapon = inv.equipment.weapon1;
+    if (oldWeapon) {
+      oldWeapon.currentAmmo = player.ammo;
+    }
+    player.activeWeaponSlot = 2;
+    player.weaponSwapTimer = swapTicks;
+    if (player.reloadTimer > 0) {
+      player.reloadTimer = 0;
+      player.reloadFumbled = false;
+    }
+    if (player.healTimer > 0) {
+      interruptHeal(state);
+    }
+    const newWeapon = inv.equipment.weapon2!;
+    player.activeWeapon = newWeapon.defId as WeaponType;
+    player.ammo = newWeapon.currentAmmo ?? 0;
+    player.damageBonusMultiplier = 1.0;
+    state.events.push({ tick: state.tick, type: 'weapon_swap', data: { slot: 2 } });
+  }
+
+  // Decrement swap timer
+  if (player.weaponSwapTimer > 0) {
+    player.weaponSwapTimer--;
+  }
+}
+
 export function tryFire(state: GameState, input: InputState, weapons: WeaponsConfig, rng: SeededRNG): void {
   if (state.player.dodgeTimer > 0) return;
   if (state.player.healTimer > 0) return; // can't fire while healing
   if (state.player.reloadTimer > 0) return; // can't fire while reloading
+  if (state.player.weaponSwapTimer > 0) return; // can't fire during weapon swap
   if (state.player.ammo <= 0) return; // no ammo
 
   const weapon = getWeapon(state, weapons);
@@ -31,6 +96,14 @@ export function tryFire(state: GameState, input: InputState, weapons: WeaponsCon
   const cooldownTicks = weapon.semiAuto ? 1 : Math.ceil(TICK_RATE / weapon.fireRate);
   state.player.fireCooldown = cooldownTicks;
   state.player.ammo--;
+
+  // Sync ammo back to weapon instance for extraction mode
+  if (state.gameMode === 'extraction') {
+    const weaponInst = getEquippedWeaponInstance(state);
+    if (weaponInst) {
+      weaponInst.currentAmmo = state.player.ammo;
+    }
+  }
 
   const isMoving = input.moveDir.x !== 0 || input.moveDir.y !== 0;
   const effectiveSpread = weapon.spread * (isMoving ? weapon.movingSpreadMultiplier : 1.0);
@@ -72,8 +145,23 @@ export function tryFire(state: GameState, input: InputState, weapons: WeaponsCon
 
 function startReload(state: GameState, weapons: WeaponsConfig): void {
   if (state.player.reloadTimer > 0) return; // already reloading
+  if (state.player.weaponSwapTimer > 0) return; // can't reload during swap
   const weapon = getWeapon(state, weapons);
   if (state.player.ammo >= weapon.magazineSize) return; // full mag
+
+  // Extraction mode: check backpack for matching ammo
+  if (state.gameMode === 'extraction') {
+    const weaponInst = getEquippedWeaponInstance(state);
+    if (!weaponInst) return;
+    const ammoDefId = WEAPON_AMMO_MAP[weaponInst.defId as WeaponType];
+    if (!ammoDefId) return;
+    let available = 0;
+    for (const slot of state.player.inventory.backpack) {
+      if (slot?.defId === ammoDefId) available += slot.quantity;
+    }
+    if (available <= 0) return; // no ammo in backpack
+  }
+
   state.player.reloadTimer = 1;
   state.player.reloadFumbled = false;
   state.player.damageBonusMultiplier = 1.0; // reset bonus on reload start
@@ -86,7 +174,20 @@ function startReload(state: GameState, weapons: WeaponsConfig): void {
 
 function completeReload(state: GameState, weapons: WeaponsConfig, reloadType: 'normal' | 'active' | 'perfect'): void {
   const weapon = getWeapon(state, weapons);
-  state.player.ammo = weapon.magazineSize;
+
+  if (state.gameMode === 'extraction') {
+    const weaponInst = getEquippedWeaponInstance(state);
+    if (weaponInst) {
+      const ammoDefId = WEAPON_AMMO_MAP[weaponInst.defId as WeaponType];
+      const needed = weapon.magazineSize - (weaponInst.currentAmmo ?? 0);
+      const pulled = ammoDefId ? pullAmmoFromBackpack(state.player.inventory, ammoDefId, needed) : 0;
+      weaponInst.currentAmmo = (weaponInst.currentAmmo ?? 0) + pulled;
+      state.player.ammo = weaponInst.currentAmmo;
+    }
+  } else {
+    state.player.ammo = weapon.magazineSize;
+  }
+
   state.player.reloadTimer = 0;
   state.player.reloadFumbled = false;
 
@@ -104,6 +205,7 @@ function completeReload(state: GameState, weapons: WeaponsConfig, reloadType: 'n
 }
 
 export function updateReload(state: GameState, input: InputState, weapons: WeaponsConfig): void {
+  if (state.player.weaponSwapTimer > 0) return; // can't reload during swap
   const weapon = getWeapon(state, weapons);
 
   // R pressed while not reloading: start manual reload (cancel heal if active)

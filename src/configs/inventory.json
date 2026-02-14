@@ -7,5 +7,6 @@
   "searchTimePerSlot": 48,
   "lootInteractionRadius": 1.5,
   "bodyDespawnTime": 7200,
-  "lootColumns": 2
+  "lootColumns": 2,
+  "weaponSwapTicks": 18
 }

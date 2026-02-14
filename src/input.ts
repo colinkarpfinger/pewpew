@@ -42,6 +42,16 @@ export class InputHandler implements IInputHandler {
   private interactPressed = false;
   private interactConsumed = false;
 
+  // Edge-detected weapon slot inputs
+  private weaponSlot1Pressed = false;
+  private weaponSlot1Consumed = false;
+  private weaponSlot2Pressed = false;
+  private weaponSlot2Consumed = false;
+
+  // Edge-detected hotbar use input (keys 3-7)
+  private hotbarUsePressed: number | null = null;
+  private hotbarUseConsumed = false;
+
   constructor(camera: THREE.PerspectiveCamera, canvas: HTMLCanvasElement) {
     this.camera = camera;
 
@@ -64,6 +74,15 @@ export class InputHandler implements IInputHandler {
       }
       if (e.key.toLowerCase() === 'f' && !this.interactConsumed) {
         this.interactPressed = true;
+      }
+      if (e.key === '1' && !this.weaponSlot1Consumed) {
+        this.weaponSlot1Pressed = true;
+      }
+      if (e.key === '2' && !this.weaponSlot2Consumed) {
+        this.weaponSlot2Pressed = true;
+      }
+      if (e.key >= '3' && e.key <= '7' && !this.hotbarUseConsumed) {
+        this.hotbarUsePressed = parseInt(e.key) - 3;
       }
     });
 
@@ -89,6 +108,15 @@ export class InputHandler implements IInputHandler {
       }
       if (e.key.toLowerCase() === 'f') {
         this.interactConsumed = false;
+      }
+      if (e.key === '1') {
+        this.weaponSlot1Consumed = false;
+      }
+      if (e.key === '2') {
+        this.weaponSlot2Consumed = false;
+      }
+      if (e.key >= '3' && e.key <= '7') {
+        this.hotbarUseConsumed = false;
       }
     });
 
@@ -165,6 +193,18 @@ export class InputHandler implements IInputHandler {
       this.interactPressed = false;
       this.interactConsumed = true;
     }
+    if (this.weaponSlot1Pressed) {
+      this.weaponSlot1Pressed = false;
+      this.weaponSlot1Consumed = true;
+    }
+    if (this.weaponSlot2Pressed) {
+      this.weaponSlot2Pressed = false;
+      this.weaponSlot2Consumed = true;
+    }
+    if (this.hotbarUsePressed !== null) {
+      this.hotbarUsePressed = null;
+      this.hotbarUseConsumed = true;
+    }
   }
 
   /** Get current input state for simulation */
@@ -226,6 +266,9 @@ export class InputHandler implements IInputHandler {
     const healSmall = this.healSmallPressed;
     const healLarge = this.healLargePressed;
     const interact = this.interactPressed;
+    const weaponSlot1 = this.weaponSlot1Pressed;
+    const weaponSlot2 = this.weaponSlot2Pressed;
+    const hotbarUse = this.hotbarUsePressed;
 
     return {
       moveDir,
@@ -240,6 +283,9 @@ export class InputHandler implements IInputHandler {
       healSmall,
       healLarge,
       interact,
+      weaponSlot1,
+      weaponSlot2,
+      hotbarUse,
     };
   }
 }

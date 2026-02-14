@@ -52,7 +52,7 @@ import { setupLootScreen, openLootScreen, closeLootScreen, isLootOpen, updateLoo
 import { findNearestLootContainer } from './simulation/loot-containers.ts';
 import { initHudHotbar, updateHudHotbar, showHudHotbar, hideHudHotbar } from './ui.ts';
 import { syncInventoryToPlayer, createEmptyInventory, addItemToBackpack } from './simulation/inventory.ts';
-import { ARMOR_TYPE_TO_ITEM } from './simulation/items.ts';
+import { ARMOR_TYPE_TO_ITEM, ITEM_DEFS } from './simulation/items.ts';
 import { savePlayerInventory } from './persistence.ts';
 import inventoryConfig from './configs/inventory.json';
 import type { InventoryConfig } from './simulation/types.ts';
@@ -112,11 +112,18 @@ let hitStopTimer = 0;
 if (!mobile) initCrosshair(canvas);
 initDevConsole();
 initHudHotbar();
+// Pending use-item from inventory context menu (processed next tick)
+let pendingUseItemDefId: string | null = null;
+
 setupInventoryScreen(() => {
   // On change: sync inventory to player legacy fields
   if (game) {
     syncInventoryToPlayer(game.state.player, runConfigs);
   }
+}, (defId: string) => {
+  // On use item: queue for next tick processing
+  pendingUseItemDefId = defId;
+  closeInventoryScreen();
 });
 setupStashScreen(() => {
   // On stash close: return to hub
@@ -249,11 +256,13 @@ function startGame(mode: GameMode = 'arena', weapon?: WeaponType, armor?: ArmorT
 
     // Build a fresh raid inventory with only the selected loadout
     const inv = createEmptyInventory(inventoryConfig.backpackSize);
-    // Equip selected weapon
+    // Equip selected weapon (start with full magazine)
+    const weaponMagSize = effectiveConfigs.weapons[activeWeapon].magazineSize;
     inv.equipment.weapon1 = {
       defId: activeWeapon,
       quantity: 1,
       upgradeLevel: getWeaponUpgradeLevel(activeWeapon),
+      currentAmmo: weaponMagSize,
     };
     // Equip selected armor
     if (equippedArmor) {
@@ -572,6 +581,26 @@ function gameLoop(now: number): void {
       currentInput.healSmall = false;
       currentInput.healLarge = false;
       currentInput.interact = false;
+      currentInput.weaponSlot1 = false;
+      currentInput.weaponSlot2 = false;
+      currentInput.hotbarUse = null;
+    }
+
+    // Handle pending use-item from inventory context menu
+    if (pendingUseItemDefId && state.gameMode === 'extraction') {
+      const defId = pendingUseItemDefId;
+      pendingUseItemDefId = null;
+      const def = ITEM_DEFS[defId];
+      if (def) {
+        if (def.category === 'medical') {
+          // Find which hotbar slot has this defId and inject hotbar use
+          const hotbarIdx = state.player.inventory.hotbar.indexOf(defId);
+          if (hotbarIdx !== -1) {
+            currentInput.hotbarUse = hotbarIdx;
+          }
+        }
+        // Grenades via context menu: just put on hotbar, user throws with G
+      }
     }
 
     const frameEvents: GameEvent[] = [];
@@ -690,6 +719,19 @@ function gameLoop(now: number): void {
       showGameOver(state.score, state.gameMode, lostGear, state.runStats);
       if (mobile) (input as TouchInputHandler).setVisible(false);
       screen = 'gameOver';
+    }
+
+    // Handle weapon swap events — update weapon config/display
+    for (const ev of frameEvents) {
+      if (ev.type === 'weapon_swap') {
+        const wt = state.player.activeWeapon;
+        const wc = runConfigs.weapons[wt];
+        setWeaponConfig(wc);
+        setActiveWeaponName(wt);
+        renderer.setWeaponConfig(wc);
+        const upgradeLevel = state.gameMode === 'extraction' ? getWeaponUpgradeLevel(wt) : 0;
+        renderer.setPlayerWeapon(wt, upgradeLevel);
+      }
     }
 
     // Process hit stop events
