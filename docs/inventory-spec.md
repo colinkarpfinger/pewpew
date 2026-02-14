@@ -530,20 +530,27 @@ New config file: `inventory.json`
 
 ## 11. Implementation Phases
 
-### Phase 1: Core Item & Inventory Data Model
+### Phase 1: Core Item & Inventory Data Model — DONE
 - Define `ItemDef`, `ItemInstance`, `PlayerInventory`, `Stash` types
 - Create item registry with all item definitions
 - Create inventory manipulation functions (add, remove, move, swap, stack)
 - Migrate current weapon/armor/bandage data to new item system
 - Update persistence layer
 
-### Phase 2: Inventory UI
+### Phase 2: Inventory UI — DONE
 - Build the inventory grid UI (HTML/CSS overlay)
 - Implement drag-and-drop between slots
 - Equipment slot rendering with type validation
 - Backpack grid with item icons and stack counts
 - Hotbar display at bottom of screen during gameplay
 - Tooltip system for item hover info
+- Right-click context menu (Equip, Unequip, Split Stack, Drop; Use stubbed for Phase 4)
+- Stash screen (two-panel transfer UI, accessible from hub via "Manage Stash" button)
+
+**Implementation notes:**
+- Stash is currently accessed from the 2D hub screen rather than a 3D home base (deferred to Phase 5)
+- `splitStack()` helper added to `src/simulation/inventory.ts`
+- Shared rendering helpers exported from `inventory-screen.ts` for reuse by stash screen
 
 ### Phase 3: Loot System
 - Loot container entity in simulation (bodies, crates, stashes)
@@ -560,6 +567,7 @@ New config file: `inventory.json`
 - Ammo-from-backpack reload system
 - Hotbar quick-use (keys 3–7) replacing current bandage/grenade keys
 - Migrate grenade system to inventory-based
+- Wire up "Use" context menu action (currently stubbed)
 
 ### Phase 5: Home Base
 - Simple 3D room level (floor, walls, objects)
