@@ -456,13 +456,27 @@ Similar layout but with stash on right instead of loot:
 - Drag to equipment slot: only accepts matching category
 - Invalid placements snap the item back to its origin
 
-### Visual Feedback
+### Loot Slot Visual States
+
+Reference: Escape from Duckov loot panel. Each slot in a loot container has one of four visual states:
+
+| State | Visual | Description |
+|-------|--------|-------------|
+| **Revealed** | Item icon + truncated name below | Search has reached this slot and found an item. Fully interactive — can drag to inventory. |
+| **Searching** | Diagonal stripe/hatched pattern + magnifying glass icon | This is the slot currently being searched. Animated stripes. |
+| **Unsearched** | Diagonal stripe/hatched pattern (no icon) | Search hasn't reached this slot yet. Cannot interact. |
+| **Empty** | Plain outlined rounded-rect, no fill | Either the slot is empty, or search hasn't reached it and it will end up empty. Unreached empty slots look identical to reached empty slots once search passes them. |
+
+The loot panel header shows `"Loot (N/M)"` where N = items found so far, M = total slots. A progress bar beneath the header fills as search progresses through slots left-to-right, top-to-bottom.
+
+### General Visual Feedback
 
 - Item icons with quantity badge (top-right corner for stacks)
 - Equipment slot outlines showing accepted type
 - Hover tooltip: item name, description, stats
-- Searched slots: `[?]` with a shimmer/pulse animation until revealed
 - Full backpack: red tint on backpack header
+- Semi-transparent dark panel backgrounds (game world visible underneath)
+- Rounded corners on all slots and panels
 - Weight bar at bottom (future, when weight system is added)
 
 ---
