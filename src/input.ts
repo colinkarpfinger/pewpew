@@ -38,6 +38,10 @@ export class InputHandler implements IInputHandler {
   private healLargePressed = false;
   private healLargeConsumed = false;
 
+  // Edge-detected interact input (F key)
+  private interactPressed = false;
+  private interactConsumed = false;
+
   constructor(camera: THREE.PerspectiveCamera, canvas: HTMLCanvasElement) {
     this.camera = camera;
 
@@ -57,6 +61,9 @@ export class InputHandler implements IInputHandler {
       }
       if (e.key === '5' && !this.healLargeConsumed) {
         this.healLargePressed = true;
+      }
+      if (e.key.toLowerCase() === 'f' && !this.interactConsumed) {
+        this.interactPressed = true;
       }
     });
 
@@ -79,6 +86,9 @@ export class InputHandler implements IInputHandler {
       }
       if (e.key === '5') {
         this.healLargeConsumed = false;
+      }
+      if (e.key.toLowerCase() === 'f') {
+        this.interactConsumed = false;
       }
     });
 
@@ -151,6 +161,10 @@ export class InputHandler implements IInputHandler {
       this.healLargePressed = false;
       this.healLargeConsumed = true;
     }
+    if (this.interactPressed) {
+      this.interactPressed = false;
+      this.interactConsumed = true;
+    }
   }
 
   /** Get current input state for simulation */
@@ -211,6 +225,7 @@ export class InputHandler implements IInputHandler {
     const throwPower = this.grenadeReleasePower;
     const healSmall = this.healSmallPressed;
     const healLarge = this.healLargePressed;
+    const interact = this.interactPressed;
 
     return {
       moveDir,
@@ -224,6 +239,7 @@ export class InputHandler implements IInputHandler {
       throwPower,
       healSmall,
       healLarge,
+      interact,
     };
   }
 }

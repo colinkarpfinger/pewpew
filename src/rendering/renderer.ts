@@ -18,6 +18,7 @@ import {
   createWallMeshes,
   createExtractionZoneMesh,
   createWeaponMesh,
+  createLootContainerMesh,
   type EnemyMeshGroup,
 } from './entities.ts';
 import { createCamera, updateCamera, triggerScreenShake, triggerZoomPunch, triggerWeaponKick } from './camera.ts';
@@ -46,6 +47,7 @@ export class Renderer {
   private crateMeshes = new Map<number, THREE.Mesh>();
   private cashMeshes = new Map<number, THREE.Mesh>();
   private destructibleCrateMeshes = new Map<number, THREE.Mesh>();
+  private lootContainerMeshes = new Map<number, THREE.Group>();
   private particles: ParticleSystem | null = null;
   private muzzleFlashes: { light: THREE.PointLight; timer: number }[] = [];
   private tracers: { mesh: THREE.Mesh; vx: number; vz: number; lifetime: number }[] = [];
@@ -131,6 +133,7 @@ export class Renderer {
     this.crateMeshes.clear();
     this.cashMeshes.clear();
     this.destructibleCrateMeshes.clear();
+    this.lootContainerMeshes.clear();
     this.enemyTypes.clear();
     this.sniperLaserMeshes.clear();
     this.hitFlashTimers.clear();
@@ -605,6 +608,32 @@ export class Renderer {
       if (!currentDestructibleCrateIds.has(id)) {
         this.scene.remove(mesh);
         this.destructibleCrateMeshes.delete(id);
+      }
+    }
+
+    // Sync loot containers
+    const currentLootIds = new Set<number>();
+    for (const lc of state.lootContainers) {
+      currentLootIds.add(lc.id);
+      let mesh = this.lootContainerMeshes.get(lc.id);
+      if (!mesh) {
+        mesh = createLootContainerMesh(lc.containerType);
+        this.lootContainerMeshes.set(lc.id, mesh);
+        this.scene.add(mesh);
+      }
+      mesh.position.set(lc.pos.x, 0, lc.pos.y);
+
+      // Pulse the glow indicator based on search progress
+      const glow = mesh.children[1] as THREE.Mesh | undefined;
+      if (glow) {
+        const pulse = 0.6 + Math.sin(state.tick * 0.08) * 0.4;
+        (glow.material as THREE.MeshStandardMaterial).opacity = lc.searchProgress >= lc.capacity ? 0.3 : pulse;
+      }
+    }
+    for (const [id, mesh] of this.lootContainerMeshes) {
+      if (!currentLootIds.has(id)) {
+        this.scene.remove(mesh);
+        this.lootContainerMeshes.delete(id);
       }
     }
 

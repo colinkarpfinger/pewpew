@@ -41,6 +41,7 @@ export class RingRecorder {
       throwPower: input.throwPower,
       healSmall: input.healSmall,
       healLarge: input.healLarge,
+      interact: input.interact,
     });
     this.ticksSinceCheckpoint++;
   }

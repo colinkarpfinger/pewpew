@@ -27,6 +27,10 @@ export interface InventoryConfig {
   stashSize: number;
   stashColumns: number;
   hotbarSlots: number;
+  searchTimePerSlot: number;
+  lootInteractionRadius: number;
+  bodyDespawnTime: number;
+  lootColumns: number;
 }
 
 export type BandageType = 'small' | 'large';
@@ -234,6 +238,18 @@ export interface GameConfigs {
   sniper?: RangedEnemyConfig;
   weaponUpgrades?: WeaponUpgradesConfig;
   inventory?: InventoryConfig;
+}
+
+// ---- Loot Containers ----
+
+export interface LootContainer {
+  id: number;
+  pos: Vec2;
+  containerType: 'body' | 'crate';
+  items: (ItemInstance | null)[];
+  capacity: number;
+  searchProgress: number;   // how many slots have been revealed
+  despawnTimer: number;     // ticks remaining (-1 = never)
 }
 
 // ---- Entities ----
@@ -448,6 +464,7 @@ export interface InputState {
   throwPower: number;    // 0-1 charge fraction (how long G was held)
   healSmall: boolean; // edge-detected: true on key '4' press
   healLarge: boolean; // edge-detected: true on key '5' press
+  interact: boolean; // edge-detected: true on F key press
 }
 
 // ---- Events ----
@@ -522,6 +539,7 @@ export interface GameState {
   crates: Crate[];
   cashPickups: CashPickup[];
   destructibleCrates: DestructibleCrate[];
+  lootContainers: LootContainer[];
   obstacles: Obstacle[];
   arena: ArenaConfig;
   grenadeAmmo: number;

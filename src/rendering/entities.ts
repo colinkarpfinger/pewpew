@@ -453,6 +453,71 @@ export function createWeaponMesh(weaponType: WeaponType | 'sniper', upgradeLevel
   return group;
 }
 
+export function createLootContainerMesh(containerType: 'body' | 'crate'): THREE.Group {
+  const group = new THREE.Group();
+
+  if (containerType === 'body') {
+    // Body bag: dark flat shape on ground
+    const geo = new THREE.BoxGeometry(0.8, 0.1, 0.5);
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0x2a2a2a,
+      emissive: 0x111111,
+      emissiveIntensity: 0.2,
+      roughness: 0.9,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.position.y = 0.05;
+    group.add(mesh);
+
+    // Small indicator glow
+    const glowGeo = new THREE.SphereGeometry(0.08, 6, 6);
+    const glowMat = new THREE.MeshStandardMaterial({
+      color: 0x66aaff,
+      emissive: 0x4488cc,
+      emissiveIntensity: 1.5,
+      transparent: true,
+      opacity: 0.8,
+    });
+    const glow = new THREE.Mesh(glowGeo, glowMat);
+    glow.position.y = 0.2;
+    group.add(glow);
+  } else {
+    // Broken crate: smaller, open-looking box
+    const geo = new THREE.BoxGeometry(0.6, 0.35, 0.6);
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0x6B4E0A,
+      emissive: 0x332500,
+      emissiveIntensity: 0.15,
+      roughness: 0.9,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.position.y = 0.175;
+    // Slight tilt to look broken
+    mesh.rotation.z = 0.15;
+    mesh.rotation.x = -0.1;
+    group.add(mesh);
+
+    // Indicator glow
+    const glowGeo = new THREE.SphereGeometry(0.08, 6, 6);
+    const glowMat = new THREE.MeshStandardMaterial({
+      color: 0xffaa33,
+      emissive: 0xcc8822,
+      emissiveIntensity: 1.5,
+      transparent: true,
+      opacity: 0.8,
+    });
+    const glow = new THREE.Mesh(glowGeo, glowMat);
+    glow.position.y = 0.45;
+    group.add(glow);
+  }
+
+  return group;
+}
+
 export function createWallMeshes(arenaWidth: number, arenaHeight: number): THREE.Group {
   const group = new THREE.Group();
   const wallHeight = 2;

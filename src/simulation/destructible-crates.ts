@@ -3,6 +3,7 @@ import type { SeededRNG } from './rng.ts';
 import { circleAABB } from './collision.ts';
 import { getZoneIndex } from './extraction-map.ts';
 import { createPhysicsWorld, queryPushOut, destroyPhysicsWorld } from './physics.ts';
+import { spawnLootContainerFromCrate } from './loot-containers.ts';
 
 /** Spawn hand-placed + procedural destructible crates at level start */
 export function spawnInitialDestructibleCrates(
@@ -99,8 +100,12 @@ export function checkProjectileVsCrates(
           data: { x: crate.pos.x, y: crate.pos.y, lootTier: crate.lootTier },
         });
 
-        // Spawn loot
-        spawnCrateLoot(state, crate, rng, config);
+        // Spawn loot: extraction mode creates loot containers, arena mode drops items directly
+        if (state.gameMode === 'extraction') {
+          spawnLootContainerFromCrate(state, crate, rng, config);
+        } else {
+          spawnCrateLoot(state, crate, rng, config);
+        }
 
         state.destructibleCrates.splice(ci, 1);
       } else {

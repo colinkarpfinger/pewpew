@@ -48,6 +48,8 @@ import { getEffectiveWeaponConfig } from './simulation/weapon-upgrades.ts';
 import { loadWeaponModels } from './rendering/weapon-models.ts';
 import { setupInventoryScreen, openInventoryScreen, closeInventoryScreen, isInventoryOpen } from './ui/inventory-screen.ts';
 import { setupStashScreen, openStashScreen, closeStashScreen, isStashOpen } from './ui/stash-screen.ts';
+import { setupLootScreen, openLootScreen, closeLootScreen, isLootOpen, updateLootSearch } from './ui/loot-screen.ts';
+import { findNearestLootContainer } from './simulation/loot-containers.ts';
 import { initHudHotbar, updateHudHotbar, showHudHotbar, hideHudHotbar } from './ui.ts';
 import { syncInventoryToPlayer, createEmptyInventory, addItemToBackpack } from './simulation/inventory.ts';
 import { ARMOR_TYPE_TO_ITEM } from './simulation/items.ts';
@@ -119,6 +121,12 @@ setupInventoryScreen(() => {
 setupStashScreen(() => {
   // On stash close: return to hub
   showHubScreen();
+});
+setupLootScreen(() => {
+  // On change: sync inventory to player legacy fields
+  if (game) {
+    syncInventoryToPlayer(game.state.player, runConfigs);
+  }
 });
 
 // Register dev console commands
@@ -334,6 +342,7 @@ function goToTitle(): void {
   hideEscapeMenu();
   hideReplayControls();
   hideHudHotbar();
+  closeLootScreen();
   closeInventoryScreen();
   if (mobile) {
     (input as TouchInputHandler).setVisible(false);
@@ -369,10 +378,30 @@ if (mobile) {
 
 // ---- Escape key ----
 window.addEventListener('keydown', (e) => {
-  // Tab / I toggles inventory
+  // F key: toggle loot screen
+  if (e.key.toLowerCase() === 'f' && screen === 'playing' && !isInventoryOpen() && !isLootOpen()) {
+    if (game && game.state.gameMode === 'extraction') {
+      const container = findNearestLootContainer(
+        game.state,
+        (inventoryConfig as InventoryConfig).lootInteractionRadius,
+      );
+      if (container) {
+        openLootScreen(game.state.player.inventory, container, inventoryConfig as InventoryConfig);
+      }
+    }
+    return;
+  }
+  if (e.key.toLowerCase() === 'f' && isLootOpen()) {
+    closeLootScreen();
+    return;
+  }
+
+  // Tab / I toggles inventory (not while looting)
   if ((e.key === 'Tab' || e.key.toLowerCase() === 'i') && screen === 'playing') {
     e.preventDefault();
-    if (isInventoryOpen()) {
+    if (isLootOpen()) {
+      closeLootScreen();
+    } else if (isInventoryOpen()) {
       closeInventoryScreen();
     } else if (game) {
       openInventoryScreen(game.state.player.inventory, inventoryConfig as InventoryConfig);
@@ -383,6 +412,12 @@ window.addEventListener('keydown', (e) => {
   // Close inventory on Escape (without pausing)
   if (e.key === 'Escape' && isInventoryOpen()) {
     closeInventoryScreen();
+    return;
+  }
+
+  // Close loot screen on Escape
+  if (e.key === 'Escape' && isLootOpen()) {
+    closeLootScreen();
     return;
   }
 
@@ -526,8 +561,8 @@ function gameLoop(now: number): void {
     }
     const currentInput = input.getInput();
 
-    // Suppress game input while dev console or inventory is focused
-    if (isDevConsoleVisible() || isInventoryOpen()) {
+    // Suppress game input while dev console, inventory, or loot screen is focused
+    if (isDevConsoleVisible() || isInventoryOpen() || isLootOpen()) {
       currentInput.moveDir = { x: 0, y: 0 };
       currentInput.fire = false;
       currentInput.firePressed = false;
@@ -536,6 +571,7 @@ function gameLoop(now: number): void {
       currentInput.throwGrenade = false;
       currentInput.healSmall = false;
       currentInput.healLarge = false;
+      currentInput.interact = false;
     }
 
     const frameEvents: GameEvent[] = [];
@@ -584,6 +620,34 @@ function gameLoop(now: number): void {
       input.consumeEdgeInputs();
     }
 
+    // Update loot search timer
+    if (isLootOpen()) {
+      updateLootSearch(ticksRan ? 1 : 0);
+
+      // Close loot screen if player took damage this frame
+      for (const ev of frameEvents) {
+        if (ev.type === 'player_hit') {
+          closeLootScreen();
+          break;
+        }
+      }
+    }
+
+    // Interaction prompt: show when near a loot container (extraction mode only)
+    if (state.gameMode === 'extraction' && !isLootOpen() && !isInventoryOpen()) {
+      const nearby = findNearestLootContainer(
+        state,
+        (inventoryConfig as InventoryConfig).lootInteractionRadius,
+      );
+      if (nearby) {
+        interactPrompt.classList.remove('hidden');
+      } else {
+        interactPrompt.classList.add('hidden');
+      }
+    } else {
+      interactPrompt.classList.add('hidden');
+    }
+
     // Log events to dev console
     if (isDevConsoleVisible() && frameEvents.length > 0) {
       for (const ev of frameEvents) {
@@ -605,6 +669,7 @@ function gameLoop(now: number): void {
       showExtractionSuccess(state.score, state.runCash, state.runStats);
       if (mobile) (input as TouchInputHandler).setVisible(false);
       hideHudHotbar();
+      closeLootScreen();
       closeInventoryScreen();
       screen = 'gameOver';
     } else if (state.gameOver && !gameOverShown) {
@@ -687,6 +752,13 @@ if (fullscreenBtn) {
 }
 
 import RAPIER from '@dimforge/rapier2d-deterministic-compat';
+
+// Create interaction prompt element
+const interactPrompt = document.createElement('div');
+interactPrompt.id = 'interact-prompt';
+interactPrompt.className = 'hidden';
+interactPrompt.innerHTML = '<kbd>F</kbd> Search';
+document.getElementById('game-container')!.appendChild(interactPrompt);
 
 async function boot(): Promise<void> {
   await RAPIER.init();

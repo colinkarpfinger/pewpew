@@ -1427,3 +1427,131 @@ html, body {
   font-family: monospace;
   font-weight: bold;
 }
+
+/* ---- Loot Screen ---- */
+
+#loot-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 60;
+  cursor: default;
+}
+
+#loot-screen.hidden {
+  display: none;
+}
+
+.loot-wrapper {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.loot-panel {
+  min-width: 200px;
+}
+
+.loot-header {
+  color: #fff;
+}
+
+.loot-progress-bar {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.loot-progress-fill {
+  height: 100%;
+  background: rgba(100, 200, 255, 0.7);
+  border-radius: 2px;
+  transition: width 0.15s ease;
+}
+
+.loot-slot-unsearched {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.03),
+    rgba(255, 255, 255, 0.03) 4px,
+    rgba(255, 255, 255, 0.08) 4px,
+    rgba(255, 255, 255, 0.08) 8px
+  ) !important;
+  cursor: default !important;
+  pointer-events: none;
+}
+
+.loot-slot-searching {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(100, 200, 255, 0.05),
+    rgba(100, 200, 255, 0.05) 4px,
+    rgba(100, 200, 255, 0.15) 4px,
+    rgba(100, 200, 255, 0.15) 8px
+  ) !important;
+  cursor: default !important;
+  pointer-events: none;
+  animation: loot-search-pulse 1s ease-in-out infinite;
+}
+
+.loot-search-icon {
+  color: rgba(100, 200, 255, 0.6);
+  font-size: 20px;
+  font-weight: bold;
+  animation: loot-search-bounce 0.8s ease-in-out infinite;
+}
+
+@keyframes loot-search-pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+@keyframes loot-search-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+/* ---- Interaction Prompt ---- */
+
+#interact-prompt {
+  position: absolute;
+  bottom: 120px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 20px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 16px;
+  font-family: monospace;
+  font-weight: bold;
+  pointer-events: none;
+  z-index: 38;
+  animation: interact-pulse 2s ease-in-out infinite;
+}
+
+#interact-prompt.hidden {
+  display: none;
+}
+
+#interact-prompt kbd {
+  display: inline-block;
+  padding: 2px 8px;
+  margin-right: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+@keyframes interact-pulse {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}

@@ -3,5 +3,9 @@
   "backpackColumns": 5,
   "stashSize": 50,
   "stashColumns": 5,
-  "hotbarSlots": 5
+  "hotbarSlots": 5,
+  "searchTimePerSlot": 48,
+  "lootInteractionRadius": 1.5,
+  "bodyDespawnTime": 7200,
+  "lootColumns": 2
 }

@@ -12,10 +12,11 @@ import { spawnCash, checkCashPickups } from './cash.ts';
 import { createExtractionSpawner, updateExtractionSpawner, spawnInitialEnemies } from './extraction-spawner.ts';
 import { updateVisibility } from './line-of-sight.ts';
 import { isInAnyExtractionZone } from './extraction-map.ts';
-import { spawnInitialDestructibleCrates, checkProjectileVsCrates } from './destructible-crates.ts';
+import { checkProjectileVsCrates } from './destructible-crates.ts';
 import { createPhysicsWorld } from './physics.ts';
 import type { PhysicsWorld } from './physics.ts';
 import { createEmptyInventory } from './inventory.ts';
+import { spawnLootContainersFromKills, updateLootContainerDespawn, spawnInitialLootContainers } from './loot-containers.ts';
 
 export interface GameInstance {
   state: GameState;
@@ -89,6 +90,7 @@ export function createGame(configs: GameConfigs, seed: number = 12345, gameMode:
     crates: [],
     cashPickups: [],
     destructibleCrates: [],
+    lootContainers: [],
     obstacles,
     arena,
     grenadeAmmo: configs.grenade.startingAmmo,
@@ -126,9 +128,9 @@ export function createGame(configs: GameConfigs, seed: number = 12345, gameMode:
     spawnInitialEnemies(state, extractionMap, configs.enemies, rng);
   }
 
-  // Extraction mode: spawn destructible crates
-  if (extractionMap && configs.destructibleCrates) {
-    spawnInitialDestructibleCrates(state, extractionMap, configs.destructibleCrates, rng);
+  // Extraction mode: spawn loot containers at crate positions (replaces destructible crates)
+  if (extractionMap && configs.destructibleCrates && configs.inventory) {
+    spawnInitialLootContainers(state, extractionMap, configs.destructibleCrates, rng);
   }
 
   const physics = createPhysicsWorld(obstacles, arena);
@@ -180,8 +182,8 @@ export function tick(game: GameInstance, input: InputState, configs: GameConfigs
   // 5. Projectile collisions (vs enemies, walls, obstacles)
   checkProjectileCollisions(state, configs.weapons, configs.enemies, physics);
 
-  // 5a. Projectile vs destructible crates
-  if (configs.destructibleCrates) {
+  // 5a. Projectile vs destructible crates (extraction mode has no destructible crates)
+  if (configs.destructibleCrates && state.gameMode !== 'extraction') {
     checkProjectileVsCrates(state, rng, configs.destructibleCrates);
   }
 
@@ -190,20 +192,36 @@ export function tick(game: GameInstance, input: InputState, configs: GameConfigs
     detectMultiKills(state, configs.multikill);
   }
 
-  // 5c. Crate drops from killed enemies
-  spawnCrates(state, configs.crates, rng);
+  // 5c. Loot containers from kills (extraction mode only)
+  if (state.gameMode === 'extraction' && configs.inventory) {
+    spawnLootContainersFromKills(state, rng, configs.inventory);
+    updateLootContainerDespawn(state);
+  }
 
-  // 5d. Crate pickups (player collision)
-  checkCratePickups(state, configs.crates);
+  // 5d. Crate drops from killed enemies (arena mode only)
+  if (state.gameMode !== 'extraction') {
+    spawnCrates(state, configs.crates, rng);
+  }
 
-  // 5e. Crate lifetime expiration
-  updateCrateLifetimes(state);
+  // 5e. Crate pickups (arena mode only)
+  if (state.gameMode !== 'extraction') {
+    checkCratePickups(state, configs.crates);
+  }
 
-  // 5f. Cash drops from killed enemies (extraction mode only)
-  spawnCash(state, configs.cash, rng);
+  // 5f. Crate lifetime expiration (arena mode only)
+  if (state.gameMode !== 'extraction') {
+    updateCrateLifetimes(state);
+  }
 
-  // 5g. Cash pickups (player collision)
-  checkCashPickups(state, configs.cash);
+  // 5g. Cash drops from killed enemies (arena mode: N/A, extraction mode: now via loot containers)
+  if (state.gameMode !== 'extraction') {
+    spawnCash(state, configs.cash, rng);
+  }
+
+  // 5h. Cash pickups (arena mode only — extraction uses loot containers)
+  if (state.gameMode !== 'extraction') {
+    checkCashPickups(state, configs.cash);
+  }
 
   // 6. Line of sight (extraction mode only — arena enemies always visible)
   if (state.extractionMap) {
@@ -361,6 +379,7 @@ export function restoreGame(stateSnapshot: GameState, rngState: number): GameIns
   state.grenadeAmmo ??= 3;
   state.runCash ??= 0;
   state.destructibleCrates ??= [];
+  state.lootContainers ??= [];
   // Backward-compat: old projectiles missing weaponType
   for (const proj of state.projectiles) {
     proj.weaponType ??= 'rifle';
