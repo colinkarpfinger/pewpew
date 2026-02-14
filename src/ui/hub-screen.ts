@@ -1,5 +1,6 @@
 import type { WeaponType, WeaponsConfig, ArmorType, ArmorConfig, WeaponUpgradesConfig } from '../simulation/types.ts';
-import { getStashCash, getOwnedWeapons, addCashToStash, addWeapon, getOwnedArmor, addArmor, getBandages, addBandages, getWeaponUpgradeLevel, setWeaponUpgradeLevel, getArmorHp, setArmorHp, clearSave } from '../persistence.ts';
+import { getStashCash, getOwnedWeapons, addCashToStash, addWeapon, getOwnedArmor, addArmor, getBandages, addBandages, getAmmoStock, addAmmo, getWeaponUpgradeLevel, setWeaponUpgradeLevel, getArmorHp, setArmorHp, clearSave } from '../persistence.ts';
+import { WEAPON_AMMO_MAP, ITEM_DEFS } from '../simulation/items.ts';
 
 export interface HubCallbacks {
   onStartRun: (weapon: WeaponType, armor: ArmorType | null) => void;
@@ -14,6 +15,8 @@ let selectedArmor: ArmorType | null = null;
 let shopPrices: ShopPrices = {};
 let armorPrices: ShopPrices = {};
 let bandagePrices: ShopPrices = {};
+let ammoPrices: ShopPrices = {};
+let ammoPerPurchase: Record<string, number> = {};
 let weaponsConfig: WeaponsConfig | null = null;
 let armorConfig: ArmorConfig | null = null;
 let weaponUpgradesConfig: WeaponUpgradesConfig | null = null;
@@ -255,6 +258,68 @@ function refreshHub(): void {
     bandageContainer.appendChild(item);
   }
 
+  // Ammo shop items
+  const ammoContainer = document.getElementById('hub-ammo-shop-items');
+  if (ammoContainer) {
+    ammoContainer.innerHTML = '';
+    const ammoStock = getAmmoStock();
+    // Show ammo types relevant to owned weapons
+    const relevantAmmoTypes = new Set<string>();
+    for (const wt of owned) {
+      const ammoType = WEAPON_AMMO_MAP[wt];
+      if (ammoType) relevantAmmoTypes.add(ammoType);
+    }
+
+    for (const ammoType of relevantAmmoTypes) {
+      const price = ammoPrices[ammoType] ?? 0;
+      const perPurchase = ammoPerPurchase[ammoType] ?? 30;
+      const currentStock = ammoStock[ammoType] ?? 0;
+      const canAfford = cash >= price;
+      const def = ITEM_DEFS[ammoType];
+      const displayName = def?.name ?? ammoType;
+
+      const item = document.createElement('div');
+      item.className = 'shop-item';
+
+      const info = document.createElement('div');
+      info.className = 'shop-item-info';
+
+      const name = document.createElement('div');
+      name.className = 'shop-item-name';
+      name.textContent = `${displayName} (x${perPurchase})`;
+      info.appendChild(name);
+
+      const stats = document.createElement('div');
+      stats.className = 'shop-item-stats';
+      stats.textContent = `Owned: ${currentStock}`;
+      info.appendChild(stats);
+
+      item.appendChild(info);
+
+      const action = document.createElement('div');
+      action.className = 'shop-item-action';
+
+      const priceLabel = document.createElement('span');
+      priceLabel.className = 'shop-item-price';
+      priceLabel.textContent = `$${price}`;
+      action.appendChild(priceLabel);
+
+      const buyBtn = document.createElement('button');
+      buyBtn.className = 'shop-buy-btn';
+      buyBtn.textContent = 'BUY';
+      buyBtn.disabled = !canAfford;
+      buyBtn.addEventListener('click', () => {
+        addCashToStash(-price);
+        addAmmo(ammoType, perPurchase);
+        refreshHub();
+      });
+      action.appendChild(buyBtn);
+
+      item.appendChild(action);
+      ammoContainer.appendChild(item);
+    }
+  }
+
   // Weapon upgrades shop
   const upgradeContainer = upgradeShopEl();
   upgradeContainer.innerHTML = '';
@@ -432,13 +497,15 @@ export function hideHubScreen(): void {
   el().classList.add('hidden');
 }
 
-export function setupHubScreen(callbacks: HubCallbacks, prices: ShopPrices, wc: WeaponsConfig, ap: ShopPrices, ac: ArmorConfig, bp?: ShopPrices, wuc?: WeaponUpgradesConfig): void {
+export function setupHubScreen(callbacks: HubCallbacks, prices: ShopPrices, wc: WeaponsConfig, ap: ShopPrices, ac: ArmorConfig, bp?: ShopPrices, wuc?: WeaponUpgradesConfig, ammoP?: ShopPrices, ammoPP?: Record<string, number>): void {
   shopPrices = prices;
   weaponsConfig = wc;
   armorPrices = ap;
   armorConfig = ac;
   bandagePrices = bp ?? {};
   weaponUpgradesConfig = wuc ?? null;
+  ammoPrices = ammoP ?? {};
+  ammoPerPurchase = ammoPP ?? {};
 
   document.getElementById('hub-start-run')!.addEventListener('click', () => {
     callbacks.onStartRun(selectedWeapon, selectedArmor);

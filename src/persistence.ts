@@ -16,6 +16,7 @@ export interface ExtractionSave {
   ownedArmor: ArmorType[];
   bandageSmall: number;
   bandageLarge: number;
+  ammoStock: Record<string, number>;
   weaponUpgrades: Partial<Record<WeaponType, number>>;
   armorHpMap: Partial<Record<ArmorType, number>>;
   playerInventory?: PlayerInventory;
@@ -23,7 +24,7 @@ export interface ExtractionSave {
 }
 
 function defaults(): ExtractionSave {
-  return { cashStash: 0, ownedWeapons: ['pistol'], ownedArmor: [], bandageSmall: 0, bandageLarge: 0, weaponUpgrades: {}, armorHpMap: {} };
+  return { cashStash: 0, ownedWeapons: ['pistol'], ownedArmor: [], bandageSmall: 0, bandageLarge: 0, ammoStock: {}, weaponUpgrades: {}, armorHpMap: {} };
 }
 
 export function loadSave(): ExtractionSave {
@@ -37,6 +38,7 @@ export function loadSave(): ExtractionSave {
       ownedArmor: parsed.ownedArmor ?? [],
       bandageSmall: parsed.bandageSmall ?? 0,
       bandageLarge: parsed.bandageLarge ?? 0,
+      ammoStock: parsed.ammoStock ?? {},
       weaponUpgrades: parsed.weaponUpgrades ?? {},
       armorHpMap: parsed.armorHpMap ?? {},
     };
@@ -106,6 +108,22 @@ export function addBandages(type: 'small' | 'large', count: number): void {
   const save = loadSave();
   if (type === 'small') save.bandageSmall += count;
   else save.bandageLarge += count;
+  writeSave(save);
+}
+
+export function getAmmoStock(): Record<string, number> {
+  return loadSave().ammoStock;
+}
+
+export function addAmmo(ammoType: string, count: number): void {
+  const save = loadSave();
+  save.ammoStock[ammoType] = (save.ammoStock[ammoType] ?? 0) + count;
+  writeSave(save);
+}
+
+export function clearAmmoStock(): void {
+  const save = loadSave();
+  save.ammoStock = {};
   writeSave(save);
 }
 

@@ -13,5 +13,23 @@
   "bandagePrices": {
     "small": 70,
     "large": 135
+  },
+  "ammoPrices": {
+    "9mm": 30,
+    "556": 50,
+    "12gauge": 40,
+    "762": 25
+  },
+  "ammoPerPurchase": {
+    "9mm": 30,
+    "556": 30,
+    "12gauge": 12,
+    "762": 50
+  },
+  "startingAmmo": {
+    "9mm": 30,
+    "556": 30,
+    "12gauge": 12,
+    "762": 50
   }
 }

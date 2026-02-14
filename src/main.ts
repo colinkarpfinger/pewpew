@@ -36,7 +36,7 @@ import gunnerConfig from './configs/gunner.json';
 import audioConfig from './configs/audio.json';
 import extractionMapConfig from './configs/extraction-map.json';
 import destructibleCratesConfig from './configs/destructible-crates.json';
-import { addCashToStash, removeWeapon, removeArmor, getBandages, getWeaponUpgradeLevel, getArmorHp, setArmorHp, clearArmorHp } from './persistence.ts';
+import { addCashToStash, removeWeapon, removeArmor, getBandages, getAmmoStock, clearAmmoStock, getWeaponUpgradeLevel, getArmorHp, setArmorHp, clearArmorHp } from './persistence.ts';
 import shopConfig from './configs/shop.json';
 import armorConfig from './configs/armor.json';
 import bandagesConfig from './configs/bandages.json';
@@ -52,7 +52,7 @@ import { setupLootScreen, openLootScreen, closeLootScreen, isLootOpen, updateLoo
 import { findNearestLootContainer } from './simulation/loot-containers.ts';
 import { initHudHotbar, updateHudHotbar, showHudHotbar, hideHudHotbar } from './ui.ts';
 import { syncInventoryToPlayer, createEmptyInventory, addItemToBackpack } from './simulation/inventory.ts';
-import { ARMOR_TYPE_TO_ITEM, ITEM_DEFS } from './simulation/items.ts';
+import { ARMOR_TYPE_TO_ITEM, ITEM_DEFS, WEAPON_AMMO_MAP } from './simulation/items.ts';
 import { savePlayerInventory } from './persistence.ts';
 import inventoryConfig from './configs/inventory.json';
 import type { InventoryConfig } from './simulation/types.ts';
@@ -280,6 +280,19 @@ function startGame(mode: GameMode = 'arena', weapon?: WeaponType, armor?: ArmorT
     if (bandageStock.large > 0) {
       addItemToBackpack(inv, { defId: 'bandage_large', quantity: bandageStock.large });
     }
+    // Put ammo in backpack: starting ammo + purchased stock
+    const ammoStock = getAmmoStock();
+    const ammoType = WEAPON_AMMO_MAP[activeWeapon];
+    if (ammoType) {
+      const startingAmount = (shopConfig.startingAmmo as Record<string, number>)[ammoType] ?? 0;
+      const purchasedAmount = ammoStock[ammoType] ?? 0;
+      const totalAmmo = startingAmount + purchasedAmount;
+      if (totalAmmo > 0) {
+        addItemToBackpack(inv, { defId: ammoType, quantity: totalAmmo });
+      }
+    }
+    // Clear purchased ammo stock — it's now in the raid inventory
+    clearAmmoStock();
     game.state.player.inventory = inv;
     syncInventoryToPlayer(game.state.player, effectiveConfigs);
   }
@@ -516,7 +529,7 @@ setupHubScreen({
     hideHubScreen();
     openStashScreen(inventoryConfig as InventoryConfig);
   },
-}, shopConfig.prices, configs.weapons, shopConfig.armorPrices, armorConfig, shopConfig.bandagePrices, weaponUpgradesConfig as unknown as WeaponUpgradesConfig);
+}, shopConfig.prices, configs.weapons, shopConfig.armorPrices, armorConfig, shopConfig.bandagePrices, weaponUpgradesConfig as unknown as WeaponUpgradesConfig, shopConfig.ammoPrices, shopConfig.ammoPerPurchase);
 
 // ---- Start screen ----
 onStartGame((mode) => {
