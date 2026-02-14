@@ -88,7 +88,6 @@ export function setupStashScreen(onChange?: () => void): void {
     if (!isOpen) return;
 
     if (heldItem) {
-      e.preventDefault();
       cancelHeld();
       return;
     }
@@ -96,7 +95,6 @@ export function setupStashScreen(onChange?: () => void): void {
     const target = document.elementFromPoint(e.clientX, e.clientY);
     const slotEl = target?.closest('[data-region]') as HTMLElement | null;
     if (slotEl && slotEl.classList.contains('occupied')) {
-      e.preventDefault();
       const region = slotEl.dataset.region as StashSlotRegion;
       const slotIndex = slotEl.dataset.slot!;
       const parsedIndex = region === 'equipment' ? slotIndex : parseInt(slotIndex);

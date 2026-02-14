@@ -364,7 +364,6 @@ export function setupInventoryScreen(onChange?: () => void, onUseItem?: (defId: 
     if (!isOpen) return;
 
     if (heldItem) {
-      e.preventDefault();
       cancelHeld();
       return;
     }
@@ -373,7 +372,6 @@ export function setupInventoryScreen(onChange?: () => void, onUseItem?: (defId: 
     const target = document.elementFromPoint(e.clientX, e.clientY);
     const slotEl = target?.closest('[data-region]') as HTMLElement | null;
     if (slotEl && slotEl.classList.contains('occupied')) {
-      e.preventDefault();
       const region = slotEl.dataset.region as SlotRegion;
       const slotIndex = slotEl.dataset.slot!;
       const item = getItemAtSlot(region, region === 'equipment' ? slotIndex : parseInt(slotIndex));

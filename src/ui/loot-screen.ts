@@ -27,6 +27,7 @@ let onChangeCallback: (() => void) | null = null;
 let isDragging = false;
 let dragStarted = false;
 let searchTimer = 0;
+let hoveredSlot: { region: LootSlotRegion; slotIndex: number | string } | null = null;
 
 // ---- Public API ----
 
@@ -71,13 +72,45 @@ export function setupLootScreen(onChange?: () => void): void {
     }
   });
 
-  // Right-click: cancel drag
-  window.addEventListener('contextmenu', (e) => {
-    if (!isOpen) return;
-    if (heldItem) {
-      e.preventDefault();
-      cancelHeld();
+  // Track hovered slot (delegated for F-key quick transfer)
+  const lootScreenEl = document.getElementById('loot-screen')!;
+  lootScreenEl.addEventListener('mouseover', (e) => {
+    const target = e.target as HTMLElement;
+    const slotEl = target.closest('[data-region]') as HTMLElement | null;
+    if (slotEl) {
+      const region = slotEl.dataset.region as LootSlotRegion;
+      const slotIndex = region === 'equipment' ? slotEl.dataset.slot! : parseInt(slotEl.dataset.slot!);
+      hoveredSlot = { region, slotIndex };
+    } else {
+      hoveredSlot = null;
     }
+  });
+  lootScreenEl.addEventListener('mouseout', (e) => {
+    const target = e.relatedTarget as HTMLElement | null;
+    if (!target || !target.closest('#loot-screen [data-region]')) {
+      hoveredSlot = null;
+    }
+  });
+
+  // Double-click: quick transfer (delegated to survive re-renders)
+  lootScreenEl.addEventListener('dblclick', (e) => {
+    if (!isOpen) return;
+    const target = e.target as HTMLElement;
+    const slotEl = target.closest('[data-region]') as HTMLElement | null;
+    if (!slotEl) return;
+    e.preventDefault();
+    hideTooltip();
+    // Cancel any in-progress drag from the first click
+    if (heldItem) cancelHeld();
+    const region = slotEl.dataset.region as LootSlotRegion;
+    const slotIndex = region === 'equipment' ? slotEl.dataset.slot! : parseInt(slotEl.dataset.slot!);
+    quickTransfer(region, slotIndex);
+  });
+
+  // Right-click: cancel drag
+  window.addEventListener('contextmenu', () => {
+    if (!isOpen) return;
+    if (heldItem) cancelHeld();
   });
 }
 
@@ -89,6 +122,29 @@ export function openLootScreen(inventory: PlayerInventory, container: LootContai
   isOpen = true;
   renderLoot();
   document.getElementById('loot-screen')!.classList.remove('hidden');
+}
+
+/** Try to quick-transfer the currently hovered item. Returns true if it did something. */
+export function quickTransferHovered(): boolean {
+  if (!isOpen || !hoveredSlot) return false;
+  const { region, slotIndex } = hoveredSlot;
+
+  // Check if slot actually has an item
+  if (region === 'loot' && containerRef) {
+    const idx = slotIndex as number;
+    if (!containerRef.items[idx]) return false;
+  } else if (region === 'backpack' && inventoryRef) {
+    const idx = slotIndex as number;
+    if (!inventoryRef.backpack[idx]) return false;
+  } else if (region === 'equipment' && inventoryRef) {
+    const key = slotIndex as keyof PlayerInventory['equipment'];
+    if (!inventoryRef.equipment[key]) return false;
+  } else {
+    return false;
+  }
+
+  quickTransfer(region, slotIndex);
+  return true;
 }
 
 export function closeLootScreen(): void {
@@ -248,6 +304,7 @@ function createBpSlot(item: ItemInstance | null, index: number): HTMLElement {
     if (e.button !== 0) return;
     e.preventDefault();
     hideTooltip();
+    if (e.ctrlKey || e.metaKey) { quickTransfer('backpack', index); return; }
     handleMouseDown('backpack', index);
   });
   return slot;
@@ -273,6 +330,7 @@ function createEquipSlot(item: ItemInstance | null, key: string, label: string):
     if (e.button !== 0) return;
     e.preventDefault();
     hideTooltip();
+    if (e.ctrlKey || e.metaKey) { quickTransfer('equipment', key); return; }
     handleMouseDown('equipment', key);
   });
   return slot;
@@ -292,6 +350,7 @@ function createLootSlot(item: ItemInstance | null, index: number): HTMLElement {
     if (e.button !== 0) return;
     e.preventDefault();
     hideTooltip();
+    if (e.ctrlKey || e.metaKey) { quickTransfer('loot', index); return; }
     handleMouseDown('loot', index);
   });
   return slot;
@@ -331,6 +390,97 @@ function addSlotTooltipListeners(slot: HTMLElement, item: ItemInstance): void {
   slot.addEventListener('mouseleave', () => {
     hideTooltip();
   });
+}
+
+// ---- Quick transfer (double-click / ctrl+click) ----
+
+function quickTransfer(region: LootSlotRegion, slotIndex: number | string): void {
+  if (!inventoryRef || !containerRef) return;
+
+  if (region === 'loot') {
+    // Loot → backpack: find first stackable match, then first empty slot
+    const idx = slotIndex as number;
+    const item = containerRef.items[idx];
+    if (!item) return;
+    const def = ITEM_DEFS[item.defId];
+    if (!def) return;
+
+    // Try stacking first
+    if (def.stackable) {
+      for (let i = 0; i < inventoryRef.backpack.length; i++) {
+        const bp = inventoryRef.backpack[i];
+        if (bp && bp.defId === item.defId) {
+          const canAdd = def.maxStack - bp.quantity;
+          if (canAdd >= item.quantity) {
+            bp.quantity += item.quantity;
+            containerRef.items[idx] = null;
+            if (onChangeCallback) onChangeCallback();
+            renderLoot();
+            return;
+          } else if (canAdd > 0) {
+            bp.quantity = def.maxStack;
+            item.quantity -= canAdd;
+            // Keep going — remaining quantity needs a new slot
+          }
+        }
+      }
+    }
+
+    // Find first empty backpack slot
+    const empty = inventoryRef.backpack.indexOf(null);
+    if (empty === -1) return; // backpack full
+    inventoryRef.backpack[empty] = item;
+    containerRef.items[idx] = null;
+  } else if (region === 'backpack') {
+    // Backpack → loot: find first empty revealed loot slot
+    const idx = slotIndex as number;
+    const item = inventoryRef.backpack[idx];
+    if (!item) return;
+    const def = ITEM_DEFS[item.defId];
+    if (!def) return;
+
+    // Try stacking in loot first
+    if (def.stackable) {
+      for (let i = 0; i < containerRef.searchProgress; i++) {
+        const loot = containerRef.items[i];
+        if (loot && loot.defId === item.defId) {
+          const canAdd = def.maxStack - loot.quantity;
+          if (canAdd >= item.quantity) {
+            loot.quantity += item.quantity;
+            inventoryRef.backpack[idx] = null;
+            if (onChangeCallback) onChangeCallback();
+            renderLoot();
+            return;
+          } else if (canAdd > 0) {
+            loot.quantity = def.maxStack;
+            item.quantity -= canAdd;
+          }
+        }
+      }
+    }
+
+    // Find first empty revealed loot slot
+    for (let i = 0; i < containerRef.searchProgress; i++) {
+      if (containerRef.items[i] === null) {
+        containerRef.items[i] = item;
+        inventoryRef.backpack[idx] = null;
+        break;
+      }
+    }
+  } else if (region === 'equipment') {
+    // Equipment → backpack: find first empty backpack slot
+    const key = slotIndex as keyof PlayerInventory['equipment'];
+    const item = inventoryRef.equipment[key];
+    if (!item) return;
+
+    const empty = inventoryRef.backpack.indexOf(null);
+    if (empty === -1) return;
+    inventoryRef.backpack[empty] = item;
+    inventoryRef.equipment[key] = null;
+  }
+
+  if (onChangeCallback) onChangeCallback();
+  renderLoot();
 }
 
 // ---- Interaction (drag & drop) ----

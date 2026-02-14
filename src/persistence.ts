@@ -41,6 +41,8 @@ export function loadSave(): ExtractionSave {
       ammoStock: parsed.ammoStock ?? {},
       weaponUpgrades: parsed.weaponUpgrades ?? {},
       armorHpMap: parsed.armorHpMap ?? {},
+      playerInventory: parsed.playerInventory,
+      stash: parsed.stash,
     };
   } catch {
     return defaults();

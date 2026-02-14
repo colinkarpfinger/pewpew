@@ -48,7 +48,7 @@ import { getEffectiveWeaponConfig } from './simulation/weapon-upgrades.ts';
 import { loadWeaponModels } from './rendering/weapon-models.ts';
 import { setupInventoryScreen, openInventoryScreen, closeInventoryScreen, isInventoryOpen } from './ui/inventory-screen.ts';
 import { setupStashScreen, openStashScreen, closeStashScreen, isStashOpen } from './ui/stash-screen.ts';
-import { setupLootScreen, openLootScreen, closeLootScreen, isLootOpen, updateLootSearch } from './ui/loot-screen.ts';
+import { setupLootScreen, openLootScreen, closeLootScreen, isLootOpen, updateLootSearch, quickTransferHovered } from './ui/loot-screen.ts';
 import { findNearestLootContainer } from './simulation/loot-containers.ts';
 import { initHudHotbar, updateHudHotbar, showHudHotbar, hideHudHotbar } from './ui.ts';
 import { syncInventoryToPlayer, createEmptyInventory, addItemToBackpack } from './simulation/inventory.ts';
@@ -398,6 +398,9 @@ if (mobile) {
   (input as TouchInputHandler).setPauseHandler(pauseGame);
 }
 
+// Suppress browser context menu globally
+window.addEventListener('contextmenu', (e) => e.preventDefault());
+
 // ---- Escape key ----
 window.addEventListener('keydown', (e) => {
   // F key: toggle loot screen
@@ -414,7 +417,10 @@ window.addEventListener('keydown', (e) => {
     return;
   }
   if (e.key.toLowerCase() === 'f' && isLootOpen()) {
-    closeLootScreen();
+    // F on a hovered item = quick transfer; F on empty space = close
+    if (!quickTransferHovered()) {
+      closeLootScreen();
+    }
     return;
   }
 

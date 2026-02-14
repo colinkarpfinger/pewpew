@@ -143,8 +143,7 @@ export class InputHandler implements IInputHandler {
       );
     });
 
-    // Prevent context menu on right-click
-    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    // Context menu suppressed globally in main.ts
   }
 
   /** Update with current player position (for aim calculation) */
