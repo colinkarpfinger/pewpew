@@ -100,11 +100,12 @@ export function updateHUD(state: GameState): void {
     }
   }
 
-  // Cash counter (extraction mode only)
+  // Cash counter (extraction mode only — shows backpack cash)
   const cashEl = cashCounterEl();
   if (state.gameMode === 'extraction') {
+    const cashCount = countItemInBackpack(state.player.inventory, 'cash_stack');
     cashEl.classList.remove('hidden');
-    cashEl.textContent = `$${state.runCash}`;
+    cashEl.textContent = `$${cashCount}`;
   } else {
     cashEl.classList.add('hidden');
   }

@@ -1,5 +1,6 @@
 import type { GameState, CashConfig, EnemyType } from './types.ts';
 import type { SeededRNG } from './rng.ts';
+import { addItemToBackpack } from './inventory.ts';
 
 /** Scan enemy_killed events and spawn cash pickups (extraction mode only) */
 export function spawnCash(state: GameState, config: CashConfig | undefined, rng: SeededRNG): void {
@@ -51,6 +52,11 @@ export function checkCashPickups(state: GameState, config: CashConfig | undefine
     if (dist > p.radius + config.pickupRadius) continue;
 
     state.runCash += cash.amount;
+
+    // Add cash to backpack inventory (extraction mode)
+    if (state.gameMode === 'extraction') {
+      addItemToBackpack(state.player.inventory, { defId: 'cash_stack', quantity: cash.amount });
+    }
 
     state.events.push({
       tick: state.tick,
