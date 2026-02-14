@@ -51,7 +51,7 @@ import { setupStashScreen, openStashScreen, closeStashScreen, isStashOpen } from
 import { setupLootScreen, openLootScreen, closeLootScreen, isLootOpen, updateLootSearch, quickTransferHovered } from './ui/loot-screen.ts';
 import { findNearestLootContainer } from './simulation/loot-containers.ts';
 import { initHudHotbar, updateHudHotbar, showHudHotbar, hideHudHotbar } from './ui.ts';
-import { syncInventoryToPlayer, createEmptyInventory, addItemToBackpack } from './simulation/inventory.ts';
+import { syncInventoryToPlayer, createEmptyInventory, addItemToBackpack, countItemInBackpack, removeItemFromBackpack } from './simulation/inventory.ts';
 import { ARMOR_TYPE_TO_ITEM, ITEM_DEFS, WEAPON_AMMO_MAP } from './simulation/items.ts';
 import { savePlayerInventory } from './persistence.ts';
 import inventoryConfig from './configs/inventory.json';
@@ -707,14 +707,19 @@ function gameLoop(now: number): void {
 
     if (state.extracted && !gameOverShown) {
       gameOverShown = true;
-      addCashToStash(state.runCash);
+      // Convert backpack cash_stack items to stash cash
+      const backpackCash = countItemInBackpack(state.player.inventory, 'cash_stack');
+      if (backpackCash > 0) {
+        addCashToStash(backpackCash);
+        removeItemFromBackpack(state.player.inventory, 'cash_stack', backpackCash);
+      }
       // Save armor HP on successful extraction
       if (equippedArmor) {
         setArmorHp(equippedArmor, state.player.armorHp);
       }
       // Save inventory on successful extraction
       savePlayerInventory(state.player.inventory);
-      showExtractionSuccess(state.score, state.runCash, state.runStats);
+      showExtractionSuccess(state.score, backpackCash, state.runStats);
       if (mobile) (input as TouchInputHandler).setVisible(false);
       hideHudHotbar();
       closeLootScreen();
