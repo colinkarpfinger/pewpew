@@ -1,6 +1,7 @@
 import type { WeaponType, WeaponsConfig, ArmorType, ArmorConfig, WeaponUpgradesConfig } from '../simulation/types.ts';
-import { getStashCash, getOwnedWeapons, addCashToStash, addWeapon, getOwnedArmor, addArmor, getBandages, addBandages, getAmmoStock, addAmmo, getWeaponUpgradeLevel, setWeaponUpgradeLevel, getArmorHp, setArmorHp, clearSave } from '../persistence.ts';
+import { getStashCash, getOwnedWeapons, addCashToStash, addWeapon, getOwnedArmor, addArmor, getBandages, addBandages, getAmmoStock, addAmmo, getWeaponUpgradeLevel, setWeaponUpgradeLevel, getArmorHp, setArmorHp, clearSave, loadPlayerInventory, savePlayerInventory } from '../persistence.ts';
 import { WEAPON_AMMO_MAP, ITEM_DEFS } from '../simulation/items.ts';
+import { countItemInBackpack, removeItemFromBackpack } from '../simulation/inventory.ts';
 
 export interface HubCallbacks {
   onStartRun: (weapon: WeaponType, armor: ArmorType | null) => void;
@@ -489,6 +490,15 @@ function refreshHub(): void {
 }
 
 export function showHubScreen(): void {
+  // Drain any leftover cash_stack items from inventory into stash
+  const inv = loadPlayerInventory();
+  const leftoverCash = countItemInBackpack(inv, 'cash_stack');
+  if (leftoverCash > 0) {
+    addCashToStash(leftoverCash);
+    removeItemFromBackpack(inv, 'cash_stack', leftoverCash);
+    savePlayerInventory(inv);
+  }
+
   el().classList.remove('hidden');
   refreshHub();
 }
