@@ -236,6 +236,90 @@ export class Renderer {
     this.scene.add(this.playerGroup);
   }
 
+  /** Set up arena from a pre-loaded Three.js editor scene.
+   *  Adds editor scene objects to the renderer scene, then creates dynamic objects on top. */
+  initArenaFromScene(editorScene: THREE.Scene, state: GameState): void {
+    // Clear stale refs (same as initArena)
+    this.enemyGroups.clear();
+    this.projectileMeshes.clear();
+    this.enemyProjectileMeshes.clear();
+    this.grenadeMeshes.clear();
+    this.crateMeshes.clear();
+    this.cashMeshes.clear();
+    this.destructibleCrateMeshes.clear();
+    this.enemyTypes.clear();
+    this.sniperLaserMeshes.clear();
+    this.hitFlashTimers.clear();
+    this.tracers = [];
+    this.playerGroup = null;
+
+    // Add all objects from the editor scene to our scene
+    // We need to move children out since they can only have one parent
+    const objectsToAdd: THREE.Object3D[] = [];
+    while (editorScene.children.length > 0) {
+      objectsToAdd.push(editorScene.children[0]);
+      editorScene.remove(editorScene.children[0]);
+    }
+    for (const obj of objectsToAdd) {
+      // Skip lights from editor scene — we use our own from rebuildScene
+      if (obj instanceof THREE.Light) continue;
+      this.scene.add(obj);
+    }
+
+    // Walls (arena boundary walls — still needed since editor doesn't include them)
+    const walls = createWallMeshes(state.arena.width, state.arena.height);
+    this.scene.add(walls);
+
+    // Destructible crates (initial) — create interactive meshes tracked by the renderer
+    for (const dc of state.destructibleCrates) {
+      const mesh = createDestructibleCrateMesh(1.0, 1.0);
+      mesh.position.set(dc.pos.x, mesh.position.y, dc.pos.y);
+      this.scene.add(mesh);
+      this.destructibleCrateMeshes.set(dc.id, mesh);
+    }
+
+    // Extraction zone markers
+    if (state.extractionMap) {
+      for (const ez of state.extractionMap.extractionZones) {
+        const ezMesh = createExtractionZoneMesh(ez.width, ez.height);
+        ezMesh.position.set(ez.x, 0.02, ez.y);
+        this.scene.add(ezMesh);
+      }
+    }
+
+    // Find the directional light (from rebuildScene)
+    this.dirLight = null;
+    for (const child of this.scene.children) {
+      if (child instanceof THREE.DirectionalLight) {
+        this.dirLight = child;
+        break;
+      }
+    }
+
+    // Clean up muzzle flashes
+    for (const mf of this.muzzleFlashes) {
+      this.scene.remove(mf.light);
+      mf.light.dispose();
+    }
+    this.muzzleFlashes = [];
+
+    // Particles
+    if (this.particles) this.particles.dispose();
+    this.particles = new ParticleSystem();
+    this.scene.add(this.particles.points);
+
+    // Fog of war casters
+    this.fogOfWar.setCasters(state.obstacles, state.destructibleCrates, state.arena);
+
+    // Player
+    this.playerRadius = state.player.radius;
+    this.playerGroup = createPlayerMesh(state.player.radius);
+    this.playerCapsule = this.playerGroup.children[0] as THREE.Mesh;
+    this.playerAim = this.playerGroup.children[1] as THREE.Mesh;
+    this.playerReloadBar = this.playerGroup.children[2] as THREE.Group;
+    this.scene.add(this.playerGroup);
+  }
+
   /** Configure dodge animation duration (in ticks) */
   setDodgeDuration(ticks: number): void {
     this.dodgeDuration = ticks;

@@ -61,6 +61,8 @@ import { ITEM_DEFS, WEAPON_AMMO_MAP, ITEM_TO_ARMOR_TYPE } from './simulation/ite
 import { savePlayerInventory, loadPlayerInventory } from './persistence.ts';
 import inventoryConfig from './configs/inventory.json';
 import type { InventoryConfig, PlayerInventory } from './simulation/types.ts';
+import { loadLevel, levelDataToExtractionMap } from './level-loader.ts';
+import type { LevelData } from './level-loader.ts';
 
 const configs: GameConfigs = {
   player: playerConfig,
@@ -83,6 +85,15 @@ const configs: GameConfigs = {
   inventory: inventoryConfig as InventoryConfig,
 };
 const configsJson = JSON.stringify(configs);
+
+// ---- Level loading from editor JSON ----
+let loadedLevel: LevelData | null = null;
+
+async function loadLevelFromEditor(url: string): Promise<LevelData> {
+  const resp = await fetch(url);
+  const json = await resp.json();
+  return loadLevel(json);
+}
 
 // ---- App State ----
 type Screen = 'start' | 'hub' | 'homebase' | 'playing' | 'paused' | 'gameOver' | 'replay';
@@ -276,7 +287,7 @@ function enterHomebase(): void {
 }
 
 // ---- Game lifecycle ----
-function startGame(mode: GameMode = 'arena', weapon?: WeaponType, armor?: ArmorType | null): void {
+async function startGame(mode: GameMode = 'arena', weapon?: WeaponType, armor?: ArmorType | null): Promise<void> {
   currentSeed = Date.now();
   const activeWeapon: WeaponType = weapon ?? (mode === 'extraction' ? 'pistol' : 'rifle');
   equippedWeapon = activeWeapon;
@@ -292,6 +303,25 @@ function startGame(mode: GameMode = 'arena', weapon?: WeaponType, armor?: ArmorT
       }
     }
     effectiveConfigs = { ...configs, weapons: upgradedWeapons as typeof configs.weapons };
+  }
+
+  // Load level from editor JSON for extraction mode
+  if (mode === 'extraction') {
+    try {
+      loadedLevel = await loadLevelFromEditor('/levels/extraction-01.json');
+      const editorMap = levelDataToExtractionMap(loadedLevel, {
+        maxEnemies: (extractionMapConfig as ExtractionMapConfig).maxEnemies,
+        minSpawnDistFromPlayer: (extractionMapConfig as ExtractionMapConfig).minSpawnDistFromPlayer,
+        enemyDetectionRange: (extractionMapConfig as ExtractionMapConfig).enemyDetectionRange,
+        wanderSpeedMultiplier: (extractionMapConfig as ExtractionMapConfig).wanderSpeedMultiplier,
+      });
+      effectiveConfigs = { ...effectiveConfigs, extractionMap: editorMap };
+    } catch (e) {
+      console.warn('Failed to load editor level, falling back to config:', e);
+      loadedLevel = null;
+    }
+  } else {
+    loadedLevel = null;
   }
 
   runConfigs = effectiveConfigs;
@@ -355,7 +385,11 @@ function startGame(mode: GameMode = 'arena', weapon?: WeaponType, armor?: ArmorT
   const finalWeapon: WeaponType = mode === 'extraction' ? equippedWeapon : activeWeapon;
   const weaponConfig = effectiveConfigs.weapons[finalWeapon];
   rebuildScene();
-  renderer.initArena(game.state);
+  if (loadedLevel && loadedLevel.scene) {
+    renderer.initArenaFromScene(loadedLevel.scene, game.state);
+  } else {
+    renderer.initArena(game.state);
+  }
   renderer.setPlayerArmor(equippedArmor);
   renderer.setDodgeDuration(configs.player.dodgeDuration);
   renderer.setWeaponConfig(weaponConfig);

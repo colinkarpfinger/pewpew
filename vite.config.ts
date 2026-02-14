@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const REPLAYS_DIR = path.resolve(__dirname, 'replays');
+const LEVELS_DIR = path.resolve(__dirname, 'public/levels');
 
 function replayPlugin(): Plugin {
   return {
@@ -81,6 +82,67 @@ function replayPlugin(): Plugin {
   };
 }
 
+function levelPlugin(): Plugin {
+  return {
+    name: 'level-server',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (req.url === '/api/levels' && req.method === 'GET') {
+          try {
+            fs.mkdirSync(LEVELS_DIR, { recursive: true });
+            const files = fs.readdirSync(LEVELS_DIR)
+              .filter(f => f.endsWith('.json'))
+              .sort();
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(files));
+          } catch {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end('[]');
+          }
+          return;
+        }
+
+        const levelMatch = req.url?.match(/^\/api\/levels\/(.+)$/);
+        if (levelMatch && req.method === 'GET') {
+          const filename = decodeURIComponent(levelMatch[1]);
+          const filePath = path.join(LEVELS_DIR, path.basename(filename));
+          try {
+            const data = fs.readFileSync(filePath, 'utf-8');
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(data);
+          } catch {
+            res.writeHead(404, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Not found' }));
+          }
+          return;
+        }
+
+        if (levelMatch && req.method === 'PUT') {
+          const filename = decodeURIComponent(levelMatch[1]);
+          const filePath = path.join(LEVELS_DIR, path.basename(filename));
+          let body = '';
+          req.on('data', (chunk: string) => { body += chunk; });
+          req.on('end', () => {
+            try {
+              const json = JSON.parse(body);
+              fs.mkdirSync(LEVELS_DIR, { recursive: true });
+              fs.writeFileSync(filePath, JSON.stringify(json, null, 2));
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ ok: true }));
+            } catch (err) {
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: String(err) }));
+            }
+          });
+          return;
+        }
+
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [replayPlugin()],
+  plugins: [replayPlugin(), levelPlugin()],
 });
