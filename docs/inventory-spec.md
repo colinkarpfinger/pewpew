@@ -552,14 +552,23 @@ New config file: `inventory.json`
 - `splitStack()` helper added to `src/simulation/inventory.ts`
 - Shared rendering helpers exported from `inventory-screen.ts` for reuse by stash screen
 
-### Phase 3: Loot System
-- Loot container entity in simulation (bodies, crates, stashes)
+### Phase 3: Loot System — DONE
+- Loot container entity in simulation (bodies, crates)
 - Loot table definitions and random generation
 - "Press F" interaction prompt when near containers
-- Search/reveal mechanic (progressive slot reveal)
+- Search/reveal mechanic (progressive slot reveal, items only)
 - Loot UI (player inventory + container side-by-side)
 - Enemy death → lootable body instead of auto-drops
-- Remove old crate/cash auto-pickup system
+- Destructible crates replaced with loot containers in extraction mode
+- Remove old crate/cash auto-pickup system in extraction mode (arena unchanged)
+
+**Implementation notes:**
+- Items are packed left-to-right, top-to-bottom in containers (no gaps)
+- Progressive reveal only animates through item-bearing slots; trailing empty slots shown as plain empty
+- Destructible crates no longer exist in extraction mode — crate positions spawn as loot containers directly at level start
+- Taking damage while looting closes the loot UI
+- Body containers despawn after configurable timeout (default 120s); crate containers never despawn
+- `lootColumns` config controls the loot panel grid width (default 2)
 
 ### Phase 4: Weapon & Combat Updates
 - Dual weapon slots (keys 1, 2)
