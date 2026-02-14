@@ -1,9 +1,12 @@
 import type { Vec2, Enemy, Obstacle } from './types.ts';
+import { queryRayBlocked } from './physics.ts';
+import type { PhysicsWorld } from './physics.ts';
 
 /**
  * Ray-AABB intersection test using the slab method.
  * Returns true if a ray from origin in direction dir (normalized)
  * intersects the AABB within maxDist.
+ * Kept for use by tests and rendering (fog-of-war) which don't use Rapier.
  */
 export function rayIntersectsAABB(
   origin: Vec2,
@@ -55,7 +58,7 @@ export function rayIntersectsAABB(
  * Update visibility for all enemies based on line of sight from player.
  * An enemy is visible if no wall blocks the ray from player to enemy.
  */
-export function updateVisibility(playerPos: Vec2, enemies: Enemy[], walls: Obstacle[]): void {
+export function updateVisibility(playerPos: Vec2, enemies: Enemy[], physics: PhysicsWorld): void {
   for (const enemy of enemies) {
     const dx = enemy.pos.x - playerPos.x;
     const dy = enemy.pos.y - playerPos.y;
@@ -70,14 +73,6 @@ export function updateVisibility(playerPos: Vec2, enemies: Enemy[], walls: Obsta
     const dirY = dy / dist;
     const dir: Vec2 = { x: dirX, y: dirY };
 
-    let blocked = false;
-    for (const wall of walls) {
-      if (rayIntersectsAABB(playerPos, dir, dist, wall)) {
-        blocked = true;
-        break;
-      }
-    }
-
-    enemy.visible = !blocked;
+    enemy.visible = !queryRayBlocked(physics, playerPos, dir, dist);
   }
 }

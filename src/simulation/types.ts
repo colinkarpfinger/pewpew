@@ -298,6 +298,9 @@ export interface Obstacle {
   pos: Vec2; // center
   width: number;
   height: number;
+  rotation?: number;    // radians, default 0
+  shape?: 'box' | 'circle';  // default 'box'
+  radius?: number;      // for circle shape
 }
 
 export interface Grenade {

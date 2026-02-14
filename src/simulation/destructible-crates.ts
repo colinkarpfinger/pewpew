@@ -2,6 +2,7 @@ import type { GameState, DestructibleCrateConfig, ExtractionMapConfig, Destructi
 import type { SeededRNG } from './rng.ts';
 import { circleAABB } from './collision.ts';
 import { getZoneIndex } from './extraction-map.ts';
+import { createPhysicsWorld, queryPushOut, destroyPhysicsWorld } from './physics.ts';
 
 /** Spawn hand-placed + procedural destructible crates at level start */
 export function spawnInitialDestructibleCrates(
@@ -29,6 +30,9 @@ export function spawnInitialDestructibleCrates(
     }
   }
 
+  // Build a temporary physics world for spawn validation
+  const pw = createPhysicsWorld(map.walls, { width: map.width, height: map.height, obstacleCount: 0, obstacleSize: 0 });
+
   // Procedural crates per zone
   for (let zi = 0; zi < map.zones.length; zi++) {
     const zone = map.zones[zi];
@@ -43,14 +47,7 @@ export function spawnInitialDestructibleCrates(
         y = rng.range(zone.yMin + margin, zone.yMax - margin);
 
         // Don't place inside walls
-        let insideWall = false;
-        for (const wall of map.walls) {
-          if (circleAABB({ x, y }, config.width / 2, wall)) {
-            insideWall = true;
-            break;
-          }
-        }
-        if (insideWall) continue;
+        if (queryPushOut(pw, { x, y }, config.width / 2)) continue;
 
         // Don't place too close to player spawn
         const dx = x - map.playerSpawn.x;
@@ -72,6 +69,8 @@ export function spawnInitialDestructibleCrates(
       state.destructibleCrates.push(crate);
     }
   }
+
+  destroyPhysicsWorld(pw);
 }
 
 /** Check projectiles against destructible crates; consume bullets, deal damage, spawn loot */

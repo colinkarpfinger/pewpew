@@ -10,30 +10,41 @@ const CONE_DARKNESS = 0.35;
 const EDGE_SOFTNESS = 0.15; // radians — cone edge smoothstep width
 const SHADOW_EDGE_SOFTNESS = 0.5; // world units — shadow edge smoothstep width
 
-// ---- AABB type for internal use ----
-interface AABB {
+// ---- Shadow caster type for internal use ----
+interface ShadowCaster {
+  type: 'aabb' | 'rotatedBox' | 'circle';
+  // For aabb:
   minX: number;
   maxX: number;
   minY: number;
   maxY: number;
+  // For rotatedBox:
+  cx: number;
+  cy: number;
+  halfW: number;
+  halfH: number;
+  cos: number; // cos(-rotation)
+  sin: number; // sin(-rotation)
+  // For circle:
+  radius: number;
 }
 
 /** Ray-AABB distance: returns distance to nearest intersection, or Infinity if no hit */
 function rayDistToAABB(
   ox: number, oy: number,
   dx: number, dy: number,
-  aabb: AABB,
+  minX: number, maxX: number, minY: number, maxY: number,
 ): number {
   let tMin = 0;
   let tMax = MAX_RAY_DIST;
 
   // X slab
   if (Math.abs(dx) < 1e-10) {
-    if (ox < aabb.minX || ox > aabb.maxX) return Infinity;
+    if (ox < minX || ox > maxX) return Infinity;
   } else {
     const invD = 1 / dx;
-    let t1 = (aabb.minX - ox) * invD;
-    let t2 = (aabb.maxX - ox) * invD;
+    let t1 = (minX - ox) * invD;
+    let t2 = (maxX - ox) * invD;
     if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; }
     tMin = Math.max(tMin, t1);
     tMax = Math.min(tMax, t2);
@@ -42,11 +53,11 @@ function rayDistToAABB(
 
   // Y slab
   if (Math.abs(dy) < 1e-10) {
-    if (oy < aabb.minY || oy > aabb.maxY) return Infinity;
+    if (oy < minY || oy > maxY) return Infinity;
   } else {
     const invD = 1 / dy;
-    let t1 = (aabb.minY - oy) * invD;
-    let t2 = (aabb.maxY - oy) * invD;
+    let t1 = (minY - oy) * invD;
+    let t2 = (maxY - oy) * invD;
     if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; }
     tMin = Math.max(tMin, t1);
     tMax = Math.min(tMax, t2);
@@ -56,47 +67,110 @@ function rayDistToAABB(
   return tMin;
 }
 
-/** Convert obstacles + destructible crates + arena boundary walls into AABBs */
+/** Ray-circle intersection: returns distance to nearest intersection, or Infinity */
+function rayDistToCircle(
+  ox: number, oy: number,
+  dx: number, dy: number,
+  cx: number, cy: number,
+  radius: number,
+): number {
+  const ex = ox - cx;
+  const ey = oy - cy;
+  const a = dx * dx + dy * dy;
+  const b = 2 * (ex * dx + ey * dy);
+  const c = ex * ex + ey * ey - radius * radius;
+  const disc = b * b - 4 * a * c;
+  if (disc < 0) return Infinity;
+  const sqrtDisc = Math.sqrt(disc);
+  const t1 = (-b - sqrtDisc) / (2 * a);
+  const t2 = (-b + sqrtDisc) / (2 * a);
+  if (t2 < 0) return Infinity;
+  if (t1 >= 0) return t1;
+  return t2 >= 0 ? 0 : Infinity; // inside circle
+}
+
+/** Ray distance to a shadow caster */
+function rayDistToCaster(
+  ox: number, oy: number,
+  dx: number, dy: number,
+  caster: ShadowCaster,
+): number {
+  if (caster.type === 'circle') {
+    return rayDistToCircle(ox, oy, dx, dy, caster.cx, caster.cy, caster.radius);
+  } else if (caster.type === 'rotatedBox') {
+    // Transform ray into obstacle's local space
+    const relX = ox - caster.cx;
+    const relY = oy - caster.cy;
+    const localOx = relX * caster.cos - relY * caster.sin;
+    const localOy = relX * caster.sin + relY * caster.cos;
+    const localDx = dx * caster.cos - dy * caster.sin;
+    const localDy = dx * caster.sin + dy * caster.cos;
+    return rayDistToAABB(
+      localOx, localOy, localDx, localDy,
+      -caster.halfW, caster.halfW, -caster.halfH, caster.halfH,
+    );
+  } else {
+    return rayDistToAABB(
+      ox, oy, dx, dy,
+      caster.minX, caster.maxX, caster.minY, caster.maxY,
+    );
+  }
+}
+
+/** Convert obstacles + destructible crates + arena boundary walls into shadow casters */
 function buildCasterList(
   obstacles: Obstacle[],
   destructibleCrates: DestructibleCrate[],
   arena: ArenaConfig,
-): AABB[] {
-  const casters: AABB[] = [];
+): ShadowCaster[] {
+  const casters: ShadowCaster[] = [];
+  const defaultCaster: Omit<ShadowCaster, 'type'> = {
+    minX: 0, maxX: 0, minY: 0, maxY: 0,
+    cx: 0, cy: 0, halfW: 0, halfH: 0, cos: 1, sin: 0, radius: 0,
+  };
 
   for (const obs of obstacles) {
-    const hw = obs.width / 2;
-    const hh = obs.height / 2;
-    casters.push({
-      minX: obs.pos.x - hw,
-      maxX: obs.pos.x + hw,
-      minY: obs.pos.y - hh,
-      maxY: obs.pos.y + hh,
-    });
+    if (obs.shape === 'circle' && obs.radius !== undefined) {
+      casters.push({ ...defaultCaster, type: 'circle', cx: obs.pos.x, cy: obs.pos.y, radius: obs.radius });
+    } else if (obs.rotation) {
+      const hw = obs.width / 2;
+      const hh = obs.height / 2;
+      casters.push({
+        ...defaultCaster,
+        type: 'rotatedBox',
+        cx: obs.pos.x, cy: obs.pos.y,
+        halfW: hw, halfH: hh,
+        cos: Math.cos(-obs.rotation), sin: Math.sin(-obs.rotation),
+      });
+    } else {
+      const hw = obs.width / 2;
+      const hh = obs.height / 2;
+      casters.push({
+        ...defaultCaster,
+        type: 'aabb',
+        minX: obs.pos.x - hw, maxX: obs.pos.x + hw,
+        minY: obs.pos.y - hh, maxY: obs.pos.y + hh,
+      });
+    }
   }
 
   for (const dc of destructibleCrates) {
-    // destructible crates are 1x1
     casters.push({
-      minX: dc.pos.x - 0.5,
-      maxX: dc.pos.x + 0.5,
-      minY: dc.pos.y - 0.5,
-      maxY: dc.pos.y + 0.5,
+      ...defaultCaster,
+      type: 'aabb',
+      minX: dc.pos.x - 0.5, maxX: dc.pos.x + 0.5,
+      minY: dc.pos.y - 0.5, maxY: dc.pos.y + 0.5,
     });
   }
 
-  // Arena boundary walls (thick slabs outside the playable area)
+  // Arena boundary walls
   const w = arena.width / 2;
   const h = arena.height / 2;
   const wallThickness = 2;
-  // North wall
-  casters.push({ minX: -w - wallThickness, maxX: w + wallThickness, minY: -h - wallThickness, maxY: -h });
-  // South wall
-  casters.push({ minX: -w - wallThickness, maxX: w + wallThickness, minY: h, maxY: h + wallThickness });
-  // West wall
-  casters.push({ minX: -w - wallThickness, maxX: -w, minY: -h - wallThickness, maxY: h + wallThickness });
-  // East wall
-  casters.push({ minX: w, maxX: w + wallThickness, minY: -h - wallThickness, maxY: h + wallThickness });
+  casters.push({ ...defaultCaster, type: 'aabb', minX: -w - wallThickness, maxX: w + wallThickness, minY: -h - wallThickness, maxY: -h });
+  casters.push({ ...defaultCaster, type: 'aabb', minX: -w - wallThickness, maxX: w + wallThickness, minY: h, maxY: h + wallThickness });
+  casters.push({ ...defaultCaster, type: 'aabb', minX: -w - wallThickness, maxX: -w, minY: -h - wallThickness, maxY: h + wallThickness });
+  casters.push({ ...defaultCaster, type: 'aabb', minX: w, maxX: w + wallThickness, minY: -h - wallThickness, maxY: h + wallThickness });
 
   return casters;
 }
@@ -104,7 +178,7 @@ function buildCasterList(
 /** Cast SHADOW_MAP_SAMPLES rays and write min distance per angle into Float32Array */
 function buildShadowMap(
   playerPos: Vec2,
-  casters: AABB[],
+  casters: ShadowCaster[],
   out: Float32Array,
 ): void {
   const step = (Math.PI * 2) / SHADOW_MAP_SAMPLES;
@@ -114,7 +188,7 @@ function buildShadowMap(
     const dy = Math.sin(angle);
     let minDist = MAX_RAY_DIST;
     for (let c = 0; c < casters.length; c++) {
-      const d = rayDistToAABB(playerPos.x, playerPos.y, dx, dy, casters[c]);
+      const d = rayDistToCaster(playerPos.x, playerPos.y, dx, dy, casters[c]);
       if (d < minDist) minDist = d;
     }
     out[i] = minDist;
@@ -210,7 +284,7 @@ export class FogOfWar {
   private material: THREE.ShaderMaterial;
   private shadowMapData: Float32Array;
   private shadowMapTexture: THREE.DataTexture;
-  private casters: AABB[] = [];
+  private casters: ShadowCaster[] = [];
 
   constructor() {
     this.scene = new THREE.Scene();

@@ -43,7 +43,7 @@ import bandagesConfig from './configs/bandages.json';
 import shotgunnerConfig from './configs/shotgunner.json';
 import sniperConfig from './configs/sniper.json';
 import weaponUpgradesConfig from './configs/weapon-upgrades.json';
-import type { BandageConfig, RangedEnemyConfig, WeaponUpgradesConfig, WeaponConfig } from './simulation/types.ts';
+import type { BandageConfig, RangedEnemyConfig, WeaponUpgradesConfig, WeaponConfig, ExtractionMapConfig } from './simulation/types.ts';
 import { getEffectiveWeaponConfig } from './simulation/weapon-upgrades.ts';
 import { loadWeaponModels } from './rendering/weapon-models.ts';
 
@@ -59,7 +59,7 @@ const configs: GameConfigs = {
   cash: cashConfig,
   gunner: gunnerConfig,
   armor: armorConfig,
-  extractionMap: extractionMapConfig,
+  extractionMap: extractionMapConfig as ExtractionMapConfig,
   destructibleCrates: destructibleCratesConfig,
   bandages: bandagesConfig as BandageConfig,
   shotgunner: shotgunnerConfig as RangedEnemyConfig,
@@ -594,6 +594,13 @@ if (fullscreenBtn) {
   });
 }
 
-showStartScreen();
-loadWeaponModels().catch(console.error);
-requestAnimationFrame(gameLoop);
+import RAPIER from '@dimforge/rapier2d-deterministic-compat';
+
+async function boot(): Promise<void> {
+  await RAPIER.init();
+  showStartScreen();
+  loadWeaponModels().catch(console.error);
+  requestAnimationFrame(gameLoop);
+}
+
+boot();

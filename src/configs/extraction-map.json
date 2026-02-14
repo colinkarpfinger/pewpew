@@ -56,7 +56,12 @@
     { "pos": { "x": -8, "y": 45 }, "width": 6, "height": 1 },
     { "pos": { "x": 14, "y": 45 }, "width": 1, "height": 8 },
     { "pos": { "x": 0, "y": 48 }, "width": 8, "height": 1 },
-    { "pos": { "x": -12, "y": 50 }, "width": 1, "height": 6 }
+    { "pos": { "x": -12, "y": 50 }, "width": 1, "height": 6 },
+
+    { "pos": { "x": 6, "y": -32 }, "width": 6, "height": 1, "rotation": 0.5236 },
+    { "pos": { "x": -10, "y": 15 }, "width": 5, "height": 1, "rotation": -0.3927 },
+    { "pos": { "x": 12, "y": 42 }, "width": 4, "height": 1, "rotation": 0.7854 },
+    { "pos": { "x": 0, "y": -20 }, "width": 0, "height": 0, "shape": "circle", "radius": 1.5 }
   ],
   "destructibleCrates": [
     { "x": -6, "y": -45 },

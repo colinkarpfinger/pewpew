@@ -12,6 +12,7 @@ import {
   createDestructibleCrateMesh,
   createObstacleMesh,
   createObstacleMeshWithColor,
+  createCircleObstacleMesh,
   createGroundMesh,
   createZoneGroundMesh,
   createWallMeshes,
@@ -159,7 +160,13 @@ export class Renderer {
     const obstacleColors = [0x666666, 0x6a5555, 0x7a4444, 0x8a3333];
     for (const obs of state.obstacles) {
       let mesh: THREE.Mesh;
-      if (isExtraction && state.extractionMap) {
+      if (obs.shape === 'circle' && obs.radius !== undefined) {
+        // Circle obstacle: use cylinder mesh
+        const color = isExtraction && state.extractionMap
+          ? (() => { const zi = getZoneIndex(state.extractionMap!, obs.pos.y); return zi >= 0 ? (obstacleColors[zi] ?? obstacleColors[obstacleColors.length - 1]) : 0x666666; })()
+          : 0x666666;
+        mesh = createCircleObstacleMesh(obs.radius, color);
+      } else if (isExtraction && state.extractionMap) {
         const zi = getZoneIndex(state.extractionMap, obs.pos.y);
         const color = zi >= 0 ? (obstacleColors[zi] ?? obstacleColors[obstacleColors.length - 1]) : 0x666666;
         mesh = createObstacleMeshWithColor(obs.width, obs.height, color);
@@ -167,6 +174,9 @@ export class Renderer {
         mesh = createObstacleMesh(obs.width, obs.height);
       }
       mesh.position.set(obs.pos.x, mesh.position.y, obs.pos.y);
+      if (obs.rotation) {
+        mesh.rotation.y = -obs.rotation;
+      }
       this.scene.add(mesh);
     }
 
@@ -805,11 +815,34 @@ export class Renderer {
       let hit = tx < -halfW || tx > halfW || tz < -halfH || tz > halfH;
       if (!hit) {
         for (const obs of obstacles) {
-          const dx = tx - obs.pos.x;
-          const dz = tz - obs.pos.y;
-          if (Math.abs(dx) < obs.width / 2 && Math.abs(dz) < obs.height / 2) {
-            hit = true;
-            break;
+          if (obs.shape === 'circle' && obs.radius !== undefined) {
+            // Circle obstacle: distance check
+            const cdx = tx - obs.pos.x;
+            const cdz = tz - obs.pos.y;
+            if (cdx * cdx + cdz * cdz < obs.radius * obs.radius) {
+              hit = true;
+              break;
+            }
+          } else if (obs.rotation) {
+            // Rotated box: transform point into obstacle's local space
+            const cdx = tx - obs.pos.x;
+            const cdz = tz - obs.pos.y;
+            const cos = Math.cos(-obs.rotation);
+            const sin = Math.sin(-obs.rotation);
+            const localX = cdx * cos - cdz * sin;
+            const localZ = cdx * sin + cdz * cos;
+            if (Math.abs(localX) < obs.width / 2 && Math.abs(localZ) < obs.height / 2) {
+              hit = true;
+              break;
+            }
+          } else {
+            // Axis-aligned box
+            const dx = tx - obs.pos.x;
+            const dz = tz - obs.pos.y;
+            if (Math.abs(dx) < obs.width / 2 && Math.abs(dz) < obs.height / 2) {
+              hit = true;
+              break;
+            }
           }
         }
       }

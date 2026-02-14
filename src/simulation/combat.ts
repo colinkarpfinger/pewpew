@@ -1,8 +1,10 @@
 import type { GameState, InputState, WeaponsConfig, WeaponConfig, Projectile, PlayerConfig, EnemiesConfig } from './types.ts';
 import { TICK_RATE } from './types.ts';
-import { circleCircle, circleAABB, isOutOfBounds, pointToLineDist, normalize } from './collision.ts';
+import { circleCircle, isOutOfBounds, pointToLineDist, normalize } from './collision.ts';
 import type { SeededRNG } from './rng.ts';
 import { interruptHeal } from './bandage.ts';
+import { queryPushOut } from './physics.ts';
+import type { PhysicsWorld } from './physics.ts';
 
 const ENEMY_PROJ_RADIUS = 0.15;
 
@@ -161,7 +163,7 @@ export function updateProjectiles(state: GameState): void {
   state.projectiles = state.projectiles.filter(p => p.lifetime > 0);
 }
 
-export function checkProjectileCollisions(state: GameState, weapons: WeaponsConfig, enemiesConfig?: EnemiesConfig): void {
+export function checkProjectileCollisions(state: GameState, weapons: WeaponsConfig, enemiesConfig: EnemiesConfig | undefined, physics: PhysicsWorld): void {
   const toRemove = new Set<number>();
   const deadEnemies = new Set<number>();
 
@@ -179,21 +181,17 @@ export function checkProjectileCollisions(state: GameState, weapons: WeaponsConf
       continue;
     }
 
-    // Check vs obstacles
-    let hitObstacle = false;
-    for (const obs of state.obstacles) {
-      if (circleAABB(proj.pos, 0.1, obs)) {
-        toRemove.add(proj.id);
-        state.events.push({
-          tick: state.tick,
-          type: 'projectile_destroyed',
-          data: { projectileId: proj.id, reason: 'obstacle', x: proj.pos.x, y: proj.pos.y },
-        });
-        hitObstacle = true;
-        break;
-      }
+    // Check vs obstacles (including rotated) via physics query
+    const pushOut = queryPushOut(physics, proj.pos, 0.1);
+    if (pushOut) {
+      toRemove.add(proj.id);
+      state.events.push({
+        tick: state.tick,
+        type: 'projectile_destroyed',
+        data: { projectileId: proj.id, reason: 'obstacle', x: proj.pos.x, y: proj.pos.y },
+      });
+      continue;
     }
-    if (hitObstacle) continue;
 
     // Look up the weapon config for this projectile's weapon type
     const projWeapon = weapons[proj.weaponType];
@@ -281,7 +279,7 @@ export function checkProjectileCollisions(state: GameState, weapons: WeaponsConf
   state.enemies = state.enemies.filter(e => !deadEnemies.has(e.id));
 }
 
-export function updateEnemyProjectiles(state: GameState): void {
+export function updateEnemyProjectiles(state: GameState, physics: PhysicsWorld): void {
   const dt = 1 / TICK_RATE;
 
   for (const proj of state.enemyProjectiles) {
@@ -290,14 +288,12 @@ export function updateEnemyProjectiles(state: GameState): void {
     proj.lifetime--;
   }
 
-  // Remove expired or out-of-bounds
+  // Remove expired or out-of-bounds or obstacle-colliding
   state.enemyProjectiles = state.enemyProjectiles.filter(p => {
     if (p.lifetime <= 0) return false;
     if (isOutOfBounds(p.pos, ENEMY_PROJ_RADIUS, state.arena.width, state.arena.height)) return false;
-    // Check obstacle collision
-    for (const obs of state.obstacles) {
-      if (circleAABB(p.pos, ENEMY_PROJ_RADIUS, obs)) return false;
-    }
+    // Check obstacle collision via physics
+    if (queryPushOut(physics, p.pos, ENEMY_PROJ_RADIUS)) return false;
     return true;
   });
 }

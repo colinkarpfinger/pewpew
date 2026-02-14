@@ -316,6 +316,17 @@ export function createDestructibleCrateMesh(width: number, height: number): THRE
   return mesh;
 }
 
+export function createCircleObstacleMesh(radius: number, color: number = 0x666666): THREE.Mesh {
+  const wallHeight = 1.5;
+  const geometry = new THREE.CylinderGeometry(radius, radius, wallHeight, 16);
+  const material = new THREE.MeshStandardMaterial({ color });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.position.y = wallHeight / 2;
+  return mesh;
+}
+
 export function createObstacleMesh(width: number, height: number): THREE.Mesh {
   const wallHeight = 1.5;
   const geometry = new THREE.BoxGeometry(width, wallHeight, height);

@@ -1,15 +1,17 @@
 import type { GameState, EnemiesConfig, GunnerConfig, RangedEnemyConfig } from './types.ts';
 import { TICK_DURATION } from './types.ts';
-import { normalize, circleCircle, circleAABB, clampToArena, dist } from './collision.ts';
-import { rayIntersectsAABB } from './line-of-sight.ts';
+import { normalize, circleCircle, clampToArena, dist } from './collision.ts';
 import type { SeededRNG } from './rng.ts';
 import { interruptHeal } from './bandage.ts';
+import { queryPushOut, queryRayBlocked } from './physics.ts';
+import type { PhysicsWorld } from './physics.ts';
 
 export function updateEnemies(
   state: GameState,
   _configs: EnemiesConfig,
   gunnerConfig: GunnerConfig | undefined,
   rng: SeededRNG,
+  physics: PhysicsWorld,
   shotgunnerConfig?: RangedEnemyConfig,
   sniperConfig?: RangedEnemyConfig,
 ): void {
@@ -38,11 +40,11 @@ export function updateEnemies(
           enemy.facingDir = { x: enemy.wanderDir.x, y: enemy.wanderDir.y };
         }
       } else if (enemy.type === 'gunner' && gunnerConfig) {
-        updateRangedEnemy(state, enemy, gunnerConfig, rng);
+        updateRangedEnemy(state, enemy, gunnerConfig, rng, physics);
       } else if (enemy.type === 'shotgunner' && shotgunnerConfig) {
-        updateRangedEnemy(state, enemy, shotgunnerConfig, rng);
+        updateRangedEnemy(state, enemy, shotgunnerConfig, rng, physics);
       } else if (enemy.type === 'sniper' && sniperConfig) {
-        updateRangedEnemy(state, enemy, sniperConfig, rng);
+        updateRangedEnemy(state, enemy, sniperConfig, rng, physics);
       } else {
         // Sprinter: move toward player
         const dir = normalize({
@@ -70,12 +72,10 @@ export function updateEnemies(
     enemy.pos = clampToArena(enemy.pos, enemy.radius, state.arena.width, state.arena.height);
 
     // Collide with obstacles
-    for (const obs of state.obstacles) {
-      const pushOut = circleAABB(enemy.pos, enemy.radius, obs);
-      if (pushOut) {
-        enemy.pos.x += pushOut.x;
-        enemy.pos.y += pushOut.y;
-      }
+    const pushOut = queryPushOut(physics, enemy.pos, enemy.radius);
+    if (pushOut) {
+      enemy.pos.x += pushOut.x;
+      enemy.pos.y += pushOut.y;
     }
   }
 }
@@ -95,7 +95,7 @@ function updateWander(enemy: GameState['enemies'][0], speedMult: number, rng: Se
   enemy.pos.y += enemy.wanderDir.y * speed;
 }
 
-function updateRangedEnemy(state: GameState, enemy: GameState['enemies'][0], cfg: RangedEnemyConfig | GunnerConfig, rng: SeededRNG): void {
+function updateRangedEnemy(state: GameState, enemy: GameState['enemies'][0], cfg: RangedEnemyConfig | GunnerConfig, rng: SeededRNG, physics: PhysicsWorld): void {
   const d = dist(enemy.pos, state.player.pos);
   const dir = normalize({
     x: state.player.pos.x - enemy.pos.x,
@@ -146,9 +146,7 @@ function updateRangedEnemy(state: GameState, enemy: GameState['enemies'][0], cfg
 
   // Firing: in both phases, if within engage range and has line of sight
   enemy.fireCooldown--;
-  const hasLOS = !state.obstacles.some(wall =>
-    rayIntersectsAABB(enemy.pos, dir, d, wall)
-  );
+  const hasLOS = !queryRayBlocked(physics, enemy.pos, dir, d);
 
   // Sniper with no LOS: reposition laterally
   if (preferredRange && !hasLOS && d <= cfg.engageRange) {

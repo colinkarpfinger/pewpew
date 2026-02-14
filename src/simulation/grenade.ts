@@ -1,6 +1,8 @@
 import type { GameState, InputState, GrenadeConfig, Grenade } from './types.ts';
 import { TICK_DURATION } from './types.ts';
-import { circleAABB, normalize } from './collision.ts';
+import { normalize } from './collision.ts';
+import { queryPushOut } from './physics.ts';
+import type { PhysicsWorld } from './physics.ts';
 
 const OBSTACLE_HEIGHT = 1.5;
 const BOUNCE_VEL_THRESHOLD = 1.5; // min vertical speed to emit ground bounce sound
@@ -42,7 +44,7 @@ export function tryThrowGrenade(state: GameState, input: InputState, config: Gre
   });
 }
 
-export function updateGrenades(state: GameState, config: GrenadeConfig): void {
+export function updateGrenades(state: GameState, config: GrenadeConfig, physics: PhysicsWorld): void {
   const toExplode: Grenade[] = [];
 
   for (const grenade of state.grenades) {
@@ -120,27 +122,25 @@ export function updateGrenades(state: GameState, config: GrenadeConfig): void {
 
     // Bounce off obstacles (only when below obstacle height — flies over them otherwise)
     if (grenade.height < OBSTACLE_HEIGHT) {
-      for (const obs of state.obstacles) {
-        const pushOut = circleAABB(grenade.pos, config.radius, obs);
-        if (pushOut) {
-          grenade.pos.x += pushOut.x;
-          grenade.pos.y += pushOut.y;
+      const pushOut = queryPushOut(physics, grenade.pos, config.radius);
+      if (pushOut) {
+        grenade.pos.x += pushOut.x;
+        grenade.pos.y += pushOut.y;
 
-          // Reflect velocity along push-out normal
-          const len = Math.sqrt(pushOut.x * pushOut.x + pushOut.y * pushOut.y);
-          if (len > 0) {
-            const nx = pushOut.x / len;
-            const ny = pushOut.y / len;
-            const dot = grenade.vel.x * nx + grenade.vel.y * ny;
-            // Proper reflection with restitution on normal component only
-            grenade.vel.x -= (1 + config.bounceRestitution) * dot * nx;
-            grenade.vel.y -= (1 + config.bounceRestitution) * dot * ny;
-          }
+        // Reflect velocity along push-out normal
+        const len = Math.sqrt(pushOut.x * pushOut.x + pushOut.y * pushOut.y);
+        if (len > 0) {
+          const nx = pushOut.x / len;
+          const ny = pushOut.y / len;
+          const dot = grenade.vel.x * nx + grenade.vel.y * ny;
+          // Proper reflection with restitution on normal component only
+          grenade.vel.x -= (1 + config.bounceRestitution) * dot * nx;
+          grenade.vel.y -= (1 + config.bounceRestitution) * dot * ny;
+        }
 
-          const speed = Math.sqrt(grenade.vel.x * grenade.vel.x + grenade.vel.y * grenade.vel.y);
-          if (speed > WALL_BOUNCE_THRESHOLD) {
-            state.events.push({ tick: state.tick, type: 'grenade_bounced', data: { x: grenade.pos.x, y: grenade.pos.y } });
-          }
+        const speed = Math.sqrt(grenade.vel.x * grenade.vel.x + grenade.vel.y * grenade.vel.y);
+        if (speed > WALL_BOUNCE_THRESHOLD) {
+          state.events.push({ tick: state.tick, type: 'grenade_bounced', data: { x: grenade.pos.x, y: grenade.pos.y } });
         }
       }
     }

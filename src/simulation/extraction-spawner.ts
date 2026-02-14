@@ -1,7 +1,7 @@
 import type { GameState, ExtractionMapConfig, ExtractionSpawnerState, Enemy, EnemyType } from './types.ts';
 import type { SeededRNG } from './rng.ts';
 import type { EnemiesConfig } from './types.ts';
-import { circleAABB } from './collision.ts';
+import { createPhysicsWorld, queryPushOut, destroyPhysicsWorld } from './physics.ts';
 
 /** Create initial extraction spawner state from map config */
 export function createExtractionSpawner(map: ExtractionMapConfig): ExtractionSpawnerState {
@@ -21,11 +21,17 @@ export function spawnInitialEnemies(
   const halfW = map.width / 2;
   const margin = 2;
 
+  // Build a temporary physics world for spawn validation
+  const pw = createPhysicsWorld(map.walls, { width: map.width, height: map.height, obstacleCount: 0, obstacleSize: 0 });
+
   for (const zone of map.zones) {
     const count = zone.initialEnemyCount ?? 0;
 
     for (let i = 0; i < count; i++) {
-      if (state.enemies.length >= map.maxEnemies) return;
+      if (state.enemies.length >= map.maxEnemies) {
+        destroyPhysicsWorld(pw);
+        return;
+      }
 
       // Find a valid spawn position not overlapping walls or player spawn
       let x = 0, y = 0;
@@ -40,14 +46,7 @@ export function spawnInitialEnemies(
         if (Math.sqrt(dx * dx + dy * dy) < map.minSpawnDistFromPlayer) continue;
 
         // Don't spawn inside walls
-        let insideWall = false;
-        for (const wall of map.walls) {
-          if (circleAABB({ x, y }, 0.5, wall)) {
-            insideWall = true;
-            break;
-          }
-        }
-        if (insideWall) continue;
+        if (queryPushOut(pw, { x, y }, 0.5)) continue;
 
         valid = true;
         break;
@@ -64,6 +63,8 @@ export function spawnInitialEnemies(
       state.enemies.push(enemy);
     }
   }
+
+  destroyPhysicsWorld(pw);
 }
 
 /** Update extraction spawner (trigger regions removed — all enemies pre-populated) */

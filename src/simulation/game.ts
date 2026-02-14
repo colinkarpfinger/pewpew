@@ -13,10 +13,13 @@ import { createExtractionSpawner, updateExtractionSpawner, spawnInitialEnemies }
 import { updateVisibility } from './line-of-sight.ts';
 import { isInAnyExtractionZone } from './extraction-map.ts';
 import { spawnInitialDestructibleCrates, checkProjectileVsCrates } from './destructible-crates.ts';
+import { createPhysicsWorld } from './physics.ts';
+import type { PhysicsWorld } from './physics.ts';
 
 export interface GameInstance {
   state: GameState;
   rng: SeededRNG;
+  physics: PhysicsWorld;
 }
 
 export function createGame(configs: GameConfigs, seed: number = 12345, gameMode: GameMode = 'arena', activeWeapon?: WeaponType, equippedArmor?: ArmorType | null): GameInstance {
@@ -126,11 +129,13 @@ export function createGame(configs: GameConfigs, seed: number = 12345, gameMode:
     spawnInitialDestructibleCrates(state, extractionMap, configs.destructibleCrates, rng);
   }
 
-  return { state, rng };
+  const physics = createPhysicsWorld(obstacles, arena);
+
+  return { state, rng, physics };
 }
 
 export function tick(game: GameInstance, input: InputState, configs: GameConfigs): void {
-  const { state, rng } = game;
+  const { state, rng, physics } = game;
   if (state.gameOver || state.extracted) return;
 
   // Clear per-tick events
@@ -138,7 +143,7 @@ export function tick(game: GameInstance, input: InputState, configs: GameConfigs
   state.tick++;
 
   // 1. Player movement
-  updatePlayer(state, input, configs.player);
+  updatePlayer(state, input, configs.player, physics);
 
   // 1b. Bandage healing
   if (configs.bandages) {
@@ -156,7 +161,7 @@ export function tick(game: GameInstance, input: InputState, configs: GameConfigs
 
   // 3c. Update grenades (movement, bouncing, explosions)
   const preGrenadeIframe = state.player.iframeTimer;
-  updateGrenades(state, configs.grenade);
+  updateGrenades(state, configs.grenade, physics);
   if (state.player.iframeTimer === 0 && preGrenadeIframe === 0) {
     // Check if grenade self-damage occurred (player_hit event with selfDamage flag)
     for (const ev of state.events) {
@@ -171,7 +176,7 @@ export function tick(game: GameInstance, input: InputState, configs: GameConfigs
   updateProjectiles(state);
 
   // 5. Projectile collisions (vs enemies, walls, obstacles)
-  checkProjectileCollisions(state, configs.weapons, configs.enemies);
+  checkProjectileCollisions(state, configs.weapons, configs.enemies, physics);
 
   // 5a. Projectile vs destructible crates
   if (configs.destructibleCrates) {
@@ -200,14 +205,14 @@ export function tick(game: GameInstance, input: InputState, configs: GameConfigs
 
   // 6. Line of sight (extraction mode only — arena enemies always visible)
   if (state.extractionMap) {
-    updateVisibility(state.player.pos, state.enemies, state.obstacles);
+    updateVisibility(state.player.pos, state.enemies, physics);
   }
 
   // 7. Enemy AI
-  updateEnemies(state, configs.enemies, configs.gunner, rng, configs.shotgunner, configs.sniper);
+  updateEnemies(state, configs.enemies, configs.gunner, rng, physics, configs.shotgunner, configs.sniper);
 
   // 7b. Enemy projectiles
-  updateEnemyProjectiles(state);
+  updateEnemyProjectiles(state, physics);
   checkEnemyProjectileHits(state, configs.player);
 
   // 8. Contact damage
@@ -387,7 +392,8 @@ export function restoreGame(stateSnapshot: GameState, rngState: number): GameIns
   }
   const rng = new SeededRNG(0);
   rng.setState(rngState);
-  return { state, rng };
+  const physics = createPhysicsWorld(state.obstacles, state.arena);
+  return { state, rng, physics };
 }
 
 /** Get a serializable snapshot of the entire game state */

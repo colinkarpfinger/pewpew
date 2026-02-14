@@ -1,9 +1,11 @@
 import type { GameState, InputState, PlayerConfig } from './types.ts';
 import { TICK_DURATION } from './types.ts';
-import { clampToArena, circleAABB } from './collision.ts';
+import { clampToArena } from './collision.ts';
 import { interruptHeal } from './bandage.ts';
+import { queryPushOut } from './physics.ts';
+import type { PhysicsWorld } from './physics.ts';
 
-export function updatePlayer(state: GameState, input: InputState, config: PlayerConfig): void {
+export function updatePlayer(state: GameState, input: InputState, config: PlayerConfig, physics: PhysicsWorld): void {
   const player = state.player;
   const prevX = player.pos.x;
   const prevY = player.pos.y;
@@ -53,12 +55,10 @@ export function updatePlayer(state: GameState, input: InputState, config: Player
   player.pos = clampToArena(player.pos, player.radius, state.arena.width, state.arena.height);
 
   // Collide with obstacles (applies during dodge too)
-  for (const obs of state.obstacles) {
-    const pushOut = circleAABB(player.pos, player.radius, obs);
-    if (pushOut) {
-      player.pos.x += pushOut.x;
-      player.pos.y += pushOut.y;
-    }
+  const pushOut = queryPushOut(physics, player.pos, player.radius);
+  if (pushOut) {
+    player.pos.x += pushOut.x;
+    player.pos.y += pushOut.y;
   }
 
   // Accumulate distance traveled
