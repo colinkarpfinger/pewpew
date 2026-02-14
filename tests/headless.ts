@@ -6,9 +6,8 @@
 import RAPIER from '@dimforge/rapier2d-deterministic-compat';
 import type { GameConfigs, InputState, ExtractionMapConfig } from '../src/simulation/types.ts';
 import { createGame, tick, getSnapshot } from '../src/simulation/game.ts';
-import { rayIntersectsAABB } from '../src/simulation/line-of-sight.ts';
 import { isInExtractionZone } from '../src/simulation/extraction-map.ts';
-import { createPhysicsWorld, queryPushOut, queryRayBlocked, destroyPhysicsWorld } from '../src/simulation/physics.ts';
+import { createPhysicsWorld, queryPushOut, queryRayBlocked, queryCastRay, destroyPhysicsWorld } from '../src/simulation/physics.ts';
 
 // Initialize Rapier WASM before running tests
 await RAPIER.init();
@@ -810,40 +809,43 @@ console.log('\n--- Test 28: Sprinter enemy ---');
   assert(g.state.enemies[0].radius === 0.35, 'Sprinter radius is 0.35');
 }
 
-// ---- Test 29: LOS — ray-AABB intersection ----
-console.log('\n--- Test 29: Ray-AABB intersection ---');
+// ---- Test 29: Rapier ray queries ----
+console.log('\n--- Test 29: Rapier ray queries ---');
 {
-  const wall = { pos: { x: 5, y: 0 }, width: 2, height: 2 };
+  const obstacles = [{ pos: { x: 5, y: 0 }, width: 2, height: 2 }];
+  const pw = createPhysicsWorld(obstacles, { width: 100, height: 100, obstacleCount: 0, obstacleSize: 0 });
 
   // Ray pointing right directly at the wall
-  assert(rayIntersectsAABB({ x: 0, y: 0 }, { x: 1, y: 0 }, 10, wall) === true, 'Ray hits wall directly');
+  assert(queryRayBlocked(pw, { x: 0, y: 0 }, { x: 1, y: 0 }, 10) === true, 'Ray hits wall directly');
   // Ray pointing right but max dist too short
-  assert(rayIntersectsAABB({ x: 0, y: 0 }, { x: 1, y: 0 }, 3, wall) === false, 'Ray too short to reach wall');
+  assert(queryRayBlocked(pw, { x: 0, y: 0 }, { x: 1, y: 0 }, 3) === false, 'Ray too short to reach wall');
   // Ray pointing left (away from wall)
-  assert(rayIntersectsAABB({ x: 0, y: 0 }, { x: -1, y: 0 }, 10, wall) === false, 'Ray aimed away from wall');
+  assert(queryRayBlocked(pw, { x: 0, y: 0 }, { x: -1, y: 0 }, 10) === false, 'Ray aimed away from wall');
   // Ray pointing up (parallel, misses wall)
-  assert(rayIntersectsAABB({ x: 0, y: 0 }, { x: 0, y: 1 }, 10, wall) === false, 'Ray misses wall (parallel)');
+  assert(queryRayBlocked(pw, { x: 0, y: 0 }, { x: 0, y: 1 }, 10) === false, 'Ray misses wall (parallel)');
   // Ray that passes above the wall
-  assert(rayIntersectsAABB({ x: 0, y: 5 }, { x: 1, y: 0 }, 10, wall) === false, 'Ray passes above wall');
+  assert(queryRayBlocked(pw, { x: 0, y: 5 }, { x: 1, y: 0 }, 10) === false, 'Ray passes above wall');
+
+  destroyPhysicsWorld(pw);
 }
 
-// ---- Test 30: LOS — visibility with walls ----
+// ---- Test 30: LOS — visibility with walls (via Rapier) ----
 console.log('\n--- Test 30: LOS visibility ---');
 {
   const walls = [
     { pos: { x: 5, y: 0 }, width: 2, height: 2 },
   ];
+  const pw = createPhysicsWorld(walls, { width: 100, height: 100, obstacleCount: 0, obstacleSize: 0 });
 
-  // Use rayIntersectsAABB directly (the underlying check that updateVisibility now delegates to Rapier)
-  const dir1 = { x: 1, y: 0 }; // toward enemy at x=8
-  const blocked1 = walls.some(w => rayIntersectsAABB({ x: 0, y: 0 }, dir1, 8, w));
-  assert(blocked1 === true, 'Enemy behind wall is not visible');
+  // Ray toward enemy at x=8 should be blocked by wall at x=5
+  assert(queryRayBlocked(pw, { x: 0, y: 0 }, { x: 1, y: 0 }, 8) === true, 'Enemy behind wall is not visible');
 
+  // Ray toward enemy at (3,5) should not be blocked
   const dx = 3, dy = 5;
   const dist = Math.sqrt(dx * dx + dy * dy);
-  const dir2 = { x: dx / dist, y: dy / dist }; // toward enemy at (3,5)
-  const blocked2 = walls.some(w => rayIntersectsAABB({ x: 0, y: 0 }, dir2, dist, w));
-  assert(blocked2 === false, 'Enemy in the open is visible');
+  assert(queryRayBlocked(pw, { x: 0, y: 0 }, { x: dx / dist, y: dy / dist }, dist) === false, 'Enemy in the open is visible');
+
+  destroyPhysicsWorld(pw);
 }
 
 // ---- Test 31: Trigger regions (SKIPPED — trigger regions were removed) ----
@@ -1619,6 +1621,164 @@ console.log('\n--- Test 63: Extraction with rotated obstacles ---');
     if (g.state.gameOver) break;
   }
   assert(g.state.tick >= 300 || g.state.gameOver, 'Ran extraction with rotated obstacles successfully');
+}
+
+// ---- Test 64: Push-out direction is correct ----
+console.log('\n--- Test 64: Push-out direction correctness ---');
+{
+  const obstacles = [{ pos: { x: 5, y: 0 }, width: 2, height: 2 }];
+  const pw = createPhysicsWorld(obstacles, { width: 100, height: 100, obstacleCount: 0, obstacleSize: 0 });
+
+  // Circle overlapping from the left — should push left (negative x)
+  const leftPush = queryPushOut(pw, { x: 3.8, y: 0 }, 0.5);
+  assert(leftPush !== null, 'Push-out detected from left');
+  assert(leftPush!.x < 0, `Push-out direction is leftward: x=${leftPush!.x.toFixed(3)}`);
+  assert(Math.abs(leftPush!.y) < 0.01, `Push-out has minimal y component: y=${leftPush!.y.toFixed(3)}`);
+
+  // Circle overlapping from the right — should push right (positive x)
+  const rightPush = queryPushOut(pw, { x: 6.2, y: 0 }, 0.5);
+  assert(rightPush !== null, 'Push-out detected from right');
+  assert(rightPush!.x > 0, `Push-out direction is rightward: x=${rightPush!.x.toFixed(3)}`);
+
+  // Circle overlapping from below — should push down (negative y)
+  const bottomPush = queryPushOut(pw, { x: 5, y: -1.2 }, 0.5);
+  assert(bottomPush !== null, 'Push-out detected from below');
+  assert(bottomPush!.y < 0, `Push-out direction is downward: y=${bottomPush!.y.toFixed(3)}`);
+
+  destroyPhysicsWorld(pw);
+}
+
+// ---- Test 65: Player collides with rotated wall ----
+console.log('\n--- Test 65: Player vs rotated wall ---');
+{
+  // Use extraction mode to control spawning, disable enemies
+  const wallTestConfigs: GameConfigs = { ...configs, extractionMap: {
+    width: 40, height: 40,
+    playerSpawn: { x: 0, y: 0 },
+    extractionZones: [{ x: 0, y: 18, width: 4, height: 4 }],
+    maxEnemies: 0,
+    minSpawnDistFromPlayer: 50,
+    enemyDetectionRange: 18,
+    wanderSpeedMultiplier: 0.3,
+    zones: [],
+    walls: [
+      // Thick rotated wall at x=6 — rotated 15° with large height to block the path
+      { pos: { x: 6, y: 0 }, width: 2, height: 20, rotation: Math.PI / 12 },
+    ],
+    triggerRegions: [],
+  }};
+
+  const g = createGame(wallTestConfigs, 9000, 'extraction');
+  g.state.enemies = []; // clear any spawned enemies
+
+  // Move player rightward toward the rotated wall
+  const moveRightInput: InputState = { moveDir: { x: 1, y: 0 }, aimDir: { x: 1, y: 0 }, fire: false, firePressed: false, headshotTargetId: null, dodge: false, reload: false, throwGrenade: false, throwPower: 0 };
+  for (let i = 0; i < 120; i++) {
+    tick(g, moveRightInput, wallTestConfigs);
+  }
+
+  // Player should have been stopped by the wall — not past x=6
+  assert(g.state.player.pos.x < 6, `Player stopped by rotated wall: x=${g.state.player.pos.x.toFixed(2)}`);
+  // Player should have moved somewhat (not stuck at origin)
+  assert(g.state.player.pos.x > 1, `Player moved toward wall: x=${g.state.player.pos.x.toFixed(2)}`);
+}
+
+// ---- Test 66: Projectile stopped by rotated wall ----
+console.log('\n--- Test 66: Projectile vs rotated wall ---');
+{
+  const g = createGame(extractionConfigs, 9100, 'extraction');
+  // Place a rotated wall between player and a target point
+  g.state.obstacles = [{ pos: { x: 5, y: 0 }, width: 6, height: 1, rotation: Math.PI / 6 }];
+  destroyPhysicsWorld(g.physics);
+  g.physics = createPhysicsWorld(g.state.obstacles, g.state.arena);
+
+  // Place player at origin, fire rightward
+  g.state.player.pos = { x: 0, y: 0 };
+  const fireRight = aimAt(g, 20, 0);
+  tick(g, fireRight, extractionConfigs);
+
+  assert(g.state.projectiles.length > 0, 'Projectile created');
+
+  // Tick until projectile is removed (hit wall) or timeout
+  let projRemoved = false;
+  for (let i = 0; i < 60; i++) {
+    tick(g, { ...fireRight, fire: false, firePressed: false }, extractionConfigs);
+    if (g.state.projectiles.length === 0) {
+      projRemoved = true;
+      break;
+    }
+  }
+  assert(projRemoved, 'Projectile stopped by rotated wall');
+}
+
+// ---- Test 67: Grenade bounces off obstacle ----
+console.log('\n--- Test 67: Grenade bounce off obstacle ---');
+{
+  const g = createGame(configs, 9200, 'arena');
+  // Place a wall to the right
+  g.state.obstacles = [{ pos: { x: 5, y: 0 }, width: 2, height: 2 }];
+  destroyPhysicsWorld(g.physics);
+  g.physics = createPhysicsWorld(g.state.obstacles, g.state.arena);
+
+  // Place player at origin, give grenades
+  g.state.player.pos = { x: 0, y: 0 };
+  g.state.player.aimDir = { x: 1, y: 0 };
+  g.state.grenadeAmmo = 3;
+
+  // Throw grenade rightward
+  const throwInput: InputState = { moveDir: { x: 0, y: 0 }, aimDir: { x: 1, y: 0 }, fire: false, firePressed: false, headshotTargetId: null, dodge: false, reload: false, throwGrenade: true, throwPower: 0.5 };
+  tick(g, throwInput, configs);
+  assert(g.state.grenades.length === 1, 'Grenade thrown');
+
+  // Run until grenade bounces or explodes
+  let bounced = false;
+  for (let i = 0; i < 180; i++) {
+    tick(g, noInput, configs);
+    for (const ev of g.state.events) {
+      if (ev.type === 'grenade_bounced') {
+        bounced = true;
+      }
+    }
+    if (bounced) break;
+  }
+  assert(bounced, 'Grenade bounced off obstacle');
+}
+
+// ---- Test 68: queryCastRay returns distance and normal ----
+console.log('\n--- Test 68: queryCastRay distance and normal ---');
+{
+  const obstacles = [{ pos: { x: 5, y: 0 }, width: 2, height: 2 }];
+  const pw = createPhysicsWorld(obstacles, { width: 100, height: 100, obstacleCount: 0, obstacleSize: 0 });
+
+  // Ray from origin toward wall at x=5 (left edge at x=4)
+  const hit = queryCastRay(pw, { x: 0, y: 0 }, { x: 1, y: 0 }, 20);
+  assert(hit !== null, 'queryCastRay hit the wall');
+  assert(Math.abs(hit!.distance - 4) < 0.01, `Hit distance ~4: ${hit!.distance.toFixed(3)}`);
+  assert(hit!.normal.x < 0, `Normal points leftward (away from wall): nx=${hit!.normal.x.toFixed(3)}`);
+
+  // Ray miss
+  const miss = queryCastRay(pw, { x: 0, y: 0 }, { x: -1, y: 0 }, 20);
+  assert(miss === null, 'queryCastRay misses when aimed away');
+
+  destroyPhysicsWorld(pw);
+}
+
+// ---- Test 69: LOS through rotated wall gap ----
+console.log('\n--- Test 69: LOS visibility with rotated wall ---');
+{
+  // Rotated thin wall — LOS should be blocked through the wall but pass through gaps
+  const obstacles = [{ pos: { x: 5, y: 0 }, width: 6, height: 0.5, rotation: Math.PI / 4 }];
+  const pw = createPhysicsWorld(obstacles, { width: 100, height: 100, obstacleCount: 0, obstacleSize: 0 });
+
+  // Direct ray toward center of rotated wall — should be blocked
+  assert(queryRayBlocked(pw, { x: 0, y: 0 }, { x: 1, y: 0 }, 10) === true, 'LOS blocked through rotated wall');
+
+  // Ray angled to pass above the wall's actual footprint — should pass
+  const dy = 4;
+  const dist = Math.sqrt(25 + dy * dy);
+  assert(queryRayBlocked(pw, { x: 0, y: dy }, { x: 1, y: 0 }, 10) === false, 'LOS passes above rotated wall');
+
+  destroyPhysicsWorld(pw);
 }
 
 console.log('\n=== All headless tests passed! ===');
