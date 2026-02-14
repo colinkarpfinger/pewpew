@@ -1,10 +1,11 @@
 import type { PlayerInventory, InventoryConfig } from '../simulation/types.ts';
-import type { ItemInstance, ItemCategory } from '../simulation/items.ts';
+import type { ItemInstance, ItemCategory, ItemDef } from '../simulation/items.ts';
 import { ITEM_DEFS } from '../simulation/items.ts';
+import { equipItem, unequipItem, splitStack } from '../simulation/inventory.ts';
 
 // ---- State ----
 
-type SlotRegion = 'backpack' | 'equipment' | 'hotbar';
+export type SlotRegion = 'backpack' | 'equipment' | 'hotbar';
 
 interface HeldItem {
   item: ItemInstance;
@@ -18,11 +19,21 @@ let configRef: InventoryConfig | null = null;
 let isOpen = false;
 let onChangeCallback: (() => void) | null = null;
 let isDragging = false;
-let dragStarted = false; // true once mouse moves enough after mousedown
+let dragStarted = false;
+
+// Context menu state
+interface ContextMenuState {
+  x: number;
+  y: number;
+  region: SlotRegion;
+  slotIndex: number | string;
+  item: ItemInstance;
+}
+let contextMenu: ContextMenuState | null = null;
 
 // ---- Category Colors ----
 
-const CATEGORY_COLORS: Record<ItemCategory, string> = {
+export const CATEGORY_COLORS: Record<ItemCategory, string> = {
   weapon: '#e8a030',
   armor: '#5080d0',
   helmet: '#5080d0',
@@ -33,11 +44,259 @@ const CATEGORY_COLORS: Record<ItemCategory, string> = {
   material: '#888888',
 };
 
+// ---- Tooltip ----
+
+let tooltipEl: HTMLElement | null = null;
+
+function ensureTooltip(): HTMLElement {
+  if (!tooltipEl) {
+    tooltipEl = document.createElement('div');
+    tooltipEl.className = 'inv-tooltip';
+    tooltipEl.style.display = 'none';
+    document.body.appendChild(tooltipEl);
+  }
+  return tooltipEl;
+}
+
+export function createTooltipContent(item: ItemInstance): HTMLElement {
+  const def = ITEM_DEFS[item.defId];
+  const frag = document.createElement('div');
+  if (!def) return frag;
+
+  const nameEl = document.createElement('div');
+  nameEl.className = 'inv-tooltip-name';
+  nameEl.textContent = def.name;
+  nameEl.style.color = CATEGORY_COLORS[def.category] ?? '#fff';
+  frag.appendChild(nameEl);
+
+  const catEl = document.createElement('div');
+  catEl.className = 'inv-tooltip-category';
+  catEl.textContent = def.category.toUpperCase();
+  frag.appendChild(catEl);
+
+  const descEl = document.createElement('div');
+  descEl.className = 'inv-tooltip-desc';
+  descEl.textContent = def.description;
+  frag.appendChild(descEl);
+
+  // Sell value
+  const sellEl = document.createElement('div');
+  sellEl.className = 'inv-tooltip-stat';
+  sellEl.textContent = `Sell: $${def.sellValue * item.quantity}`;
+  frag.appendChild(sellEl);
+
+  // Conditional lines
+  if (def.category === 'weapon' && item.upgradeLevel && item.upgradeLevel > 0) {
+    const upEl = document.createElement('div');
+    upEl.className = 'inv-tooltip-stat';
+    upEl.textContent = `Upgrade Lv. ${item.upgradeLevel}`;
+    frag.appendChild(upEl);
+  }
+
+  if ((def.category === 'armor' || def.category === 'helmet') && item.currentHp !== undefined) {
+    const durEl = document.createElement('div');
+    durEl.className = 'inv-tooltip-stat';
+    durEl.textContent = `Durability: ${Math.ceil(item.currentHp)} HP`;
+    frag.appendChild(durEl);
+  }
+
+  if (def.stackable && def.maxStack > 1) {
+    const stackEl = document.createElement('div');
+    stackEl.className = 'inv-tooltip-stat';
+    stackEl.textContent = `Stack: ${item.quantity} / ${def.maxStack}`;
+    frag.appendChild(stackEl);
+  }
+
+  return frag;
+}
+
+export function showTooltip(x: number, y: number, item: ItemInstance): void {
+  const tip = ensureTooltip();
+  tip.innerHTML = '';
+  tip.appendChild(createTooltipContent(item));
+  tip.style.display = 'block';
+
+  // Position near cursor, offset right+down, clamp to viewport
+  const offsetX = 16;
+  const offsetY = 16;
+  let left = x + offsetX;
+  let top = y + offsetY;
+
+  // Need to measure after display
+  const rect = tip.getBoundingClientRect();
+  if (left + rect.width > window.innerWidth) {
+    left = x - rect.width - 8;
+  }
+  if (top + rect.height > window.innerHeight) {
+    top = y - rect.height - 8;
+  }
+  tip.style.left = `${Math.max(0, left)}px`;
+  tip.style.top = `${Math.max(0, top)}px`;
+}
+
+export function hideTooltip(): void {
+  if (tooltipEl) tooltipEl.style.display = 'none';
+}
+
+// ---- Shared Rendering ----
+
+export function renderItemContent(slot: HTMLElement, item: ItemInstance): void {
+  const def = ITEM_DEFS[item.defId];
+  if (!def) return;
+
+  const icon = document.createElement('div');
+  icon.className = 'inv-item-icon';
+  icon.style.background = CATEGORY_COLORS[def.category] ?? '#888';
+  icon.textContent = def.name.substring(0, 2).toUpperCase();
+  slot.appendChild(icon);
+
+  const nameEl = document.createElement('div');
+  nameEl.className = 'inv-item-name';
+  nameEl.textContent = def.name;
+  slot.appendChild(nameEl);
+
+  if (def.stackable && item.quantity > 1) {
+    const badge = document.createElement('div');
+    badge.className = 'inv-item-qty';
+    badge.textContent = String(item.quantity);
+    slot.appendChild(badge);
+  }
+}
+
+// ---- Context Menu ----
+
+function dismissContextMenu(): void {
+  const el = document.getElementById('inv-context-menu');
+  if (el) el.remove();
+  contextMenu = null;
+}
+
+function showContextMenu(x: number, y: number, region: SlotRegion, slotIndex: number | string, item: ItemInstance): void {
+  dismissContextMenu();
+  if (!inventoryRef) return;
+
+  const def = ITEM_DEFS[item.defId];
+  if (!def) return;
+
+  contextMenu = { x, y, region, slotIndex, item };
+
+  const menu = document.createElement('div');
+  menu.id = 'inv-context-menu';
+  menu.className = 'inv-context-menu';
+
+  const actions = buildContextActions(region, slotIndex, item, def);
+
+  for (const action of actions) {
+    const row = document.createElement('div');
+    row.className = 'inv-context-action';
+    if (action.disabled) row.classList.add('disabled');
+    row.textContent = action.label;
+    if (!action.disabled) {
+      row.addEventListener('click', (e) => {
+        e.stopPropagation();
+        action.handler();
+        dismissContextMenu();
+        notifyChange();
+        renderInventory();
+      });
+    }
+    menu.appendChild(row);
+  }
+
+  // Position
+  menu.style.left = `${x}px`;
+  menu.style.top = `${y}px`;
+  document.body.appendChild(menu);
+
+  // Clamp to viewport
+  const rect = menu.getBoundingClientRect();
+  if (rect.right > window.innerWidth) {
+    menu.style.left = `${x - rect.width}px`;
+  }
+  if (rect.bottom > window.innerHeight) {
+    menu.style.top = `${y - rect.height}px`;
+  }
+}
+
+interface ContextAction {
+  label: string;
+  handler: () => void;
+  disabled?: boolean;
+}
+
+function buildContextActions(region: SlotRegion, slotIndex: number | string, item: ItemInstance, def: ItemDef): ContextAction[] {
+  const actions: ContextAction[] = [];
+  if (!inventoryRef) return actions;
+
+  if (region === 'backpack') {
+    const idx = slotIndex as number;
+
+    // Equip — weapon, armor, helmet
+    if (def.category === 'weapon') {
+      actions.push({
+        label: 'Equip',
+        handler: () => { equipItem(inventoryRef!, idx, 'weapon1'); },
+      });
+    } else if (def.category === 'armor') {
+      actions.push({
+        label: 'Equip',
+        handler: () => { equipItem(inventoryRef!, idx, 'armor'); },
+      });
+    } else if (def.category === 'helmet') {
+      actions.push({
+        label: 'Equip',
+        handler: () => { equipItem(inventoryRef!, idx, 'helmet'); },
+      });
+    }
+
+    // Use — medical/grenade (grayed out for now)
+    if (def.category === 'medical' || def.category === 'grenade') {
+      actions.push({ label: 'Use', handler: () => {}, disabled: true });
+    }
+
+    // Split Stack
+    if (def.stackable && item.quantity > 1) {
+      actions.push({
+        label: 'Split Stack',
+        handler: () => { splitStack(inventoryRef!, idx); },
+      });
+    }
+  } else if (region === 'equipment') {
+    // Unequip
+    actions.push({
+      label: 'Unequip',
+      handler: () => {
+        unequipItem(inventoryRef!, slotIndex as keyof PlayerInventory['equipment']);
+      },
+    });
+  } else if (region === 'hotbar') {
+    // Use — grayed out
+    if (def.category === 'medical' || def.category === 'grenade') {
+      actions.push({ label: 'Use', handler: () => {}, disabled: true });
+    }
+  }
+
+  // Drop — always available
+  actions.push({
+    label: 'Drop',
+    handler: () => {
+      if (region === 'backpack') {
+        inventoryRef!.backpack[slotIndex as number] = null;
+      } else if (region === 'equipment') {
+        inventoryRef!.equipment[slotIndex as keyof PlayerInventory['equipment']] = null;
+      } else if (region === 'hotbar') {
+        inventoryRef!.hotbar[slotIndex as number] = null;
+      }
+    },
+  });
+
+  return actions;
+}
+
 // ---- Public API ----
 
 export function setupInventoryScreen(onChange?: () => void): void {
   onChangeCallback = onChange ?? null;
-  // Create the overlay container once
   if (!document.getElementById('inventory-screen')) {
     const overlay = document.createElement('div');
     overlay.id = 'inventory-screen';
@@ -62,7 +321,6 @@ export function setupInventoryScreen(onChange?: () => void): void {
     if (e.button !== 0) return;
     isDragging = false;
 
-    // Find the slot under the cursor
     const target = document.elementFromPoint(e.clientX, e.clientY);
     const slotEl = target?.closest('[data-region]') as HTMLElement | null;
 
@@ -72,30 +330,74 @@ export function setupInventoryScreen(onChange?: () => void): void {
       const idx = region === 'equipment' ? slotIndex : parseInt(slotIndex);
       placeHeld(region, idx);
     } else {
-      // Dropped outside any slot — cancel
       cancelHeld();
     }
   });
 
-  // Right-click to cancel held item
+  // Right-click: cancel drag OR show context menu
   window.addEventListener('contextmenu', (e) => {
-    if (isOpen && heldItem) {
+    if (!isOpen) return;
+
+    if (heldItem) {
       e.preventDefault();
       cancelHeld();
+      return;
+    }
+
+    // Check if right-clicked on an occupied slot
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    const slotEl = target?.closest('[data-region]') as HTMLElement | null;
+    if (slotEl && slotEl.classList.contains('occupied')) {
+      e.preventDefault();
+      const region = slotEl.dataset.region as SlotRegion;
+      const slotIndex = slotEl.dataset.slot!;
+      const item = getItemAtSlot(region, region === 'equipment' ? slotIndex : parseInt(slotIndex));
+      if (item) {
+        showContextMenu(e.clientX, e.clientY, region, region === 'equipment' ? slotIndex : parseInt(slotIndex), item);
+      }
     }
   });
+
+  // Click anywhere to dismiss context menu
+  window.addEventListener('mousedown', (e) => {
+    if (contextMenu) {
+      const target = e.target as HTMLElement;
+      if (!target.closest('#inv-context-menu')) {
+        dismissContextMenu();
+      }
+    }
+  });
+}
+
+function getItemAtSlot(region: SlotRegion, slotIndex: number | string): ItemInstance | null {
+  if (!inventoryRef) return null;
+  if (region === 'backpack') {
+    return inventoryRef.backpack[slotIndex as number];
+  } else if (region === 'equipment') {
+    return inventoryRef.equipment[slotIndex as keyof PlayerInventory['equipment']];
+  } else if (region === 'hotbar') {
+    const defId = inventoryRef.hotbar[slotIndex as number];
+    if (defId) {
+      // Hotbar stores defId — return a synthetic item for tooltip/context
+      return { defId, quantity: 1 };
+    }
+  }
+  return null;
 }
 
 export function openInventoryScreen(inventory: PlayerInventory, config: InventoryConfig): void {
   inventoryRef = inventory;
   configRef = config;
   isOpen = true;
+  dismissContextMenu();
   renderInventory();
   document.getElementById('inventory-screen')!.classList.remove('hidden');
 }
 
 export function closeInventoryScreen(): void {
   cancelHeld();
+  dismissContextMenu();
+  hideTooltip();
   isOpen = false;
   isDragging = false;
   dragStarted = false;
@@ -112,6 +414,20 @@ export function getHotbarAssignments(): (string | null)[] {
 
 // ---- Rendering ----
 
+function addSlotTooltipListeners(slot: HTMLElement, item: ItemInstance): void {
+  slot.addEventListener('mouseenter', (e) => {
+    if (isDragging) return;
+    showTooltip(e.clientX, e.clientY, item);
+  });
+  slot.addEventListener('mousemove', (e) => {
+    if (isDragging) { hideTooltip(); return; }
+    showTooltip(e.clientX, e.clientY, item);
+  });
+  slot.addEventListener('mouseleave', () => {
+    hideTooltip();
+  });
+}
+
 function renderInventory(): void {
   if (!inventoryRef || !configRef) return;
   const container = document.getElementById('inventory-screen')!;
@@ -120,11 +436,9 @@ function renderInventory(): void {
   const inv = inventoryRef;
   const cols = configRef.backpackColumns;
 
-  // Main panel
   const panel = document.createElement('div');
   panel.className = 'inv-panel';
 
-  // Title
   const title = document.createElement('h2');
   title.className = 'inv-title';
   title.textContent = 'INVENTORY';
@@ -189,11 +503,14 @@ function createBackpackSlot(item: ItemInstance | null, index: number): HTMLEleme
   if (item) {
     slot.classList.add('occupied');
     renderItemContent(slot, item);
+    addSlotTooltipListeners(slot, item);
   }
 
   slot.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
     e.preventDefault();
+    dismissContextMenu();
+    hideTooltip();
     handleMouseDown('backpack', index);
   });
   return slot;
@@ -213,11 +530,14 @@ function createEquipmentSlot(item: ItemInstance | null, key: string, label: stri
   if (item) {
     slot.classList.add('occupied');
     renderItemContent(slot, item);
+    addSlotTooltipListeners(slot, item);
   }
 
   slot.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
     e.preventDefault();
+    dismissContextMenu();
+    hideTooltip();
     handleMouseDown('equipment', key);
   });
   return slot;
@@ -231,7 +551,7 @@ function createHotbarSlot(defId: string | null, index: number): HTMLElement {
 
   const keyLabel = document.createElement('div');
   keyLabel.className = 'inv-hotbar-key';
-  keyLabel.textContent = String(index + 3); // Keys 3-7
+  keyLabel.textContent = String(index + 3);
   slot.appendChild(keyLabel);
 
   if (defId && inventoryRef) {
@@ -249,7 +569,6 @@ function createHotbarSlot(defId: string | null, index: number): HTMLElement {
       nameEl.textContent = def.name;
       slot.appendChild(nameEl);
 
-      // Count from backpack
       let count = 0;
       for (const s of inventoryRef.backpack) {
         if (s?.defId === defId) count += s.quantity;
@@ -259,46 +578,28 @@ function createHotbarSlot(defId: string | null, index: number): HTMLElement {
       badge.textContent = String(count);
       if (count === 0) badge.classList.add('depleted');
       slot.appendChild(badge);
+
+      // Tooltip for hotbar
+      const syntheticItem: ItemInstance = { defId, quantity: count };
+      addSlotTooltipListeners(slot, syntheticItem);
     }
   }
 
   slot.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
     e.preventDefault();
+    dismissContextMenu();
+    hideTooltip();
     handleMouseDown('hotbar', index);
   });
   return slot;
 }
 
-function renderItemContent(slot: HTMLElement, item: ItemInstance): void {
-  const def = ITEM_DEFS[item.defId];
-  if (!def) return;
-
-  const icon = document.createElement('div');
-  icon.className = 'inv-item-icon';
-  icon.style.background = CATEGORY_COLORS[def.category] ?? '#888';
-  icon.textContent = def.name.substring(0, 2).toUpperCase();
-  slot.appendChild(icon);
-
-  const nameEl = document.createElement('div');
-  nameEl.className = 'inv-item-name';
-  nameEl.textContent = def.name;
-  slot.appendChild(nameEl);
-
-  if (def.stackable && item.quantity > 1) {
-    const badge = document.createElement('div');
-    badge.className = 'inv-item-qty';
-    badge.textContent = String(item.quantity);
-    slot.appendChild(badge);
-  }
-}
-
-// ---- Interaction (mousedown to pick up, mouseup to drop) ----
+// ---- Interaction ----
 
 function handleMouseDown(region: SlotRegion, slotIndex: number | string): void {
   if (!inventoryRef) return;
 
-  // Pick up the item under cursor
   let item: ItemInstance | null = null;
 
   if (region === 'backpack') {
@@ -310,7 +611,6 @@ function handleMouseDown(region: SlotRegion, slotIndex: number | string): void {
     item = inventoryRef.equipment[key];
     if (item) inventoryRef.equipment[key] = null;
   } else if (region === 'hotbar') {
-    // Hotbar stores defId references — clear assignment on drag
     const idx = slotIndex as number;
     if (inventoryRef.hotbar[idx]) {
       inventoryRef.hotbar[idx] = null;
@@ -341,7 +641,6 @@ function placeHeld(region: SlotRegion, slotIndex: number | string): void {
     const idx = slotIndex as number;
     const existing = inventoryRef.backpack[idx];
 
-    // Merge if same stackable
     if (existing && existing.defId === item.defId && def.stackable) {
       const canAdd = def.maxStack - existing.quantity;
       if (canAdd >= item.quantity) {
@@ -350,27 +649,22 @@ function placeHeld(region: SlotRegion, slotIndex: number | string): void {
       } else {
         existing.quantity = def.maxStack;
         item.quantity -= canAdd;
-        // Still holding remainder — put it back at source
         cancelHeld();
         return;
       }
     } else {
-      // Swap
       inventoryRef.backpack[idx] = item;
       if (existing) {
-        // Put swapped item back at original source
         returnItemToSlot(existing, heldItem.source);
       }
       clearHeld();
     }
   } else if (region === 'equipment') {
     const key = slotIndex as keyof PlayerInventory['equipment'];
-    // Validate category
     const requiredCategory: Record<string, ItemCategory> = {
       weapon1: 'weapon', weapon2: 'weapon', armor: 'armor', helmet: 'helmet',
     };
     if (def.category !== requiredCategory[key]) {
-      // Invalid — cancel, return to source
       cancelHeld();
       return;
     }
@@ -381,12 +675,10 @@ function placeHeld(region: SlotRegion, slotIndex: number | string): void {
     }
     clearHeld();
   } else if (region === 'hotbar') {
-    // Only consumables (medical, grenade) can be assigned to hotbar
     if (def.category !== 'medical' && def.category !== 'grenade') {
       cancelHeld();
       return;
     }
-    // Hotbar stores defId — return the item to its source, assign the defId
     returnHeldToSource();
     const idx = slotIndex as number;
     inventoryRef.hotbar[idx] = item.defId;
@@ -397,7 +689,6 @@ function placeHeld(region: SlotRegion, slotIndex: number | string): void {
   renderInventory();
 }
 
-/** Put an item into a specific slot (used for swaps) */
 function returnItemToSlot(item: ItemInstance, target: { region: SlotRegion; slotIndex: number | string }): void {
   if (!inventoryRef) return;
 

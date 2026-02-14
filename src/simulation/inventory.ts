@@ -181,6 +181,20 @@ export function getBackpackFreeSlots(inv: PlayerInventory): number {
   return count;
 }
 
+export function splitStack(inv: PlayerInventory, slotIndex: number): boolean {
+  const item = inv.backpack[slotIndex];
+  if (!item || item.quantity <= 1) return false;
+
+  const emptyIdx = inv.backpack.indexOf(null);
+  if (emptyIdx === -1) return false;
+
+  const half = Math.floor(item.quantity / 2);
+  const other = item.quantity - half; // ceil goes to new slot
+  item.quantity = half;
+  inv.backpack[emptyIdx] = { ...item, quantity: other };
+  return true;
+}
+
 // ---- Bridge: Inventory → Legacy Player Fields ----
 
 /**

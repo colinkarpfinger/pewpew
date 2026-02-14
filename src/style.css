@@ -1235,6 +1235,136 @@ html, body {
   border-radius: 3px;
 }
 
+/* ---- Item Tooltip ---- */
+
+.inv-tooltip {
+  position: fixed;
+  z-index: 200;
+  background: rgba(15, 15, 25, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 10px 14px;
+  pointer-events: none;
+  min-width: 160px;
+  max-width: 260px;
+  font-size: 13px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+.inv-tooltip-name {
+  font-weight: bold;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.inv-tooltip-category {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.inv-tooltip-desc {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+
+.inv-tooltip-stat {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  font-family: monospace;
+  margin-top: 2px;
+}
+
+/* ---- Context Menu ---- */
+
+.inv-context-menu {
+  position: fixed;
+  z-index: 210;
+  background: rgba(20, 20, 35, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  min-width: 140px;
+  padding: 4px 0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+.inv-context-action {
+  padding: 8px 16px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.inv-context-action:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.inv-context-action.disabled {
+  color: rgba(255, 255, 255, 0.25);
+  cursor: default;
+}
+
+.inv-context-action.disabled:hover {
+  background: transparent;
+}
+
+/* ---- Stash Screen ---- */
+
+#stash-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 60;
+  cursor: default;
+}
+
+#stash-screen.hidden {
+  display: none;
+}
+
+.stash-wrapper {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.stash-panel {
+  background: rgba(20, 20, 30, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 20px;
+  min-width: 340px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.stash-header {
+  color: #fff;
+  font-size: 18px;
+  text-align: center;
+  margin-bottom: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.stash-grid {
+  display: grid;
+  gap: 4px;
+}
+
+.stash-close-btn {
+  margin-top: 16px;
+}
+
 /* HUD Hotbar */
 #hud-hotbar {
   position: absolute;

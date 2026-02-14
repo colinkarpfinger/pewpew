@@ -47,6 +47,7 @@ import type { BandageConfig, RangedEnemyConfig, WeaponUpgradesConfig, WeaponConf
 import { getEffectiveWeaponConfig } from './simulation/weapon-upgrades.ts';
 import { loadWeaponModels } from './rendering/weapon-models.ts';
 import { setupInventoryScreen, openInventoryScreen, closeInventoryScreen, isInventoryOpen } from './ui/inventory-screen.ts';
+import { setupStashScreen, openStashScreen, closeStashScreen, isStashOpen } from './ui/stash-screen.ts';
 import { initHudHotbar, updateHudHotbar, showHudHotbar, hideHudHotbar } from './ui.ts';
 import { syncInventoryToPlayer, createEmptyInventory, addItemToBackpack } from './simulation/inventory.ts';
 import { ARMOR_TYPE_TO_ITEM } from './simulation/items.ts';
@@ -114,6 +115,10 @@ setupInventoryScreen(() => {
   if (game) {
     syncInventoryToPlayer(game.state.player, runConfigs);
   }
+});
+setupStashScreen(() => {
+  // On stash close: return to hub
+  showHubScreen();
 });
 
 // Register dev console commands
@@ -381,6 +386,12 @@ window.addEventListener('keydown', (e) => {
     return;
   }
 
+  // Close stash screen on Escape → return to hub
+  if (e.key === 'Escape' && isStashOpen()) {
+    closeStashScreen();
+    return;
+  }
+
   if (e.key === 'Escape') {
     if (screen === 'playing' || screen === 'gameOver') {
       pauseGame();
@@ -456,6 +467,10 @@ setupHubScreen({
     hideHubScreen();
     showStartScreen();
     screen = 'start';
+  },
+  onManageStash: () => {
+    hideHubScreen();
+    openStashScreen(inventoryConfig as InventoryConfig);
   },
 }, shopConfig.prices, configs.weapons, shopConfig.armorPrices, armorConfig, shopConfig.bandagePrices, weaponUpgradesConfig as unknown as WeaponUpgradesConfig);
 

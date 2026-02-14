@@ -4,6 +4,7 @@ import { getStashCash, getOwnedWeapons, addCashToStash, addWeapon, getOwnedArmor
 export interface HubCallbacks {
   onStartRun: (weapon: WeaponType, armor: ArmorType | null) => void;
   onBack: () => void;
+  onManageStash: () => void;
 }
 
 type ShopPrices = Record<string, number>;
@@ -445,6 +446,10 @@ export function setupHubScreen(callbacks: HubCallbacks, prices: ShopPrices, wc: 
 
   document.getElementById('hub-back')!.addEventListener('click', () => {
     callbacks.onBack();
+  });
+
+  document.getElementById('hub-manage-stash')!.addEventListener('click', () => {
+    callbacks.onManageStash();
   });
 
   document.getElementById('hub-clear-save')!.addEventListener('click', () => {
