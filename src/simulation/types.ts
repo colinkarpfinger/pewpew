@@ -5,6 +5,30 @@ export type ArmorType = 'light' | 'medium' | 'heavy';
 export type GameMode = 'arena' | 'extraction';
 export type EnemyType = 'sprinter' | 'gunner' | 'shotgunner' | 'sniper';
 
+// ---- Inventory ----
+
+import type { ItemInstance } from './items.ts';
+
+export interface PlayerInventory {
+  equipment: {
+    weapon1: ItemInstance | null;
+    weapon2: ItemInstance | null;
+    armor: ItemInstance | null;
+    helmet: ItemInstance | null;
+  };
+  hotbar: (string | null)[];     // 5 slots, defId references
+  backpack: (ItemInstance | null)[];  // flat array, length = backpackSize
+  backpackSize: number;          // default 20
+}
+
+export interface InventoryConfig {
+  backpackSize: number;
+  backpackColumns: number;
+  stashSize: number;
+  stashColumns: number;
+  hotbarSlots: number;
+}
+
 export type BandageType = 'small' | 'large';
 
 export interface BandageTierConfig {
@@ -209,6 +233,7 @@ export interface GameConfigs {
   shotgunner?: RangedEnemyConfig;
   sniper?: RangedEnemyConfig;
   weaponUpgrades?: WeaponUpgradesConfig;
+  inventory?: InventoryConfig;
 }
 
 // ---- Entities ----
@@ -246,6 +271,7 @@ export interface Player {
   healSpeedMultiplier: number; // 1.0 = normal, <1.0 during healing
   bandageSmallCount: number;
   bandageLargeCount: number;
+  inventory: PlayerInventory;
 }
 
 export interface Enemy {

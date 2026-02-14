@@ -15,6 +15,7 @@ import { isInAnyExtractionZone } from './extraction-map.ts';
 import { spawnInitialDestructibleCrates, checkProjectileVsCrates } from './destructible-crates.ts';
 import { createPhysicsWorld } from './physics.ts';
 import type { PhysicsWorld } from './physics.ts';
+import { createEmptyInventory } from './inventory.ts';
 
 export interface GameInstance {
   state: GameState;
@@ -79,6 +80,7 @@ export function createGame(configs: GameConfigs, seed: number = 12345, gameMode:
       healSpeedMultiplier: 1.0,
       bandageSmallCount: 0,
       bandageLargeCount: 0,
+      inventory: createEmptyInventory(configs.inventory?.backpackSize ?? 20),
     },
     enemies: [],
     projectiles: [],
@@ -351,6 +353,7 @@ export function restoreGame(stateSnapshot: GameState, rngState: number): GameIns
   state.player.healSpeedMultiplier ??= 1.0;
   state.player.bandageSmallCount ??= 0;
   state.player.bandageLargeCount ??= 0;
+  state.player.inventory ??= createEmptyInventory(20);
   state.gameMode ??= 'arena';
   state.grenades ??= [];
   state.crates ??= [];

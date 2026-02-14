@@ -46,6 +46,13 @@ import weaponUpgradesConfig from './configs/weapon-upgrades.json';
 import type { BandageConfig, RangedEnemyConfig, WeaponUpgradesConfig, WeaponConfig, ExtractionMapConfig } from './simulation/types.ts';
 import { getEffectiveWeaponConfig } from './simulation/weapon-upgrades.ts';
 import { loadWeaponModels } from './rendering/weapon-models.ts';
+import { setupInventoryScreen, openInventoryScreen, closeInventoryScreen, isInventoryOpen } from './ui/inventory-screen.ts';
+import { initHudHotbar, updateHudHotbar, showHudHotbar, hideHudHotbar } from './ui.ts';
+import { syncInventoryToPlayer, createEmptyInventory, addItemToBackpack } from './simulation/inventory.ts';
+import { ARMOR_TYPE_TO_ITEM } from './simulation/items.ts';
+import { savePlayerInventory } from './persistence.ts';
+import inventoryConfig from './configs/inventory.json';
+import type { InventoryConfig } from './simulation/types.ts';
 
 const configs: GameConfigs = {
   player: playerConfig,
@@ -65,6 +72,7 @@ const configs: GameConfigs = {
   shotgunner: shotgunnerConfig as RangedEnemyConfig,
   sniper: sniperConfig as RangedEnemyConfig,
   weaponUpgrades: weaponUpgradesConfig as unknown as WeaponUpgradesConfig,
+  inventory: inventoryConfig as InventoryConfig,
 };
 const configsJson = JSON.stringify(configs);
 
@@ -100,6 +108,13 @@ let hitStopTimer = 0;
 
 if (!mobile) initCrosshair(canvas);
 initDevConsole();
+initHudHotbar();
+setupInventoryScreen(() => {
+  // On change: sync inventory to player legacy fields
+  if (game) {
+    syncInventoryToPlayer(game.state.player, runConfigs);
+  }
+});
 
 // Register dev console commands
 registerCommand('state', () => {
@@ -200,7 +215,7 @@ function startGame(mode: GameMode = 'arena', weapon?: WeaponType, armor?: ArmorT
   runConfigs = effectiveConfigs;
   game = createGame(runConfigs, currentSeed, mode, activeWeapon, equippedArmor);
 
-  // Set bandage counts from persistence
+  // Set bandage counts from persistence and build inventory
   if (mode === 'extraction') {
     const bandageStock = getBandages();
     game.state.player.bandageSmallCount = bandageStock.small;
@@ -218,6 +233,33 @@ function startGame(mode: GameMode = 'arena', weapon?: WeaponType, armor?: ArmorT
         }
       }
     }
+
+    // Build a fresh raid inventory with only the selected loadout
+    const inv = createEmptyInventory(inventoryConfig.backpackSize);
+    // Equip selected weapon
+    inv.equipment.weapon1 = {
+      defId: activeWeapon,
+      quantity: 1,
+      upgradeLevel: getWeaponUpgradeLevel(activeWeapon),
+    };
+    // Equip selected armor
+    if (equippedArmor) {
+      const armorItemId = ARMOR_TYPE_TO_ITEM[equippedArmor] ?? `${equippedArmor}_armor`;
+      inv.equipment.armor = {
+        defId: armorItemId,
+        quantity: 1,
+        currentHp: game.state.player.armorHp > 0 ? game.state.player.armorHp : undefined,
+      };
+    }
+    // Put bandages in backpack
+    if (bandageStock.small > 0) {
+      addItemToBackpack(inv, { defId: 'bandage_small', quantity: bandageStock.small });
+    }
+    if (bandageStock.large > 0) {
+      addItemToBackpack(inv, { defId: 'bandage_large', quantity: bandageStock.large });
+    }
+    game.state.player.inventory = inv;
+    syncInventoryToPlayer(game.state.player, effectiveConfigs);
   }
 
   fullRecorder = new FullRecorder(currentSeed, configsJson);
@@ -252,6 +294,14 @@ function startGame(mode: GameMode = 'arena', weapon?: WeaponType, armor?: ArmorT
   timeScale = 1.0;
   hitStopTimer = 0;
   screen = 'playing';
+
+  // Show hotbar for extraction mode
+  if (mode === 'extraction') {
+    showHudHotbar();
+    updateHudHotbar(game.state.player.inventory);
+  } else {
+    hideHudHotbar();
+  }
 }
 
 function enterReplay(viewer: ReplayViewer): void {
@@ -278,6 +328,8 @@ function goToTitle(): void {
   hideGameOver();
   hideEscapeMenu();
   hideReplayControls();
+  hideHudHotbar();
+  closeInventoryScreen();
   if (mobile) {
     (input as TouchInputHandler).setVisible(false);
   } else {
@@ -312,6 +364,23 @@ if (mobile) {
 
 // ---- Escape key ----
 window.addEventListener('keydown', (e) => {
+  // Tab / I toggles inventory
+  if ((e.key === 'Tab' || e.key.toLowerCase() === 'i') && screen === 'playing') {
+    e.preventDefault();
+    if (isInventoryOpen()) {
+      closeInventoryScreen();
+    } else if (game) {
+      openInventoryScreen(game.state.player.inventory, inventoryConfig as InventoryConfig);
+    }
+    return;
+  }
+
+  // Close inventory on Escape (without pausing)
+  if (e.key === 'Escape' && isInventoryOpen()) {
+    closeInventoryScreen();
+    return;
+  }
+
   if (e.key === 'Escape') {
     if (screen === 'playing' || screen === 'gameOver') {
       pauseGame();
@@ -442,10 +511,11 @@ function gameLoop(now: number): void {
     }
     const currentInput = input.getInput();
 
-    // Suppress game input while dev console is focused
-    if (isDevConsoleVisible()) {
+    // Suppress game input while dev console or inventory is focused
+    if (isDevConsoleVisible() || isInventoryOpen()) {
       currentInput.moveDir = { x: 0, y: 0 };
       currentInput.fire = false;
+      currentInput.firePressed = false;
       currentInput.dodge = false;
       currentInput.reload = false;
       currentInput.throwGrenade = false;
@@ -515,8 +585,12 @@ function gameLoop(now: number): void {
       if (equippedArmor) {
         setArmorHp(equippedArmor, state.player.armorHp);
       }
+      // Save inventory on successful extraction
+      savePlayerInventory(state.player.inventory);
       showExtractionSuccess(state.score, state.runCash, state.runStats);
       if (mobile) (input as TouchInputHandler).setVisible(false);
+      hideHudHotbar();
+      closeInventoryScreen();
       screen = 'gameOver';
     } else if (state.gameOver && !gameOverShown) {
       gameOverShown = true;
@@ -563,6 +637,9 @@ function gameLoop(now: number): void {
     audioSystem.processEvents(frameEvents, state);
     renderer.render();
     updateHUD(state);
+    if (state.gameMode === 'extraction') {
+      updateHudHotbar(state.player.inventory);
+    }
   } else if (screen === 'paused' || screen === 'gameOver') {
     // Still render the scene (visible behind overlay)
     renderer.syncState(game.state, dt);

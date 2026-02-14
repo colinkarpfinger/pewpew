@@ -1,6 +1,14 @@
-import type { WeaponType, ArmorType } from './simulation/types.ts';
+import type { WeaponType, ArmorType, PlayerInventory } from './simulation/types.ts';
+import type { ItemInstance } from './simulation/items.ts';
+import { ARMOR_TYPE_TO_ITEM } from './simulation/items.ts';
+import { createEmptyInventory, addItemToBackpack } from './simulation/inventory.ts';
 
 const SAVE_KEY = 'tss-save';
+
+export interface StashData {
+  items: (ItemInstance | null)[];
+  capacity: number;
+}
 
 export interface ExtractionSave {
   cashStash: number;
@@ -10,6 +18,8 @@ export interface ExtractionSave {
   bandageLarge: number;
   weaponUpgrades: Partial<Record<WeaponType, number>>;
   armorHpMap: Partial<Record<ArmorType, number>>;
+  playerInventory?: PlayerInventory;
+  stash?: StashData;
 }
 
 function defaults(): ExtractionSave {
@@ -127,4 +137,97 @@ export function clearArmorHp(type: ArmorType): void {
 
 export function clearSave(): void {
   localStorage.removeItem(SAVE_KEY);
+}
+
+// ---- Inventory Persistence ----
+
+/** Migrate old save format into a PlayerInventory. Called when playerInventory is missing. */
+export function migrateToInventory(save: ExtractionSave, backpackSize: number = 20): PlayerInventory {
+  const inv = createEmptyInventory(backpackSize);
+
+  // Equip first owned weapon
+  if (save.ownedWeapons.length > 0) {
+    const w = save.ownedWeapons[0];
+    inv.equipment.weapon1 = {
+      defId: w,
+      quantity: 1,
+      upgradeLevel: save.weaponUpgrades[w] ?? 0,
+    };
+  }
+  // Second weapon slot
+  if (save.ownedWeapons.length > 1) {
+    const w = save.ownedWeapons[1];
+    inv.equipment.weapon2 = {
+      defId: w,
+      quantity: 1,
+      upgradeLevel: save.weaponUpgrades[w] ?? 0,
+    };
+  }
+  // Extra weapons go to backpack
+  for (let i = 2; i < save.ownedWeapons.length; i++) {
+    const w = save.ownedWeapons[i];
+    addItemToBackpack(inv, {
+      defId: w,
+      quantity: 1,
+      upgradeLevel: save.weaponUpgrades[w] ?? 0,
+    });
+  }
+
+  // Equip first armor
+  if (save.ownedArmor.length > 0) {
+    const a = save.ownedArmor[0];
+    const itemId = ARMOR_TYPE_TO_ITEM[a] ?? `${a}_armor`;
+    inv.equipment.armor = {
+      defId: itemId,
+      quantity: 1,
+      currentHp: save.armorHpMap[a],
+    };
+  }
+  // Extra armor to backpack
+  for (let i = 1; i < save.ownedArmor.length; i++) {
+    const a = save.ownedArmor[i];
+    const itemId = ARMOR_TYPE_TO_ITEM[a] ?? `${a}_armor`;
+    addItemToBackpack(inv, {
+      defId: itemId,
+      quantity: 1,
+      currentHp: save.armorHpMap[a],
+    });
+  }
+
+  // Bandages to backpack
+  if (save.bandageSmall > 0) {
+    addItemToBackpack(inv, { defId: 'bandage_small', quantity: save.bandageSmall });
+  }
+  if (save.bandageLarge > 0) {
+    addItemToBackpack(inv, { defId: 'bandage_large', quantity: save.bandageLarge });
+  }
+
+  return inv;
+}
+
+export function savePlayerInventory(inv: PlayerInventory): void {
+  const save = loadSave();
+  save.playerInventory = inv;
+  writeSave(save);
+}
+
+export function loadPlayerInventory(backpackSize: number = 20): PlayerInventory {
+  const save = loadSave();
+  if (save.playerInventory) return save.playerInventory;
+  return migrateToInventory(save, backpackSize);
+}
+
+export function saveStash(stash: StashData): void {
+  const save = loadSave();
+  save.stash = stash;
+  writeSave(save);
+}
+
+export function loadStash(capacity: number = 50): StashData {
+  const save = loadSave();
+  if (save.stash) return save.stash;
+  // Default empty stash
+  const items: (ItemInstance | null)[] = [];
+  for (let i = 0; i < capacity; i++) items.push(null);
+  return { items, capacity };
 }

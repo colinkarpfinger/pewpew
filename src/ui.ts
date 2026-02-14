@@ -1,4 +1,7 @@
-import type { GameState, GameMode, WeaponConfig, RunStats } from './simulation/types.ts';
+import type { GameState, GameMode, WeaponConfig, RunStats, PlayerInventory } from './simulation/types.ts';
+import type { ItemCategory } from './simulation/items.ts';
+import { ITEM_DEFS } from './simulation/items.ts';
+import { countItemInBackpack } from './simulation/inventory.ts';
 
 const scoreEl = () => document.getElementById('hud-score')!;
 const hpBar = () => document.getElementById('hud-hp-bar')!;
@@ -13,6 +16,17 @@ const gameOverEl = () => document.getElementById('game-over')!;
 const finalScoreEl = () => document.getElementById('final-score')!;
 const finalCashEl = () => document.getElementById('final-cash')!;
 const restartBtn = () => document.getElementById('restart-btn')!;
+
+const HOTBAR_CATEGORY_COLORS: Record<ItemCategory, string> = {
+  weapon: '#e8a030',
+  armor: '#5080d0',
+  helmet: '#5080d0',
+  ammo: '#a0a070',
+  medical: '#50c060',
+  grenade: '#d05050',
+  valuable: '#ffd700',
+  material: '#888888',
+};
 
 let _weaponConfig: WeaponConfig | null = null;
 
@@ -160,4 +174,67 @@ export function hideGameOver(): void {
 
 export function onRestart(callback: () => void): void {
   restartBtn().addEventListener('click', callback);
+}
+
+// ---- HUD Hotbar ----
+
+export function initHudHotbar(): void {
+  if (document.getElementById('hud-hotbar')) return;
+  const bar = document.createElement('div');
+  bar.id = 'hud-hotbar';
+  bar.className = 'hidden';
+  document.getElementById('game-container')!.appendChild(bar);
+}
+
+export function updateHudHotbar(inventory: PlayerInventory): void {
+  const bar = document.getElementById('hud-hotbar');
+  if (!bar) return;
+
+  bar.innerHTML = '';
+
+  for (let i = 0; i < inventory.hotbar.length; i++) {
+    const defId = inventory.hotbar[i];
+    const slot = document.createElement('div');
+    slot.className = 'hud-hotbar-slot';
+
+    const key = document.createElement('div');
+    key.className = 'hud-hotbar-key';
+    key.textContent = String(i + 3);
+    slot.appendChild(key);
+
+    if (defId) {
+      const def = ITEM_DEFS[defId];
+      if (def) {
+        const count = countItemInBackpack(inventory, defId);
+        if (count === 0) {
+          slot.classList.add('empty');
+        }
+
+        const icon = document.createElement('div');
+        icon.className = 'hud-hotbar-icon';
+        icon.style.background = HOTBAR_CATEGORY_COLORS[def.category] ?? '#888';
+        icon.textContent = def.name.substring(0, 2).toUpperCase();
+        slot.appendChild(icon);
+
+        const countEl = document.createElement('div');
+        countEl.className = 'hud-hotbar-count';
+        countEl.textContent = String(count);
+        slot.appendChild(countEl);
+      } else {
+        slot.classList.add('empty');
+      }
+    } else {
+      slot.classList.add('empty');
+    }
+
+    bar.appendChild(slot);
+  }
+}
+
+export function showHudHotbar(): void {
+  document.getElementById('hud-hotbar')?.classList.remove('hidden');
+}
+
+export function hideHudHotbar(): void {
+  document.getElementById('hud-hotbar')?.classList.add('hidden');
 }
