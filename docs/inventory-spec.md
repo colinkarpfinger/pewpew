@@ -158,6 +158,23 @@ interface PlayerInventory {
 - Current magazine ammo is stored on the weapon's `ItemInstance.currentAmmo`
 - Weapon ammo type mapping defined in weapon configs
 
+### Starting & Purchasable Ammo
+
+Each raid starts the player with a free ammo allotment matching their equipped weapon:
+
+| Ammo Type | Weapons | Starting Amount | Shop Price | Per Purchase |
+|-----------|---------|----------------|------------|--------------|
+| 9mm | Pistol, SMG | 30 | $30 | 30 |
+| 5.56 | Rifle | 30 | $50 | 30 |
+| 12ga | Shotgun | 12 | $40 | 12 |
+| 7.62 | Machine Gun | 50 | $25 | 50 |
+
+- Starting ammo is free every raid (not consumed from shop stock)
+- Additional ammo can be purchased from the hub shop's "AMMO" section
+- The shop only shows ammo types relevant to the player's owned weapons
+- Purchased ammo is loaded into the backpack alongside the free starter ammo at raid start
+- Purchased ammo stock is cleared on raid start (buy per-raid, not permanent)
+
 ### Migration from Current System
 
 The current system tracks `player.ammo` as a simple counter and `player.activeWeapon` as a type. This becomes:
@@ -361,7 +378,9 @@ interface Stash {
 
 - Player spawns in extraction map with their full inventory (equipment + backpack contents)
 - Hotbar assignments carry over from home base
-- Weapon 1 is active by default
+- Weapon 1 is active by default, loaded with a full magazine
+- Backpack contains: starting ammo + purchased ammo, purchased bandages
+- Purchased ammo stock is consumed from the shop on raid start
 
 ### During Raid
 
@@ -593,6 +612,10 @@ New config file: `inventory.json`
 - HUD grenade/bandage counters read from backpack counts instead of legacy fields
 - Weapon swap events update weapon config, display name, and player model
 - `syncInventoryToPlayer()` updated to use `activeWeaponSlot` for determining active weapon
+- Players start each raid with free starting ammo (configurable in `shop.json` `startingAmmo`)
+- Additional ammo purchasable from hub shop "AMMO" section; purchased stock cleared on raid start
+- Ammo stock persisted via `ammoStock` field in `ExtractionSave`
+- Hub ammo shop only shows ammo types relevant to owned weapons
 
 ### Phase 5: Home Base
 - Simple 3D room level (floor, walls, objects)
