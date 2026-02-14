@@ -617,6 +617,23 @@ New config file: `inventory.json`
 - Ammo stock persisted via `ammoStock` field in `ExtractionSave`
 - Hub ammo shop only shows ammo types relevant to owned weapons
 
+### Phase 4.5: Bug Fixes & Loot QoL — DONE
+- Fix `loadSave()` dropping `playerInventory` and `stash` fields (loot lost on extraction)
+- Quick-loot transfers on loot screen: Ctrl+click, hover+F key
+- Double-click quick transfer (delegated listener to survive DOM re-renders)
+- Suppress browser context menu globally
+- HUD cash counter reads from backpack `cash_stack` items instead of `runCash`
+- Floor cash pickups now add `cash_stack` to backpack inventory
+- Extraction converts all backpack `cash_stack` to stash cash and removes from inventory
+- Hub drains any leftover `cash_stack` from saved inventory into stash on open
+
+**Implementation notes:**
+- Quick-loot: loot→backpack tries stacking first, then first empty slot; backpack→loot reverses; equipment→backpack moves to first empty slot
+- `quickTransferHovered()` exported from loot-screen for F-key integration; tracks hovered slot via delegated mouseover/mouseout
+- Global `contextmenu` preventDefault in main.ts; removed redundant handlers from input.ts, inventory-screen, stash-screen, loot-screen
+- Cash flow unified: floor pickups add to both `runCash` (legacy) and backpack `cash_stack`; extraction uses backpack totals only
+- Hub `showHubScreen()` calls `loadPlayerInventory()` to drain stale cash on every open
+
 ### Phase 5: Home Base
 - Simple 3D room level (floor, walls, objects)
 - Player movement in home base
