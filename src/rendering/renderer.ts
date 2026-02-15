@@ -240,6 +240,7 @@ export class Renderer {
    *  Adds editor scene objects to the renderer scene, then creates dynamic objects on top. */
   initArenaFromScene(editorScene: THREE.Scene, state: GameState): void {
     // Clear stale refs (same as initArena)
+    this.skipFogOfWar = false;
     this.enemyGroups.clear();
     this.projectileMeshes.clear();
     this.enemyProjectileMeshes.clear();
@@ -247,6 +248,7 @@ export class Renderer {
     this.crateMeshes.clear();
     this.cashMeshes.clear();
     this.destructibleCrateMeshes.clear();
+    this.lootContainerMeshes.clear();
     this.enemyTypes.clear();
     this.sniperLaserMeshes.clear();
     this.hitFlashTimers.clear();
