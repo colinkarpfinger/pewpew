@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { Obstacle, ExtractionMapConfig, Vec2, ZoneConfig, ExtractionZone } from './simulation/types.ts';
 
 export interface LevelData {
@@ -35,10 +36,24 @@ export function levelDataToExtractionMap(level: LevelData, meta: {
 }
 
 /** Parse a Three.js editor JSON export into game-usable LevelData */
-export function loadLevel(json: Record<string, unknown>): LevelData {
+export function loadLevelFromJSON(json: Record<string, unknown>): LevelData {
   const loader = new THREE.ObjectLoader();
   const scene = loader.parse(json) as THREE.Scene;
+  return loadLevelFromScene(scene);
+}
 
+/** Load a GLB file and parse it into game-usable LevelData */
+export async function loadLevelFromGLB(url: string): Promise<LevelData> {
+  const loader = new GLTFLoader();
+  const gltf = await loader.loadAsync(url);
+  // GLTFLoader returns a Group — wrap it in a Scene for consistent return type
+  const scene = new THREE.Scene();
+  scene.add(gltf.scene);
+  return loadLevelFromScene(scene);
+}
+
+/** Shared traversal: extract game objects from a Three.js scene */
+function loadLevelFromScene(scene: THREE.Scene): LevelData {
   let arenaWidth = 40;
   let arenaHeight = 120;
   let playerSpawn: Vec2 = { x: 0, y: 0 };
@@ -145,6 +160,9 @@ export function loadLevel(json: Record<string, unknown>): LevelData {
     scene,
   };
 }
+
+/** @deprecated Use loadLevelFromJSON instead */
+export const loadLevel = loadLevelFromJSON;
 
 /** Derive an Obstacle from a mesh's bounding box and transform */
 function meshToObstacle(mesh: THREE.Mesh): Obstacle | null {

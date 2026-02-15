@@ -36,11 +36,26 @@ function MenubarGame( editor ) {
 				for ( const filename of files ) {
 
 					const option = new UIRow().setTextContent( filename ).setClass( 'option' );
-					option.onClick( function () {
 
-						loadLevel( filename );
+					if ( filename.endsWith( '.glb' ) ) {
 
-					} );
+						option.dom.style.opacity = '0.5';
+						option.onClick( function () {
+
+							alert( 'GLB files cannot be edited here. Use Blender to edit this level.' );
+
+						} );
+
+					} else {
+
+						option.onClick( function () {
+
+							loadLevel( filename );
+
+						} );
+
+					}
+
 					levelItemsContainer.appendChild( option.dom );
 
 				}

@@ -91,7 +91,7 @@ function levelPlugin(): Plugin {
           try {
             fs.mkdirSync(LEVELS_DIR, { recursive: true });
             const files = fs.readdirSync(LEVELS_DIR)
-              .filter(f => f.endsWith('.json'))
+              .filter(f => f.endsWith('.json') || f.endsWith('.glb'))
               .sort();
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify(files));
@@ -107,9 +107,15 @@ function levelPlugin(): Plugin {
           const filename = decodeURIComponent(levelMatch[1]);
           const filePath = path.join(LEVELS_DIR, path.basename(filename));
           try {
-            const data = fs.readFileSync(filePath, 'utf-8');
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(data);
+            if (filename.endsWith('.glb')) {
+              const data = fs.readFileSync(filePath);
+              res.writeHead(200, { 'Content-Type': 'model/gltf-binary' });
+              res.end(data);
+            } else {
+              const data = fs.readFileSync(filePath, 'utf-8');
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(data);
+            }
           } catch {
             res.writeHead(404, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'Not found' }));

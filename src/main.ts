@@ -61,7 +61,7 @@ import { ITEM_DEFS, WEAPON_AMMO_MAP, ITEM_TO_ARMOR_TYPE } from './simulation/ite
 import { savePlayerInventory, loadPlayerInventory } from './persistence.ts';
 import inventoryConfig from './configs/inventory.json';
 import type { InventoryConfig, PlayerInventory } from './simulation/types.ts';
-import { loadLevel, levelDataToExtractionMap } from './level-loader.ts';
+import { loadLevelFromJSON, loadLevelFromGLB, levelDataToExtractionMap } from './level-loader.ts';
 import type { LevelData } from './level-loader.ts';
 
 const configs: GameConfigs = {
@@ -90,9 +90,12 @@ const configsJson = JSON.stringify(configs);
 let loadedLevel: LevelData | null = null;
 
 async function loadLevelFromEditor(url: string): Promise<LevelData> {
+  if (url.endsWith('.glb')) {
+    return loadLevelFromGLB(url);
+  }
   const resp = await fetch(url);
   const json = await resp.json();
-  return loadLevel(json);
+  return loadLevelFromJSON(json);
 }
 
 // ---- App State ----
