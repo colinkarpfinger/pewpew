@@ -60,7 +60,7 @@ import { syncInventoryToPlayer, countItemInBackpack, removeItemFromBackpack } fr
 import { ITEM_DEFS, WEAPON_AMMO_MAP, ITEM_TO_ARMOR_TYPE } from './simulation/items.ts';
 import { savePlayerInventory, loadPlayerInventory } from './persistence.ts';
 import inventoryConfig from './configs/inventory.json';
-import type { InventoryConfig } from './simulation/types.ts';
+import type { InventoryConfig, PlayerInventory } from './simulation/types.ts';
 
 const configs: GameConfigs = {
   player: playerConfig,
@@ -92,6 +92,7 @@ let equippedWeapon: WeaponType = 'pistol';
 let equippedArmor: ArmorType | null = null;
 let runConfigs: GameConfigs = configs; // effective configs for current run (with upgrades applied)
 let homebase: HomebaseInstance | null = null;
+let homebaseInventoryRef: PlayerInventory | null = null;
 
 // ---- Core objects ----
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
@@ -499,14 +500,30 @@ window.addEventListener('keydown', (e) => {
   }
 
   // Tab / I toggles inventory (not while looting)
-  if ((e.key === 'Tab' || e.key.toLowerCase() === 'i') && screen === 'playing') {
+  if ((e.key === 'Tab' || e.key.toLowerCase() === 'i') && (screen === 'playing' || screen === 'homebase')) {
     e.preventDefault();
+    // If stash or shop is open, close it instead
+    if (isStashOpen()) {
+      closeStashScreen();
+      return;
+    }
+    if (isShopOpen()) {
+      closeShopScreen();
+      return;
+    }
     if (isLootOpen()) {
       closeLootScreen();
     } else if (isInventoryOpen()) {
       closeInventoryScreen();
-    } else if (game) {
+      if (screen === 'homebase' && homebaseInventoryRef) {
+        savePlayerInventory(homebaseInventoryRef);
+        homebaseInventoryRef = null;
+      }
+    } else if (screen === 'playing' && game) {
       openInventoryScreen(game.state.player.inventory, inventoryConfig as InventoryConfig);
+    } else if (screen === 'homebase') {
+      homebaseInventoryRef = loadPlayerInventory((inventoryConfig as InventoryConfig).backpackSize);
+      openInventoryScreen(homebaseInventoryRef, inventoryConfig as InventoryConfig);
     }
     return;
   }
@@ -514,6 +531,10 @@ window.addEventListener('keydown', (e) => {
   // Close inventory on Escape (without pausing)
   if (e.key === 'Escape' && isInventoryOpen()) {
     closeInventoryScreen();
+    if (screen === 'homebase' && homebaseInventoryRef) {
+      savePlayerInventory(homebaseInventoryRef);
+      homebaseInventoryRef = null;
+    }
     return;
   }
 
@@ -891,7 +912,7 @@ function gameLoop(now: number): void {
     const currentInput = input.getInput();
 
     // Suppress input when overlay is open
-    if (isShopOpen() || isStashOpen()) {
+    if (isShopOpen() || isStashOpen() || isInventoryOpen()) {
       currentInput.moveDir = { x: 0, y: 0 };
       currentInput.fire = false;
       currentInput.firePressed = false;
@@ -909,7 +930,7 @@ function gameLoop(now: number): void {
 
     // Update interaction prompt
     const ia = homebase.state.nearestInteractable;
-    if (ia && !isShopOpen() && !isStashOpen()) {
+    if (ia && !isShopOpen() && !isStashOpen() && !isInventoryOpen()) {
       homebasePrompt.classList.remove('hidden');
       if (ia.type === 'shop') homebasePrompt.innerHTML = '<kbd>F</kbd> Shop';
       else if (ia.type === 'stash') homebasePrompt.innerHTML = '<kbd>F</kbd> Stash';

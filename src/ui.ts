@@ -39,7 +39,12 @@ export function setActiveWeaponName(name: string): void {
 }
 
 export function updateHUD(state: GameState): void {
-  scoreEl().textContent = `Score: ${state.score}`;
+  if (state.gameMode === 'extraction') {
+    scoreEl().classList.add('hidden');
+  } else {
+    scoreEl().classList.remove('hidden');
+    scoreEl().textContent = `Score: ${state.score}`;
+  }
   const pct = Math.max(0, (state.player.hp / state.player.maxHp) * 100);
   hpBar().style.width = `${pct}%`;
 
