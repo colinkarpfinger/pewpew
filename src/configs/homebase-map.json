@@ -1,0 +1,32 @@
+{
+  "width": 16,
+  "height": 12,
+  "playerSpawn": { "x": 0, "y": 0 },
+  "walls": [
+    { "pos": { "x": -3, "y": -3 }, "width": 1.5, "height": 1.5 },
+    { "pos": { "x":  3, "y": -3 }, "width": 1.5, "height": 1.5 },
+    { "pos": { "x": -3, "y":  2 }, "width": 1.0, "height": 2.0 },
+    { "pos": { "x":  3, "y":  2 }, "width": 1.0, "height": 2.0 }
+  ],
+  "interactables": [
+    {
+      "id": "shop",
+      "type": "shop",
+      "pos": { "x": -5.5, "y": 0 },
+      "radius": 2.0
+    },
+    {
+      "id": "stash",
+      "type": "stash",
+      "pos": { "x": 5.5, "y": 0 },
+      "radius": 2.0
+    },
+    {
+      "id": "raid",
+      "type": "raid",
+      "pos": { "x": 0, "y": 5 },
+      "width": 4,
+      "height": 1.5
+    }
+  ]
+}

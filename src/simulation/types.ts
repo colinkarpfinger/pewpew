@@ -563,5 +563,24 @@ export interface GameState {
   runStats: RunStats;
 }
 
+// ---- Home Base ----
+
+export interface HomebaseInteractable {
+  id: string;
+  type: 'shop' | 'stash' | 'raid';
+  pos: Vec2;
+  radius?: number;   // proximity detection (shop, stash)
+  width?: number;    // zone detection (raid door)
+  height?: number;
+}
+
+export interface HomebaseMapConfig {
+  width: number;
+  height: number;
+  playerSpawn: Vec2;
+  walls: Obstacle[];
+  interactables: HomebaseInteractable[];
+}
+
 export const TICK_RATE = 60;
 export const TICK_DURATION = 1 / TICK_RATE;

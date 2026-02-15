@@ -16,6 +16,11 @@ import { saveReplay, loadReplay } from './recording/api.ts';
 import { ReplayViewer } from './replay/viewer.ts';
 import { showStartScreen, hideStartScreen, onStartGame } from './ui/start-screen.ts';
 import { showHubScreen, hideHubScreen, setupHubScreen } from './ui/hub-screen.ts';
+import { setupShopScreen, openShopScreen, closeShopScreen, isShopOpen } from './ui/shop-screen.ts';
+import { createHomebase, destroyHomebase, homebaseTick } from './simulation/homebase.ts';
+import type { HomebaseInstance } from './simulation/homebase.ts';
+import homebaseMapConfig from './configs/homebase-map.json';
+import type { HomebaseMapConfig } from './simulation/types.ts';
 import { showEscapeMenu, hideEscapeMenu, setupEscapeMenu } from './ui/escape-menu.ts';
 import { showReplayBrowser } from './ui/replay-browser.ts';
 import { showReplayControls, hideReplayControls, onReplayExit } from './ui/replay-controls.ts';
@@ -36,7 +41,7 @@ import gunnerConfig from './configs/gunner.json';
 import audioConfig from './configs/audio.json';
 import extractionMapConfig from './configs/extraction-map.json';
 import destructibleCratesConfig from './configs/destructible-crates.json';
-import { addCashToStash, removeWeapon, removeArmor, getBandages, getAmmoStock, clearAmmoStock, getWeaponUpgradeLevel, getArmorHp, setArmorHp, clearArmorHp } from './persistence.ts';
+import { addCashToStash, getWeaponUpgradeLevel, setArmorHp } from './persistence.ts';
 import shopConfig from './configs/shop.json';
 import armorConfig from './configs/armor.json';
 import bandagesConfig from './configs/bandages.json';
@@ -51,9 +56,9 @@ import { setupStashScreen, openStashScreen, closeStashScreen, isStashOpen } from
 import { setupLootScreen, openLootScreen, closeLootScreen, isLootOpen, updateLootSearch, quickTransferHovered } from './ui/loot-screen.ts';
 import { findNearestLootContainer } from './simulation/loot-containers.ts';
 import { initHudHotbar, updateHudHotbar, showHudHotbar, hideHudHotbar } from './ui.ts';
-import { syncInventoryToPlayer, createEmptyInventory, addItemToBackpack, countItemInBackpack, removeItemFromBackpack } from './simulation/inventory.ts';
-import { ARMOR_TYPE_TO_ITEM, ITEM_DEFS, WEAPON_AMMO_MAP } from './simulation/items.ts';
-import { savePlayerInventory } from './persistence.ts';
+import { syncInventoryToPlayer, countItemInBackpack, removeItemFromBackpack } from './simulation/inventory.ts';
+import { ITEM_DEFS, WEAPON_AMMO_MAP, ITEM_TO_ARMOR_TYPE } from './simulation/items.ts';
+import { savePlayerInventory, loadPlayerInventory } from './persistence.ts';
 import inventoryConfig from './configs/inventory.json';
 import type { InventoryConfig } from './simulation/types.ts';
 
@@ -80,11 +85,13 @@ const configs: GameConfigs = {
 const configsJson = JSON.stringify(configs);
 
 // ---- App State ----
-type Screen = 'start' | 'hub' | 'playing' | 'paused' | 'gameOver' | 'replay';
+type Screen = 'start' | 'hub' | 'homebase' | 'playing' | 'paused' | 'gameOver' | 'replay';
 let screen: Screen = 'start';
+let prePauseScreen: Screen = 'playing';
 let equippedWeapon: WeaponType = 'pistol';
 let equippedArmor: ArmorType | null = null;
 let runConfigs: GameConfigs = configs; // effective configs for current run (with upgrades applied)
+let homebase: HomebaseInstance | null = null;
 
 // ---- Core objects ----
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
@@ -126,8 +133,8 @@ setupInventoryScreen(() => {
   closeInventoryScreen();
 });
 setupStashScreen(() => {
-  // On stash close: return to hub
-  showHubScreen();
+  // On stash close: no-op (player stays in homebase or hub)
+  if (screen === 'hub') showHubScreen();
 });
 setupLootScreen(() => {
   // On change: sync inventory to player legacy fields
@@ -213,6 +220,54 @@ function rebuildScene(): void {
   renderer.scene.add(dirLight);
 }
 
+// ---- Homebase ----
+
+// Homebase interaction prompt element
+const homebasePrompt = document.createElement('div');
+homebasePrompt.id = 'homebase-interact-prompt';
+homebasePrompt.className = 'hidden';
+document.getElementById('game-container')!.appendChild(homebasePrompt);
+
+function enterHomebase(): void {
+  // Clean up old homebase
+  if (homebase) {
+    destroyHomebase(homebase);
+    homebase = null;
+  }
+
+  homebase = createHomebase(homebaseMapConfig as HomebaseMapConfig, configs.player.radius);
+
+  rebuildScene();
+  renderer.initHomebase(homebase.state);
+
+  // Show the player's currently equipped weapon
+  const inv = loadPlayerInventory(inventoryConfig.backpackSize);
+  const homeWeapon = (inv.equipment.weapon1?.defId ?? 'pistol') as WeaponType;
+  const homeUpgrade = inv.equipment.weapon1?.upgradeLevel ?? 0;
+  renderer.setPlayerWeapon(homeWeapon, homeUpgrade);
+
+  // Hide all overlays
+  hideGameOver();
+  hideStartScreen();
+  hideHubScreen();
+  hideEscapeMenu();
+  hideReplayControls();
+  hideHudHotbar();
+  closeLootScreen();
+  closeInventoryScreen();
+  if (mobile) {
+    (input as TouchInputHandler).setVisible(false);
+  } else {
+    hideCrosshair();
+  }
+
+  homebasePrompt.classList.add('hidden');
+  interactPrompt.classList.add('hidden');
+  accumulator = 0;
+  lastTime = performance.now();
+  screen = 'homebase';
+}
+
 // ---- Game lifecycle ----
 function startGame(mode: GameMode = 'arena', weapon?: WeaponType, armor?: ArmorType | null): void {
   currentSeed = Date.now();
@@ -235,64 +290,53 @@ function startGame(mode: GameMode = 'arena', weapon?: WeaponType, armor?: ArmorT
   runConfigs = effectiveConfigs;
   game = createGame(runConfigs, currentSeed, mode, activeWeapon, equippedArmor);
 
-  // Set bandage counts from persistence and build inventory
+  // Load persisted inventory for extraction mode (inventory-as-loadout)
   if (mode === 'extraction') {
-    const bandageStock = getBandages();
-    game.state.player.bandageSmallCount = bandageStock.small;
-    game.state.player.bandageLargeCount = bandageStock.large;
+    const inv = loadPlayerInventory(inventoryConfig.backpackSize);
 
-    // Load armor HP from persistence (default to maxHp if not saved)
-    if (equippedArmor && game.state.player.armorMaxHp > 0) {
-      const savedHp = getArmorHp(equippedArmor);
-      if (savedHp !== undefined) {
-        game.state.player.armorHp = Math.min(savedHp, game.state.player.armorMaxHp);
-        // If armor HP was 0 from persistence, it's broken
-        if (game.state.player.armorHp <= 0) {
-          game.state.player.armorHp = 0;
-          game.state.player.armorDamageReduction = 0;
+    // Fill magazines: top off equipped weapons with backpack ammo (or free mag)
+    for (const slotKey of ['weapon1', 'weapon2'] as const) {
+      const weaponItem = inv.equipment[slotKey];
+      if (!weaponItem) continue;
+      const wt = weaponItem.defId as WeaponType;
+      const wc = effectiveConfigs.weapons[wt];
+      if (!wc) continue;
+      const magSize = wc.magazineSize;
+      const currentAmmo = weaponItem.currentAmmo ?? 0;
+      const needed = magSize - currentAmmo;
+      if (needed > 0) {
+        const ammoType = WEAPON_AMMO_MAP[wt];
+        if (ammoType) {
+          const available = countItemInBackpack(inv, ammoType);
+          if (available > 0) {
+            const pulled = Math.min(needed, available);
+            removeItemFromBackpack(inv, ammoType, pulled);
+            weaponItem.currentAmmo = currentAmmo + pulled;
+          } else {
+            // Free mag if no ammo available at all
+            weaponItem.currentAmmo = magSize;
+          }
+        } else {
+          weaponItem.currentAmmo = magSize;
         }
       }
     }
 
-    // Build a fresh raid inventory with only the selected loadout
-    const inv = createEmptyInventory(inventoryConfig.backpackSize);
-    // Equip selected weapon (start with full magazine)
-    const weaponMagSize = effectiveConfigs.weapons[activeWeapon].magazineSize;
-    inv.equipment.weapon1 = {
-      defId: activeWeapon,
-      quantity: 1,
-      upgradeLevel: getWeaponUpgradeLevel(activeWeapon),
-      currentAmmo: weaponMagSize,
-    };
-    // Equip selected armor
-    if (equippedArmor) {
-      const armorItemId = ARMOR_TYPE_TO_ITEM[equippedArmor] ?? `${equippedArmor}_armor`;
-      inv.equipment.armor = {
-        defId: armorItemId,
-        quantity: 1,
-        currentHp: game.state.player.armorHp > 0 ? game.state.player.armorHp : undefined,
-      };
+    // Read equipped weapon/armor from inventory
+    const weapon1 = inv.equipment.weapon1;
+    if (weapon1) {
+      const wt = weapon1.defId as WeaponType;
+      equippedWeapon = wt;
+      game.state.player.activeWeapon = wt;
     }
-    // Put bandages in backpack
-    if (bandageStock.small > 0) {
-      addItemToBackpack(inv, { defId: 'bandage_small', quantity: bandageStock.small });
+    const armorItem = inv.equipment.armor;
+    if (armorItem) {
+      const armorType = ITEM_TO_ARMOR_TYPE[armorItem.defId];
+      equippedArmor = armorType ? armorType as ArmorType : null;
+    } else {
+      equippedArmor = null;
     }
-    if (bandageStock.large > 0) {
-      addItemToBackpack(inv, { defId: 'bandage_large', quantity: bandageStock.large });
-    }
-    // Put ammo in backpack: starting ammo + purchased stock
-    const ammoStock = getAmmoStock();
-    const ammoType = WEAPON_AMMO_MAP[activeWeapon];
-    if (ammoType) {
-      const startingAmount = (shopConfig.startingAmmo as Record<string, number>)[ammoType] ?? 0;
-      const purchasedAmount = ammoStock[ammoType] ?? 0;
-      const totalAmmo = startingAmount + purchasedAmount;
-      if (totalAmmo > 0) {
-        addItemToBackpack(inv, { defId: ammoType, quantity: totalAmmo });
-      }
-    }
-    // Clear purchased ammo stock — it's now in the raid inventory
-    clearAmmoStock();
+
     game.state.player.inventory = inv;
     syncInventoryToPlayer(game.state.player, effectiveConfigs);
   }
@@ -300,9 +344,11 @@ function startGame(mode: GameMode = 'arena', weapon?: WeaponType, armor?: ArmorT
   fullRecorder = new FullRecorder(currentSeed, configsJson);
   ringRecorder = new RingRecorder(game);
 
-  const weaponConfig = effectiveConfigs.weapons[activeWeapon];
+  // For extraction, equippedWeapon may have been updated from inventory
+  const finalWeapon: WeaponType = mode === 'extraction' ? equippedWeapon : activeWeapon;
+  const weaponConfig = effectiveConfigs.weapons[finalWeapon];
   setWeaponConfig(weaponConfig);
-  setActiveWeaponName(activeWeapon);
+  setActiveWeaponName(finalWeapon);
 
   rebuildScene();
   renderer.initArena(game.state);
@@ -310,8 +356,8 @@ function startGame(mode: GameMode = 'arena', weapon?: WeaponType, armor?: ArmorT
   renderer.setDodgeDuration(configs.player.dodgeDuration);
   renderer.setWeaponConfig(weaponConfig);
   renderer.setBandageConfig(bandagesConfig as BandageConfig);
-  const upgradeLevel = mode === 'extraction' ? getWeaponUpgradeLevel(activeWeapon) : 0;
-  renderer.setPlayerWeapon(activeWeapon, upgradeLevel);
+  const upgradeLevel = mode === 'extraction' ? getWeaponUpgradeLevel(finalWeapon) : 0;
+  renderer.setPlayerWeapon(finalWeapon, upgradeLevel);
   audioSystem.init();
   gameOverShown = false;
   hideGameOver();
@@ -319,6 +365,8 @@ function startGame(mode: GameMode = 'arena', weapon?: WeaponType, armor?: ArmorT
   hideHubScreen();
   hideEscapeMenu();
   hideReplayControls();
+  closeShopScreen();
+  homebasePrompt.classList.add('hidden');
   if (mobile) {
     (input as TouchInputHandler).setVisible(true);
   } else {
@@ -366,6 +414,12 @@ function goToTitle(): void {
   hideHudHotbar();
   closeLootScreen();
   closeInventoryScreen();
+  closeShopScreen();
+  if (homebase) {
+    destroyHomebase(homebase);
+    homebase = null;
+  }
+  homebasePrompt.classList.add('hidden');
   if (mobile) {
     (input as TouchInputHandler).setVisible(false);
   } else {
@@ -377,7 +431,8 @@ function goToTitle(): void {
 
 // ---- Pause logic ----
 function pauseGame(): void {
-  if (screen === 'playing' || screen === 'gameOver') {
+  if (screen === 'playing' || screen === 'gameOver' || screen === 'homebase') {
+    prePauseScreen = screen;
     showEscapeMenu();
     if (mobile) (input as TouchInputHandler).setVisible(false);
     screen = 'paused';
@@ -386,9 +441,13 @@ function pauseGame(): void {
 
 function resumeGame(): void {
   hideEscapeMenu();
-  const resumeToPlaying = !gameOverShown;
-  if (mobile && resumeToPlaying) (input as TouchInputHandler).setVisible(true);
-  screen = resumeToPlaying ? 'playing' : 'gameOver';
+  if (prePauseScreen === 'homebase') {
+    screen = 'homebase';
+  } else {
+    const resumeToPlaying = !gameOverShown;
+    if (mobile && resumeToPlaying) (input as TouchInputHandler).setVisible(true);
+    screen = resumeToPlaying ? 'playing' : 'gameOver';
+  }
   lastTime = performance.now();
   accumulator = 0;
 }
@@ -403,7 +462,22 @@ window.addEventListener('contextmenu', (e) => e.preventDefault());
 
 // ---- Escape key ----
 window.addEventListener('keydown', (e) => {
-  // F key: toggle loot screen
+  // F key: homebase interactions
+  if (e.key.toLowerCase() === 'f' && screen === 'homebase' && !isShopOpen() && !isStashOpen()) {
+    if (homebase && homebase.state.nearestInteractable) {
+      const ia = homebase.state.nearestInteractable;
+      if (ia.type === 'shop') {
+        openShopScreen();
+      } else if (ia.type === 'stash') {
+        openStashScreen(inventoryConfig as InventoryConfig);
+      } else if (ia.type === 'raid') {
+        startGame('extraction');
+      }
+    }
+    return;
+  }
+
+  // F key: toggle loot screen (in-game)
   if (e.key.toLowerCase() === 'f' && screen === 'playing' && !isInventoryOpen() && !isLootOpen()) {
     if (game && game.state.gameMode === 'extraction') {
       const container = findNearestLootContainer(
@@ -449,14 +523,20 @@ window.addEventListener('keydown', (e) => {
     return;
   }
 
-  // Close stash screen on Escape → return to hub
+  // Close shop screen on Escape
+  if (e.key === 'Escape' && isShopOpen()) {
+    closeShopScreen();
+    return;
+  }
+
+  // Close stash screen on Escape
   if (e.key === 'Escape' && isStashOpen()) {
     closeStashScreen();
     return;
   }
 
   if (e.key === 'Escape') {
-    if (screen === 'playing' || screen === 'gameOver') {
+    if (screen === 'playing' || screen === 'gameOver' || screen === 'homebase') {
       pauseGame();
     } else if (screen === 'paused') {
       resumeGame();
@@ -521,6 +601,19 @@ onReplayExit(() => {
   exitReplay();
 });
 
+// ---- Shop screen ----
+setupShopScreen(
+  shopConfig.prices,
+  configs.weapons,
+  shopConfig.armorPrices,
+  armorConfig,
+  shopConfig.bandagePrices,
+  weaponUpgradesConfig as unknown as WeaponUpgradesConfig,
+  shopConfig.ammoPrices,
+  shopConfig.ammoPerPurchase,
+  inventoryConfig as InventoryConfig,
+);
+
 // ---- Hub screen ----
 setupHubScreen({
   onStartRun: (weapon, armor) => {
@@ -541,9 +634,7 @@ setupHubScreen({
 onStartGame((mode) => {
   if (screen === 'start') {
     if (mode === 'extraction') {
-      hideStartScreen();
-      showHubScreen();
-      screen = 'hub';
+      enterHomebase();
     } else {
       startGame('arena');
     }
@@ -554,10 +645,7 @@ onStartGame((mode) => {
 onRestart(() => {
   if (screen === 'gameOver') {
     if (game.state.gameMode === 'extraction') {
-      hideGameOver();
-      if (!mobile) hideCrosshair();
-      showHubScreen();
-      screen = 'hub';
+      enterHomebase();
     } else {
       startGame('arena');
     }
@@ -727,13 +815,23 @@ function gameLoop(now: number): void {
       screen = 'gameOver';
     } else if (state.gameOver && !gameOverShown) {
       gameOverShown = true;
-      // Cash is NOT added to stash on death — it's lost
+      // On death in extraction: lose equipped weapon (except pistol) and armor
+      // The inventory is NOT saved — everything brought into the raid is lost
       if (state.gameMode === 'extraction') {
-        removeWeapon(equippedWeapon);
-        if (equippedArmor) {
-          removeArmor(equippedArmor);
-          clearArmorHp(equippedArmor);
+        const inv = loadPlayerInventory(inventoryConfig.backpackSize);
+        // Remove equipped weapon if not pistol
+        if (equippedWeapon !== 'pistol' && inv.equipment.weapon1?.defId === equippedWeapon) {
+          inv.equipment.weapon1 = null;
         }
+        // Remove equipped armor
+        if (equippedArmor && inv.equipment.armor) {
+          inv.equipment.armor = null;
+        }
+        // Give back a pistol if weapon1 is now empty
+        if (!inv.equipment.weapon1) {
+          inv.equipment.weapon1 = { defId: 'pistol', quantity: 1, upgradeLevel: getWeaponUpgradeLevel('pistol') };
+        }
+        savePlayerInventory(inv);
       }
       // Build lost gear string
       const lostParts: string[] = [];
@@ -786,6 +884,42 @@ function gameLoop(now: number): void {
     if (state.gameMode === 'extraction') {
       updateHudHotbar(state.player.inventory);
     }
+  } else if (screen === 'homebase' && homebase) {
+    // Homebase: player movement + interaction prompts
+    input.setPlayerPos(homebase.state.playerPos);
+    input.setEnemies([]);
+    const currentInput = input.getInput();
+
+    // Suppress input when overlay is open
+    if (isShopOpen() || isStashOpen()) {
+      currentInput.moveDir = { x: 0, y: 0 };
+      currentInput.fire = false;
+      currentInput.firePressed = false;
+      currentInput.dodge = false;
+      currentInput.reload = false;
+      currentInput.interact = false;
+    }
+
+    accumulator += dt;
+    while (accumulator >= TICK_DURATION) {
+      homebaseTick(homebase, currentInput, configs.player);
+      accumulator -= TICK_DURATION;
+    }
+    input.consumeEdgeInputs();
+
+    // Update interaction prompt
+    const ia = homebase.state.nearestInteractable;
+    if (ia && !isShopOpen() && !isStashOpen()) {
+      homebasePrompt.classList.remove('hidden');
+      if (ia.type === 'shop') homebasePrompt.innerHTML = '<kbd>F</kbd> Shop';
+      else if (ia.type === 'stash') homebasePrompt.innerHTML = '<kbd>F</kbd> Stash';
+      else if (ia.type === 'raid') homebasePrompt.innerHTML = '<kbd>F</kbd> Start Raid';
+    } else {
+      homebasePrompt.classList.add('hidden');
+    }
+
+    renderer.syncHomebase(homebase.state, dt);
+    renderer.render();
   } else if (screen === 'paused' || screen === 'gameOver') {
     // Still render the scene (visible behind overlay)
     renderer.syncState(game.state, dt);

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import type { GameState, GameEvent, WeaponConfig, WeaponType, EnemyType, ArmorType, BandageConfig } from '../simulation/types.ts';
+import type { GameState, GameEvent, WeaponConfig, WeaponType, EnemyType, ArmorType, BandageConfig, HomebaseInteractable } from '../simulation/types.ts';
+import type { HomebaseState } from '../simulation/homebase.ts';
 import { ParticleSystem } from './particles.ts';
 import {
   createPlayerMesh,
@@ -66,6 +67,7 @@ export class Renderer {
 
   // Fog of war
   private fogOfWar: FogOfWar;
+  private skipFogOfWar = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.scene = new THREE.Scene();
@@ -126,6 +128,7 @@ export class Renderer {
   /** Set up static arena geometry (ground, walls, obstacles) */
   initArena(state: GameState): void {
     // Clear stale refs from previous game
+    this.skipFogOfWar = false;
     this.enemyGroups.clear();
     this.projectileMeshes.clear();
     this.enemyProjectileMeshes.clear();
@@ -890,12 +893,171 @@ export class Renderer {
     }
   }
 
+  /** Set up homebase room scene (ground, walls, interactable markers, player) */
+  initHomebase(state: HomebaseState): void {
+    // Clear stale refs
+    this.enemyGroups.clear();
+    this.projectileMeshes.clear();
+    this.enemyProjectileMeshes.clear();
+    this.grenadeMeshes.clear();
+    this.crateMeshes.clear();
+    this.cashMeshes.clear();
+    this.destructibleCrateMeshes.clear();
+    this.lootContainerMeshes.clear();
+    this.enemyTypes.clear();
+    this.sniperLaserMeshes.clear();
+    this.hitFlashTimers.clear();
+    this.tracers = [];
+    this.playerGroup = null;
+    this.skipFogOfWar = true;
+
+    // Warm-toned ground floor
+    const groundGeo = new THREE.PlaneGeometry(state.arena.width, state.arena.height);
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x3a3530, roughness: 0.9 });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    this.scene.add(ground);
+
+    // Arena boundary walls
+    const walls = createWallMeshes(state.arena.width, state.arena.height);
+    this.scene.add(walls);
+
+    // Room obstacles (furniture/walls)
+    for (const obs of state.obstacles) {
+      const mesh = createObstacleMeshWithColor(obs.width, obs.height, 0x555550);
+      mesh.position.set(obs.pos.x, mesh.position.y, obs.pos.y);
+      if (obs.rotation) mesh.rotation.y = -obs.rotation;
+      this.scene.add(mesh);
+    }
+
+    // Interactable markers
+    for (const ia of state.interactables) {
+      this.createInteractableMarker(ia);
+    }
+
+    // Find directional light
+    this.dirLight = null;
+    for (const child of this.scene.children) {
+      if (child instanceof THREE.DirectionalLight) {
+        this.dirLight = child;
+        break;
+      }
+    }
+
+    // Clean up muzzle flashes
+    for (const mf of this.muzzleFlashes) {
+      this.scene.remove(mf.light);
+      mf.light.dispose();
+    }
+    this.muzzleFlashes = [];
+
+    // Particles
+    if (this.particles) this.particles.dispose();
+    this.particles = new ParticleSystem();
+    this.scene.add(this.particles.points);
+
+    // Player
+    this.playerRadius = state.playerRadius;
+    this.playerGroup = createPlayerMesh(state.playerRadius);
+    this.playerCapsule = this.playerGroup.children[0] as THREE.Mesh;
+    this.playerAim = this.playerGroup.children[1] as THREE.Mesh;
+    this.playerReloadBar = this.playerGroup.children[2] as THREE.Group;
+    this.playerReloadBar.visible = false;
+    this.scene.add(this.playerGroup);
+  }
+
+  private createInteractableMarker(ia: HomebaseInteractable): void {
+    if (ia.type === 'shop') {
+      // Green terminal box
+      const geo = new THREE.BoxGeometry(1.2, 1.5, 0.8);
+      const mat = new THREE.MeshStandardMaterial({ color: 0x228844, emissive: 0x114422, emissiveIntensity: 0.3 });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.castShadow = true;
+      mesh.position.set(ia.pos.x, 0.75, ia.pos.y);
+      this.scene.add(mesh);
+      // Screen glow
+      const screenGeo = new THREE.PlaneGeometry(0.8, 0.6);
+      const screenMat = new THREE.MeshStandardMaterial({ color: 0x44ff88, emissive: 0x44ff88, emissiveIntensity: 0.8 });
+      const screenMesh = new THREE.Mesh(screenGeo, screenMat);
+      screenMesh.position.set(ia.pos.x, 1.2, ia.pos.y + 0.41);
+      this.scene.add(screenMesh);
+    } else if (ia.type === 'stash') {
+      // Brown storage crate
+      const geo = new THREE.BoxGeometry(1.4, 0.9, 1.0);
+      const mat = new THREE.MeshStandardMaterial({ color: 0x8B6914, roughness: 0.8 });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.castShadow = true;
+      mesh.position.set(ia.pos.x, 0.45, ia.pos.y);
+      this.scene.add(mesh);
+      // Lid highlight
+      const lidGeo = new THREE.BoxGeometry(1.4, 0.08, 1.0);
+      const lidMat = new THREE.MeshStandardMaterial({ color: 0xAA8820 });
+      const lidMesh = new THREE.Mesh(lidGeo, lidMat);
+      lidMesh.position.set(ia.pos.x, 0.94, ia.pos.y);
+      this.scene.add(lidMesh);
+    } else if (ia.type === 'raid') {
+      // Extraction-zone styled marker on the floor
+      const w = ia.width ?? 4;
+      const h = ia.height ?? 1.5;
+      const geo = new THREE.PlaneGeometry(w, h);
+      const mat = new THREE.MeshStandardMaterial({
+        color: 0x44aa44,
+        emissive: 0x228822,
+        emissiveIntensity: 0.4,
+        transparent: true,
+        opacity: 0.6,
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.rotation.x = -Math.PI / 2;
+      mesh.position.set(ia.pos.x, 0.02, ia.pos.y);
+      this.scene.add(mesh);
+      // Door frame
+      const doorGeo = new THREE.BoxGeometry(w + 0.4, 2.5, 0.3);
+      const doorMat = new THREE.MeshStandardMaterial({ color: 0x556655 });
+      const doorMesh = new THREE.Mesh(doorGeo, doorMat);
+      doorMesh.castShadow = true;
+      doorMesh.position.set(ia.pos.x, 1.25, ia.pos.y + h / 2 + 0.15);
+      this.scene.add(doorMesh);
+    }
+  }
+
+  /** Sync homebase player position, camera, and lights per frame */
+  syncHomebase(state: HomebaseState, dt: number): void {
+    if (this.playerGroup) {
+      this.playerGroup.position.set(state.playerPos.x, 0, state.playerPos.y);
+      const aimAngle = Math.atan2(state.playerAimDir.y, state.playerAimDir.x);
+      this.playerGroup.rotation.y = -aimAngle;
+      if (this.playerAim) this.playerAim.visible = true;
+
+      // Reset capsule transform
+      if (this.playerCapsule) {
+        const r = this.playerRadius;
+        const capsuleHeight = r * 1.2;
+        this.playerCapsule.rotation.set(0, 0, 0);
+        this.playerCapsule.position.y = r + capsuleHeight / 2;
+      }
+    }
+
+    // Camera follow
+    updateCamera(this.camera, state.playerPos.x, state.playerPos.y, dt);
+
+    // Light follow
+    if (this.dirLight) {
+      this.dirLight.position.set(state.playerPos.x + 10, 20, state.playerPos.y + 10);
+      this.dirLight.target.position.set(state.playerPos.x, 0, state.playerPos.y);
+      this.dirLight.target.updateMatrixWorld();
+    }
+  }
+
   render(): void {
     this.webglRenderer.render(this.scene, this.camera);
 
-    // Render fog of war overlay
+    // Render fog of war overlay (skip in homebase)
     this.webglRenderer.autoClear = false;
-    this.fogOfWar.render(this.webglRenderer);
+    if (!this.skipFogOfWar) {
+      this.fogOfWar.render(this.webglRenderer);
+    }
 
     // Render vignette overlay on top
     if (this.vignetteScene && this.vignetteCamera) {

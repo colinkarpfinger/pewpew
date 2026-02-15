@@ -634,7 +634,7 @@ New config file: `inventory.json`
 - Cash flow unified: floor pickups add to both `runCash` (legacy) and backpack `cash_stack`; extraction uses backpack totals only
 - Hub `showHubScreen()` calls `loadPlayerInventory()` to drain stale cash on every open
 
-### Phase 5: Home Base
+### Phase 5: Home Base — DONE
 - Simple 3D room level (floor, walls, objects)
 - Player movement in home base
 - Storage crate interaction (F to open stash UI)
@@ -642,6 +642,24 @@ New config file: `inventory.json`
 - Raid door trigger zone
 - Replace current hub screen with home base
 - Transition flow: home base → raid → home base
+
+**Implementation notes:**
+- `homebase` is a new Screen state replacing the hub flow; Screen type is now `'start' | 'hub' | 'homebase' | 'playing' | 'paused' | 'gameOver' | 'replay'`
+- `HomebaseState` / `HomebaseInstance` in `src/simulation/homebase.ts` with `homebaseTick()` for player movement + physics collision + nearest interactable detection
+- Reuses `clampToArena()` from collision.ts and `createPhysicsWorld()` / `queryPushOut()` from physics.ts
+- Room layout config in `src/configs/homebase-map.json`: 16x12 room with shop terminal (left), storage crate (right), raid door (far end)
+- Renderer adds `initHomebase()` (room scene with warm ground, walls, interactable markers) and `syncHomebase()` (player/camera/light per frame); fog of war skipped via `skipFogOfWar` flag
+- Three-panel shop screen (`src/ui/shop-screen.ts`): inventory (left), detail/actions (center), catalog (right)
+  - Buy items from categorized catalog (weapons, armor, ammo, medical, grenades)
+  - Sell inventory items for their sell value
+  - Upgrade weapons (increments `upgradeLevel` on item + persistence)
+  - Repair damaged armor (50% of buy price, restores to max HP)
+- **Inventory IS the loadout**: no separate loadout selection; whatever's equipped when walking to the raid door is what gets brought
+- Free magazine fill on raid start: equipped weapons topped off from backpack ammo, or free mag if no ammo available
+- `startGame()` reworked: loads persisted inventory directly instead of building from flat persistence fields
+- Death handling updated: removes equipped weapon (except pistol) and armor from persisted inventory; ensures pistol always available
+- `prePauseScreen` tracks which screen to resume to (homebase vs playing)
+- Old hub screen (`src/ui/hub-screen.ts`) still exists but flow bypasses it; can be deleted once shop screen is proven stable
 
 ### Phase 6: Polish & Balance
 - Loot table balancing across enemy types and crate tiers
