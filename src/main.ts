@@ -127,6 +127,10 @@ setupInventoryScreen(() => {
   // On change: sync inventory to player legacy fields
   if (game) {
     syncInventoryToPlayer(game.state.player, runConfigs);
+    // Update armor visual to match equipped armor
+    const armorItem = game.state.player.inventory.equipment.armor;
+    const armorType = armorItem ? ITEM_TO_ARMOR_TYPE[armorItem.defId] as ArmorType | undefined : null;
+    renderer.setPlayerArmor(armorType ?? null);
   }
 }, (defId: string) => {
   // On use item: queue for next tick processing
@@ -141,6 +145,10 @@ setupLootScreen(() => {
   // On change: sync inventory to player legacy fields
   if (game) {
     syncInventoryToPlayer(game.state.player, runConfigs);
+    // Update armor visual to match equipped armor
+    const armorItem = game.state.player.inventory.equipment.armor;
+    const armorType = armorItem ? ITEM_TO_ARMOR_TYPE[armorItem.defId] as ArmorType | undefined : null;
+    renderer.setPlayerArmor(armorType ?? null);
   }
 });
 
