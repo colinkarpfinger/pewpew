@@ -9,7 +9,7 @@ import { InputHandler } from './input.ts';
 import type { IInputHandler } from './input-interface.ts';
 import { TouchInputHandler } from './touch-input.ts';
 import { isMobile } from './platform.ts';
-import { updateHUD, showGameOver, hideGameOver, showExtractionSuccess, onRestart, setWeaponConfig, setActiveWeaponName } from './ui.ts';
+import { updateHUD, showGameOver, hideGameOver, showExtractionSuccess, onRestart } from './ui.ts';
 import { FullRecorder } from './recording/full-recorder.ts';
 import { RingRecorder } from './recording/ring-recorder.ts';
 import { saveReplay, loadReplay } from './recording/api.ts';
@@ -188,8 +188,6 @@ registerCommand('weapon', (args) => {
   game.state.player.reloadTimer = 0;
   game.state.player.fireCooldown = 0;
   game.state.player.damageBonusMultiplier = 1.0;
-  setWeaponConfig(wc);
-  setActiveWeaponName(weaponType);
   renderer.setWeaponConfig(wc);
   return `Switched to ${weaponType} (${wc.magazineSize} rounds, ${wc.damage} dmg)`;
 });
@@ -348,9 +346,6 @@ function startGame(mode: GameMode = 'arena', weapon?: WeaponType, armor?: ArmorT
   // For extraction, equippedWeapon may have been updated from inventory
   const finalWeapon: WeaponType = mode === 'extraction' ? equippedWeapon : activeWeapon;
   const weaponConfig = effectiveConfigs.weapons[finalWeapon];
-  setWeaponConfig(weaponConfig);
-  setActiveWeaponName(finalWeapon);
-
   rebuildScene();
   renderer.initArena(game.state);
   renderer.setPlayerArmor(equippedArmor);
@@ -382,7 +377,14 @@ function startGame(mode: GameMode = 'arena', weapon?: WeaponType, armor?: ArmorT
   // Show hotbar for extraction mode
   if (mode === 'extraction') {
     showHudHotbar();
-    updateHudHotbar(game.state.player.inventory);
+    updateHudHotbar(
+      game.state.player.inventory,
+      game.state.player.activeWeaponSlot,
+      game.state.player.ammo,
+      weaponConfig.magazineSize,
+      game.state.player.reloadTimer > 0,
+      game.state.player.weaponSwapTimer > 0,
+    );
   } else {
     hideHudHotbar();
   }
@@ -869,8 +871,6 @@ function gameLoop(now: number): void {
       if (ev.type === 'weapon_swap') {
         const wt = state.player.activeWeapon;
         const wc = runConfigs.weapons[wt];
-        setWeaponConfig(wc);
-        setActiveWeaponName(wt);
         renderer.setWeaponConfig(wc);
         const upgradeLevel = state.gameMode === 'extraction' ? getWeaponUpgradeLevel(wt) : 0;
         renderer.setPlayerWeapon(wt, upgradeLevel);
@@ -903,7 +903,15 @@ function gameLoop(now: number): void {
     renderer.render();
     updateHUD(state);
     if (state.gameMode === 'extraction') {
-      updateHudHotbar(state.player.inventory);
+      const wc = runConfigs.weapons[state.player.activeWeapon];
+      updateHudHotbar(
+        state.player.inventory,
+        state.player.activeWeaponSlot,
+        state.player.ammo,
+        wc.magazineSize,
+        state.player.reloadTimer > 0,
+        state.player.weaponSwapTimer > 0,
+      );
     }
   } else if (screen === 'homebase' && homebase) {
     // Homebase: player movement + interaction prompts

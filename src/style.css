@@ -76,49 +76,6 @@ html, body {
   stroke: rgba(100, 255, 150, 0.8);
 }
 
-/* ---- Ammo Counter ---- */
-
-#ammo-counter {
-  position: absolute;
-  bottom: 32px;
-  left: 50%;
-  transform: translateX(-50%);
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 20px;
-  font-family: monospace;
-  font-weight: bold;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
-  pointer-events: none;
-  z-index: 40;
-}
-
-#ammo-counter.reloading {
-  color: rgba(100, 255, 150, 0.8);
-}
-
-#ammo-counter.bonus-active {
-  color: rgba(100, 200, 255, 0.9);
-}
-
-#ammo-counter.bonus-perfect {
-  color: rgba(255, 200, 50, 1);
-}
-
-/* ---- Grenade Counter ---- */
-
-#grenade-counter {
-  position: absolute;
-  bottom: 58px;
-  left: 50%;
-  transform: translateX(-50%);
-  color: rgba(34, 170, 34, 0.9);
-  font-size: 16px;
-  font-family: monospace;
-  font-weight: bold;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
-  pointer-events: none;
-  z-index: 40;
-}
 
 /* ---- Cash Counter ---- */
 
@@ -139,25 +96,6 @@ html, body {
   display: none;
 }
 
-/* ---- Bandage Counter ---- */
-
-#bandage-counter {
-  position: absolute;
-  bottom: 82px;
-  left: 50%;
-  transform: translateX(-50%);
-  color: rgba(68, 204, 102, 0.9);
-  font-size: 14px;
-  font-family: monospace;
-  font-weight: bold;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
-  pointer-events: none;
-  z-index: 40;
-}
-
-#bandage-counter.hidden {
-  display: none;
-}
 
 /* ---- Reload Popup ---- */
 
@@ -438,20 +376,6 @@ html, body {
 
 #mode-buttons .mode-btn {
   min-width: 200px;
-}
-
-#weapon-name {
-  position: absolute;
-  bottom: 56px;
-  left: 50%;
-  transform: translateX(-50%);
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 14px;
-  font-family: monospace;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  pointer-events: none;
-  z-index: 40;
 }
 
 @keyframes blink {
@@ -1426,6 +1350,41 @@ html, body {
   font-size: 10px;
   font-family: monospace;
   font-weight: bold;
+}
+
+.hud-hotbar-weapon {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.hud-hotbar-active {
+  border-color: #e8a030;
+  border-width: 2px;
+  background: rgba(232, 160, 48, 0.15);
+}
+
+.hud-hotbar-ammo {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 11px;
+  font-family: monospace;
+  font-weight: bold;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.hud-hotbar-ammo-status {
+  color: rgba(100, 255, 150, 0.9);
+}
+
+.hud-hotbar-separator {
+  width: 2px;
+  align-self: stretch;
+  margin: 4px 4px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 1px;
 }
 
 /* ---- Loot Screen ---- */

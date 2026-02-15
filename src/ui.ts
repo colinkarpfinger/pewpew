@@ -1,17 +1,13 @@
-import type { GameState, GameMode, WeaponConfig, RunStats, PlayerInventory } from './simulation/types.ts';
+import type { GameState, GameMode, RunStats, PlayerInventory } from './simulation/types.ts';
 import type { ItemCategory } from './simulation/items.ts';
 import { ITEM_DEFS, WEAPON_AMMO_MAP } from './simulation/items.ts';
 import { countItemInBackpack } from './simulation/inventory.ts';
 
 const scoreEl = () => document.getElementById('hud-score')!;
 const hpBar = () => document.getElementById('hud-hp-bar')!;
-const grenadeCounterEl = () => document.getElementById('grenade-counter')!;
-const ammoCounterEl = () => document.getElementById('ammo-counter')!;
 const armorContainer = () => document.getElementById('hud-armor-container')!;
 const armorBar = () => document.getElementById('hud-armor-bar')!;
 const cashCounterEl = () => document.getElementById('cash-counter')!;
-const bandageCounterEl = () => document.getElementById('bandage-counter')!;
-const weaponNameEl = () => document.getElementById('weapon-name')!;
 const gameOverEl = () => document.getElementById('game-over')!;
 const finalScoreEl = () => document.getElementById('final-score')!;
 const finalCashEl = () => document.getElementById('final-cash')!;
@@ -27,16 +23,6 @@ const HOTBAR_CATEGORY_COLORS: Record<ItemCategory, string> = {
   valuable: '#ffd700',
   material: '#888888',
 };
-
-let _weaponConfig: WeaponConfig | null = null;
-
-export function setWeaponConfig(config: WeaponConfig): void {
-  _weaponConfig = config;
-}
-
-export function setActiveWeaponName(name: string): void {
-  weaponNameEl().textContent = name;
-}
 
 export function updateHUD(state: GameState): void {
   if (state.gameMode === 'extraction') {
@@ -57,54 +43,6 @@ export function updateHUD(state: GameState): void {
     armorContainer().classList.add('hidden');
   }
 
-  // Grenade counter: show backpack count in extraction mode
-  if (state.gameMode === 'extraction') {
-    const grenadeCount = countItemInBackpack(state.player.inventory, 'frag_grenade');
-    grenadeCounterEl().textContent = `Grenades: ${grenadeCount}`;
-  } else {
-    grenadeCounterEl().textContent = `Grenades: ${state.grenadeAmmo}`;
-  }
-
-  // Ammo counter text (works on both desktop and mobile)
-  const counter = ammoCounterEl();
-  if (_weaponConfig) {
-    if (state.player.weaponSwapTimer > 0) {
-      counter.textContent = 'SWAPPING';
-      counter.classList.add('reloading');
-      counter.classList.remove('bonus-active', 'bonus-perfect');
-    } else if (state.player.reloadTimer > 0) {
-      counter.textContent = 'RELOADING';
-      counter.classList.add('reloading');
-      counter.classList.remove('bonus-active', 'bonus-perfect');
-    } else {
-      if (state.gameMode === 'extraction') {
-        // Show currentAmmo / magSize | ammoType: reserve
-        const weaponSlot = state.player.activeWeaponSlot === 1 ? 'weapon1' : 'weapon2';
-        const weaponInst = state.player.inventory.equipment[weaponSlot];
-        if (weaponInst) {
-          const ammoType = WEAPON_AMMO_MAP[weaponInst.defId as keyof typeof WEAPON_AMMO_MAP];
-          const reserve = ammoType ? countItemInBackpack(state.player.inventory, ammoType) : 0;
-          const ammoLabel = ammoType ?? '';
-          counter.textContent = `${state.player.ammo} / ${_weaponConfig.magazineSize} | ${ammoLabel}: ${reserve}`;
-        } else {
-          counter.textContent = `${state.player.ammo} / ${_weaponConfig.magazineSize}`;
-        }
-      } else {
-        counter.textContent = `${state.player.ammo} / ${_weaponConfig.magazineSize}`;
-      }
-      counter.classList.remove('reloading');
-      if (state.player.damageBonusMultiplier > 1.2) {
-        counter.classList.add('bonus-perfect');
-        counter.classList.remove('bonus-active');
-      } else if (state.player.damageBonusMultiplier > 1.0) {
-        counter.classList.add('bonus-active');
-        counter.classList.remove('bonus-perfect');
-      } else {
-        counter.classList.remove('bonus-active', 'bonus-perfect');
-      }
-    }
-  }
-
   // Cash counter (extraction mode only — shows backpack cash)
   const cashEl = cashCounterEl();
   if (state.gameMode === 'extraction') {
@@ -113,29 +51,6 @@ export function updateHUD(state: GameState): void {
     cashEl.textContent = `$${cashCount}`;
   } else {
     cashEl.classList.add('hidden');
-  }
-
-  // Bandage counter (extraction mode only — now shows backpack counts)
-  const bandageEl = bandageCounterEl();
-  if (state.gameMode === 'extraction') {
-    const small = countItemInBackpack(state.player.inventory, 'bandage_small');
-    const large = countItemInBackpack(state.player.inventory, 'bandage_large');
-    if (small > 0 || large > 0) {
-      bandageEl.classList.remove('hidden');
-      const parts: string[] = [];
-      if (small > 0) parts.push(`Sm:${small}`);
-      if (large > 0) parts.push(`Lg:${large}`);
-      bandageEl.textContent = parts.join(' ');
-
-      // Show HEALING state
-      if (state.player.healTimer > 0) {
-        bandageEl.textContent += ' HEALING';
-      }
-    } else {
-      bandageEl.classList.add('hidden');
-    }
-  } else {
-    bandageEl.classList.add('hidden');
   }
 
   // Change HP bar color based on health
@@ -216,12 +131,73 @@ export function initHudHotbar(): void {
   document.getElementById('game-container')!.appendChild(bar);
 }
 
-export function updateHudHotbar(inventory: PlayerInventory): void {
+export function updateHudHotbar(
+  inventory: PlayerInventory,
+  activeSlot: 1 | 2,
+  ammo: number,
+  magSize: number,
+  reloading: boolean,
+  swapping: boolean,
+): void {
   const bar = document.getElementById('hud-hotbar');
   if (!bar) return;
 
   bar.innerHTML = '';
 
+  // Weapon slots 1-2
+  for (let i = 1; i <= 2; i++) {
+    const slotKey = i === 1 ? 'weapon1' : 'weapon2' as const;
+    const weaponInst = inventory.equipment[slotKey];
+    const isActive = activeSlot === i;
+
+    const slot = document.createElement('div');
+    slot.className = 'hud-hotbar-slot hud-hotbar-weapon';
+    if (isActive) slot.classList.add('hud-hotbar-active');
+    if (!weaponInst) slot.classList.add('empty');
+
+    const key = document.createElement('div');
+    key.className = 'hud-hotbar-key';
+    key.textContent = String(i);
+    slot.appendChild(key);
+
+    if (weaponInst) {
+      const def = ITEM_DEFS[weaponInst.defId];
+      if (def) {
+        const icon = document.createElement('div');
+        icon.className = 'hud-hotbar-icon';
+        icon.style.background = HOTBAR_CATEGORY_COLORS[def.category] ?? '#888';
+        icon.textContent = def.name.substring(0, 2).toUpperCase();
+        slot.appendChild(icon);
+      }
+    }
+
+    // Ammo info above active weapon
+    if (isActive && weaponInst) {
+      const ammoLabel = document.createElement('div');
+      ammoLabel.className = 'hud-hotbar-ammo';
+      if (swapping) {
+        ammoLabel.textContent = 'SWAPPING';
+        ammoLabel.classList.add('hud-hotbar-ammo-status');
+      } else if (reloading) {
+        ammoLabel.textContent = 'RELOADING';
+        ammoLabel.classList.add('hud-hotbar-ammo-status');
+      } else {
+        const ammoType = WEAPON_AMMO_MAP[weaponInst.defId as keyof typeof WEAPON_AMMO_MAP];
+        const reserve = ammoType ? countItemInBackpack(inventory, ammoType) : 0;
+        ammoLabel.textContent = `${ammo}/${magSize} | ${reserve}`;
+      }
+      slot.appendChild(ammoLabel);
+    }
+
+    bar.appendChild(slot);
+  }
+
+  // Separator
+  const sep = document.createElement('div');
+  sep.className = 'hud-hotbar-separator';
+  bar.appendChild(sep);
+
+  // Item slots 3-7 (hotbar indices 0-4)
   for (let i = 0; i < inventory.hotbar.length; i++) {
     const defId = inventory.hotbar[i];
     const slot = document.createElement('div');
